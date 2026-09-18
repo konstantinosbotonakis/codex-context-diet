@@ -24,6 +24,23 @@ There are exactly three, and nothing else is ever written to stdout:
 | `{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":...}}` | the result was kept and the injection guard flagged it; no `decision` field means the result is untouched |
 | no output | keep, every error, and every exempt case |
 
+## Measured
+
+One real session, `codex-cli 0.154.0`, three tool results of 40,106 characters each, produced by a model-written script that handed a 5,000-line command to `exec_command`:
+
+| result | decision | what the model received |
+|---|---|---|
+| first | `keep` - the first result of a session is exempt | 41,444 characters |
+| second | `drop_result` | **567 characters**: the head plus the note |
+| third | `drop_result` | **567 characters** |
+
+Input tokens on the request that followed a new bulky result: **+17,309 with the hook untrusted, +553 with it firing.** One run each, same prompt, not a controlled experiment - but the marginal cost of a 40k-character result went from five figures to three.
+
+Two things worth knowing before installing:
+
+- The manifest is the legacy-compatible shape: top-level `interface`, hooks discovered at `hooks/hooks.json`. With the portable `$schema` / `extensions.com.openai` manifest, the skill still loaded but the hooks did not, on `codex-cli 0.154.0`.
+- The replacement returns `decision: "block"`. In code mode that rejects the nested `exec_command` promise with the note, which is the point: a model-written script then cannot read the full output and print it back into the transcript. `continue: false` was measured and does not achieve this - the promise still resolves with the full text, and the script re-exposed all 41k characters.
+
 ## Install
 
 The plugin needs Node 18 or newer on `PATH`, because the hooks are Node processes.
@@ -125,4 +142,3 @@ npm test && npm run typecheck && npm run build
 ## Attribution
 
 Derived from `tamaratran/fast-jev-compaction` (MIT) at commit `e3f262a7f4d42bd8dd32ced30d26176f7cb545b0`. The upstream copyright notice is retained in `LICENSE`.
-
