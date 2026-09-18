@@ -63,10 +63,15 @@ export async function runDiet(deps) {
     const outcomeOf = (decision, note, warning) => {
         let stdout = null;
         if (emit && decision.action === 'drop_result' && note !== null) {
-            // continue:false replaces the model-visible tool result. decision:"block"
-            // would do the same but also rejects the promise of a nested code-mode
-            // tool call, which would break the caller's script.
-            stdout = { continue: false, stopReason: note };
+            // decision:"block" replaces the model-visible result AND rejects the
+            // promise of a nested code-mode call, so a script cannot forward the
+            // bytes onward. continue:false would keep the promise resolving with the
+            // full text, which leaves the saving to the caller's discipline.
+            stdout = {
+                decision: 'block',
+                reason: note,
+                hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: note },
+            };
         }
         else if (emit && warning !== null) {
             stdout = { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: warning } };

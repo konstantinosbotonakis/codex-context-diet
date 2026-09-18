@@ -65,10 +65,12 @@ describe('PostToolUse adapter', () => {
     const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"keep_result":0.05,"keep_call":0.9,"injection":0.02}' };
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     const parsed = JSON.parse(await dietMain(payload(), env)) as Record<string, unknown>;
-    expect(Object.keys(parsed).sort()).toEqual(['continue', 'stopReason']);
-    expect(parsed.continue).toBe(false);
-    expect(String(parsed.stopReason).startsWith(bigText().slice(0, 50))).toBe(true);
-    expect(String(parsed.stopReason)).toContain('Re-run the tool if you need the full output.');
+    expect(Object.keys(parsed).sort()).toEqual(['decision', 'hookSpecificOutput', 'reason']);
+    expect(parsed.decision).toBe('block');
+    expect(String(parsed.reason).startsWith(bigText().slice(0, 50))).toBe(true);
+    expect(String(parsed.reason)).toContain('Re-run the tool if you need the full output.');
+    const hook = parsed.hookSpecificOutput as Record<string, unknown>;
+    expect(hook.hookEventName).toBe('PostToolUse');
     expect(readCache(env, 's1')).toHaveLength(2);
   });
 
