@@ -1,0 +1,24 @@
+{
+  "name": "codex-context-diet",
+  "version": "0.1.0",
+  "description": "Codex plugin that asks TypeSafe's Jev which bulky tool results the session still needs, and replaces the rest with a bounded head plus a note.",
+  "type": "module",
+  "private": true,
+  "license": "MIT",
+  "engines": { "node": ">=18" },
+  "bin": { "context-diet": "./dist/cli.js" },
+  "files": ["dist", "hooks", "plugin.json", "mcp.json", "skills", "README.md", "LICENSE"],
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "verify": "node dist/cli.js verify",
+    "demo:live": "node examples/live-demo.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
