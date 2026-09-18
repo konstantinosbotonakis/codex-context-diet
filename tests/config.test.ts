@@ -16,7 +16,7 @@ describe('config', () => {
     expect(DEFAULT_CONFIG).toMatchObject({
       enabled: true, mode: 'diet', dryRun: false, stateSource: 'cache',
       minTokens: 2000, keepThreshold: 0.5, dropThreshold: 0.25, truncateHeadChars: 300,
-      maxStateTokens: 25000, stateResultCapChars: 4000, requestTimeoutMs: 2500,
+      maxStateTokens: 25000, stateResultCapChars: 4000, requestTimeoutMs: 5000,
       injectionGuard: true, model: 'jev-latest', neverDietTools: [],
       cacheMaxEntries: 40, cacheMaxBytes: 262144, debug: false,
     });

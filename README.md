@@ -50,7 +50,24 @@ A wrong drop is the only unrecoverable failure this plugin can cause, so every u
 
 That split was not theoretical. An eval against the live model gave `node -e "console.log(crypto.randomUUID())"` a `replaceable` score of 0.89 under an earlier wording that said "produced again by re-running the same call" - Jev read it literally, and a one-off value was one step from being dropped. Stating the exact condition and listing the boundary cases in the criteria moved it to 0.03 and the decision to keep.
 
-## Measured
+## Gains
+
+Across seven real sessions on the author's machine:
+
+| | |
+|---|---|
+| tool results judged | 65 |
+| characters of tool output seen | 1,534,517 |
+| results replaced | 20 |
+| characters dropped | 505,114 |
+
+A replaced result would have been re-sent on every later request in that session, so one decision pays for itself repeatedly while the bytes would otherwise have been paid for every time.
+
+### The cost side
+
+One decision is one Jev call: 625-700 input tokens in these runs, at $0.042 per million input tokens with output free. That is roughly **$0.00003 per decision**. A 40k-character result is about 10,000 input tokens, so the call costs under 10% of what it saves on the first later request, and nothing after that.
+
+### The controlled run
 
 One real session, `codex-cli 0.154.0`, three tool results of 40,106 characters each, produced by a model-written script that handed a 5,000-line command to `exec_command`:
 
@@ -65,6 +82,10 @@ Input tokens on the request that followed a new bulky result: **+17,309 with the
 Both runs got the same prompt, and that prompt's backticks were expanded by the shell before
 `codex exec` ever saw them, so what actually ran was a 5,000-line argument list rather than
 `seq`. The comparison holds; the example is less tidy than it looks.
+
+### A failure mode worth knowing
+
+Seven of the first eleven logged decisions ended as `keep` with the reason `This operation was aborted`: the internal 2.5 s deadline, hit when several hook processes ran at once. An abort fails open, so nothing was lost except the opportunity. The deadline is now 5 s, with the hook itself allowing 10 s. Latency was otherwise 267-1296 ms, and a ~28,000-token state still answered in about 600 ms.
 
 Two things worth knowing before installing:
 
@@ -108,7 +129,7 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "truncateHeadChars": 300,
   "maxStateTokens": 25000,
   "stateResultCapChars": 4000,
-  "requestTimeoutMs": 2500,
+  "requestTimeoutMs": 5000,
   "injectionGuard": true,
   "model": "jev-latest",
   "neverDietTools": [],
