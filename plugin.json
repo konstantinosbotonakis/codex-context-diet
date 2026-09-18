@@ -1,6 +1,6 @@
 {
   "name": "codex-context-diet",
-  "version": "0.5.1",
+  "version": "0.5.0",
   "description": "Asks TypeSafe's Jev which bulky tool results the session still needs, and replaces the rest with a bounded head plus a note.",
   "license": "MIT",
   "keywords": [
