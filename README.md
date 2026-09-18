@@ -92,12 +92,16 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `enabled` | master switch; `false` exits before anything else |
 | `mode` | `diet` or `observe`; observe records decisions and replaces nothing |
 | `dryRun` | forces observe behaviour regardless of `mode` |
-| `stateSource` | `cache` (default), `transcript`, or `off` |
+| `stateSource` | `cache` (default) keeps a rolling per-session digest; `off` is single-turn and writes nothing to disk |
 | `minTokens` | estimated-token floor; below it there is no key lookup and no network call |
 | `keepThreshold` | Jev score at or above which something is kept |
 | `truncateHeadChars` | characters of the result retained in the note |
 | `neverDietTools` | exact tool names to exempt |
 | `debug` | append one line per decision to `$PLUGIN_DATA/log/events.jsonl` |
+
+Reading Codex's own transcript is deliberately not implemented. The format is documented as
+not a stable interface for hooks, so the plugin keeps its own state instead. A transcript
+reader is on the roadmap as an opt-in enrichment.
 
 ### The API key
 

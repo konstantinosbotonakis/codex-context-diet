@@ -33,6 +33,8 @@ export interface DietDeps {
     cache: CacheEntry[];
     asker: JevAsker | null;
     goal: string;
+    /** True only for the first result of a session that keeps a cache to reason against. */
+    firstResult: boolean;
 }
 /**
  * The injection verdict forces keep: flagging content and then discarding the

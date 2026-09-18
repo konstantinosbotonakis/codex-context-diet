@@ -2,7 +2,8 @@ export interface DietConfig {
     enabled: boolean;
     mode: 'diet' | 'observe';
     dryRun: boolean;
-    stateSource: 'cache' | 'transcript' | 'off';
+    /** 'cache' keeps a rolling per-session digest; 'off' is single-turn and writes nothing. */
+    stateSource: 'cache' | 'off';
     minTokens: number;
     keepThreshold: number;
     truncateHeadChars: number;

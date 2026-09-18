@@ -42,6 +42,8 @@ export interface DietDeps {
   cache: CacheEntry[];
   asker: JevAsker | null;
   goal: string;
+  /** True only for the first result of a session that keeps a cache to reason against. */
+  firstResult: boolean;
 }
 
 function keptResult(reason: string): DietDecision {
@@ -108,7 +110,7 @@ export function cacheEntryOf(input: DietInput, decision: DietDecision, at: strin
 }
 
 export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
-  const { input, config, cache, asker, goal } = deps;
+  const { input, config, cache, asker, goal, firstResult } = deps;
   const emit = config.enabled && config.mode === 'diet' && !config.dryRun;
 
   const outcomeOf = (decision: DietDecision, note: string | null, warning: string | null): DietOutcome => {
@@ -136,7 +138,7 @@ export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
     };
   };
 
-  if (cache.length === 0) return outcomeOf(keptResult('first result in this session'), null, null);
+  if (firstResult) return outcomeOf(keptResult('first result in this session'), null, null);
   if (asker === null) return outcomeOf(keptResult('no API key'), null, null);
 
   let state;

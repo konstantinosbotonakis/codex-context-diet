@@ -58,7 +58,7 @@ export function cacheEntryOf(input, decision, at) {
     };
 }
 export async function runDiet(deps) {
-    const { input, config, cache, asker, goal } = deps;
+    const { input, config, cache, asker, goal, firstResult } = deps;
     const emit = config.enabled && config.mode === 'diet' && !config.dryRun;
     const outcomeOf = (decision, note, warning) => {
         let stdout = null;
@@ -85,7 +85,7 @@ export async function runDiet(deps) {
             entry: cacheEntryOf(input, decision, new Date().toISOString()),
         };
     };
-    if (cache.length === 0)
+    if (firstResult)
         return outcomeOf(keptResult('first result in this session'), null, null);
     if (asker === null)
         return outcomeOf(keptResult('no API key'), null, null);

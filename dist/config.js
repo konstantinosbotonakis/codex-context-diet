@@ -30,7 +30,7 @@ export function resolveConfig(raw) {
         enabled: bool(o.enabled, DEFAULT_CONFIG.enabled),
         mode: o.mode === 'observe' ? 'observe' : 'diet',
         dryRun: bool(o.dryRun, DEFAULT_CONFIG.dryRun),
-        stateSource: o.stateSource === 'off' ? 'off' : o.stateSource === 'transcript' ? 'transcript' : 'cache',
+        stateSource: o.stateSource === 'off' ? 'off' : 'cache',
         minTokens: num(o.minTokens, DEFAULT_CONFIG.minTokens),
         keepThreshold: num(o.keepThreshold, DEFAULT_CONFIG.keepThreshold),
         truncateHeadChars: Math.floor(num(o.truncateHeadChars, DEFAULT_CONFIG.truncateHeadChars)),

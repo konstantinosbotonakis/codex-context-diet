@@ -39,6 +39,12 @@ describe('config', () => {
     expect(config.neverDietTools).toEqual(['Bash']);
   });
 
+  it('accepts only the two implemented state sources', () => {
+    expect(resolveConfig({ stateSource: 'off' }).stateSource).toBe('off');
+    expect(resolveConfig({ stateSource: 'transcript' }).stateSource).toBe('cache');
+    expect(resolveConfig({ stateSource: 7 }).stateSource).toBe('cache');
+  });
+
   it('loads a valid file and survives a missing or invalid one', () => {
     const env = tempEnv();
     expect(loadConfig(env)).toEqual(DEFAULT_CONFIG);

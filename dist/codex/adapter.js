@@ -68,7 +68,9 @@ export async function main(stdin, env) {
         if (estimateTokens(resultText) < config.minTokens)
             return '';
         const sessionId = text(payload.session_id);
-        const cache = readCache(env, sessionId, config);
+        // stateSource 'off' is single-turn: no history is read and nothing is written.
+        const singleTurn = config.stateSource === 'off';
+        const cache = singleTurn ? [] : readCache(env, sessionId, config);
         const { goal, goalIndex } = readGoal(env, sessionId);
         const { key } = resolveApiKey(config, env);
         // CONTEXT_DIET_TEST_ANSWERS is a tests-only transport: it never reaches the
@@ -89,8 +91,10 @@ export async function main(stdin, env) {
             cache,
             asker,
             goal,
+            firstResult: !singleTurn && cache.length === 0,
         });
-        appendCache(env, sessionId, outcome.entry, config);
+        if (!singleTurn)
+            appendCache(env, sessionId, outcome.entry, config);
         logEvent(env, config, outcome);
         return outcome.stdout === null ? '' : JSON.stringify(outcome.stdout);
     }

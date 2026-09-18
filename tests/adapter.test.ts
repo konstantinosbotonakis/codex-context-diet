@@ -100,6 +100,15 @@ describe('PostToolUse adapter', () => {
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     expect(await dietMain(payload(), env)).toBe('');
   });
+
+  it('keeps single-turn state and writes nothing when stateSource is off', async () => {
+    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"keep_result":0.05,"keep_call":0.9,"injection":0.02}' };
+    writeFileSync(configPath(env), JSON.stringify({ stateSource: 'off' }));
+    appendCache(env, 's1', seed, DEFAULT_CONFIG);
+    const parsed = JSON.parse(await dietMain(payload(), env)) as Record<string, unknown>;
+    expect(parsed.decision).toBe('block');
+    expect(readCache(env, 's1')).toHaveLength(1);
+  });
 });
 
 describe('session hook', () => {

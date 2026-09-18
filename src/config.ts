@@ -3,7 +3,8 @@ import { join } from 'node:path';
 
 export interface DietConfig {
   enabled: boolean; mode: 'diet' | 'observe'; dryRun: boolean;
-  stateSource: 'cache' | 'transcript' | 'off';
+  /** 'cache' keeps a rolling per-session digest; 'off' is single-turn and writes nothing. */
+  stateSource: 'cache' | 'off';
   minTokens: number; keepThreshold: number; truncateHeadChars: number;
   maxStateTokens: number; stateResultCapChars: number; requestTimeoutMs: number;
   injectionGuard: boolean; model: string; neverDietTools: string[];
@@ -46,8 +47,7 @@ export function resolveConfig(raw: unknown): DietConfig {
     enabled: bool(o.enabled, DEFAULT_CONFIG.enabled),
     mode: o.mode === 'observe' ? 'observe' : 'diet',
     dryRun: bool(o.dryRun, DEFAULT_CONFIG.dryRun),
-    stateSource:
-      o.stateSource === 'off' ? 'off' : o.stateSource === 'transcript' ? 'transcript' : 'cache',
+    stateSource: o.stateSource === 'off' ? 'off' : 'cache',
     minTokens: num(o.minTokens, DEFAULT_CONFIG.minTokens),
     keepThreshold: num(o.keepThreshold, DEFAULT_CONFIG.keepThreshold),
     truncateHeadChars: Math.floor(num(o.truncateHeadChars, DEFAULT_CONFIG.truncateHeadChars)),

@@ -20,6 +20,7 @@ const deps = (over: Record<string, unknown> = {}) => ({
   cache: [seed],
   asker: fakeAsker({ keep_result: 0.05, keep_call: 0.9, injection: 0.02 }),
   goal: 'fix the test',
+  firstResult: false,
   ...over,
 });
 
@@ -70,7 +71,7 @@ describe('buildNote', () => {
 
 describe('runDiet', () => {
   it('never diets the first result in a session, but still records it', async () => {
-    const outcome = await runDiet(deps({ cache: [] }) as never);
+    const outcome = await runDiet(deps({ cache: [], firstResult: true }) as never);
     expect(outcome.decision.action).toBe('keep');
     expect(outcome.decision.reason).toBe('first result in this session');
     expect(outcome.stdout).toBeNull();
