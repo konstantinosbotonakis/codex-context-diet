@@ -31,13 +31,17 @@ If they match, say so and stop. Do not reinstall for no reason.
 
 ```bash
 codex plugin marketplace upgrade context-diet
+```
+
+That one command refreshes both the marketplace clone and the installed copy. Confirm it
+worked with the version check from step 1 before going further.
+
+If the version does not move, force a reinstall:
+
+```bash
 codex plugin remove codex-context-diet@context-diet
 codex plugin add codex-context-diet@context-diet
 ```
-
-The remove and add are both required. Upgrading the marketplace refreshes the clone it
-points at, and the installed copy is taken from that clone only when the plugin is added
-again.
 
 ## 3. Confirm
 
@@ -57,7 +61,7 @@ Re-run the version check from step 1 and report the before and after. Then menti
   from a marketplace that no longer exists, means an older install is still enabled and its
   hooks are running alongside the new one. Remove the stale one with
   `codex plugin remove codex-context-diet@<that-marketplace>`.
-- A version that will not move usually means the marketplace clone is stale. Remove the
-  marketplace and add it again: `codex plugin marketplace remove context-diet` then
+- A version that will not move even after a forced reinstall usually means the marketplace
+  clone is stale. Remove the marketplace and add it again:
+  `codex plugin marketplace remove context-diet` then
   `codex plugin marketplace add konstantinosbotonakis/codex-context-diet`.
-

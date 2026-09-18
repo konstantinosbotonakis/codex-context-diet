@@ -119,14 +119,13 @@ Then review and trust the hooks in `/hooks`. Codex skips plugin hooks until you 
 
 ### Updating
 
-Ask Codex for `$codex-context-diet:update`, or run the two commands yourself:
+Ask Codex for `$codex-context-diet:update`, or run it yourself:
 
 ```bash
 codex plugin marketplace upgrade context-diet
-codex plugin remove codex-context-diet@context-diet && codex plugin add codex-context-diet@context-diet
 ```
 
-The remove and add are both needed. Upgrading the marketplace refreshes the clone, and the installed copy is only taken from it when the plugin is added again. Your config, decision log and session caches live in `$PLUGIN_DATA` and survive. If a release changed `hooks/hooks.json`, trust the hooks again in `/hooks`.
+That refreshes both the marketplace clone and the installed copy. Your config, decision log and session caches live in `$PLUGIN_DATA` and survive. If a release changed `hooks/hooks.json`, trust the hooks again in `/hooks`.
 
 There is no build step at install time. `dist/` is committed, because a plugin installed from git cannot run `npm run build`.
 
