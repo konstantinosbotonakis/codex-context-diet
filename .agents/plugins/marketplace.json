@@ -1,7 +1,7 @@
 {
-  "name": "context-diet-dev",
+  "name": "context-diet",
   "interface": {
-    "displayName": "Context Diet (local development)"
+    "displayName": "Context Diet"
   },
   "plugins": [
     {

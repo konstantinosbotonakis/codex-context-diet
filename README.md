@@ -47,7 +47,15 @@ The plugin needs Node 18 or newer on `PATH`, because the hooks are Node processe
 
 ```bash
 codex plugin marketplace add konstantinosbotonakis/codex-context-diet
-codex plugin add codex-context-diet
+codex plugin add codex-context-diet@context-diet
+```
+
+The marketplace is named `context-diet` inside this repository, which is why the second
+command carries a qualifier. Installing from a checkout works the same way:
+
+```bash
+codex plugin marketplace add /path/to/codex-context-diet
+codex plugin add codex-context-diet@context-diet
 ```
 
 Then review and trust the hooks in `/hooks`. Codex skips plugin hooks until you do, and that is the correct behaviour: a hook can replace what the model sees. Untrusting it again is the rollback.
