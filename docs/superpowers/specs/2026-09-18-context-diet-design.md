@@ -332,7 +332,7 @@ plugin reinstalls and is never committed.
   "injectionGuard": true,
   "promptGuard": false,
   "promptGuardThreshold": 0.7,
-  "promptGuardTimeoutMs": 2000,
+  "promptGuardTimeoutMs": 3500,
   "model": "jev-latest",
   "neverDietTools": [],
   "cacheMaxEntries": 40,

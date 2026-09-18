@@ -85,7 +85,7 @@ Either one at or above `promptGuardThreshold` (0.7) adds a line like this:
 
 > [codex-context-diet] This request may affect a live system (touches_production 0.94). Start read-only, and confirm before changing anything live.
 
-It runs on the critical path, so it gets its own deadline (`promptGuardTimeoutMs`, 2 s) rather
+It runs on the critical path, so it gets its own deadline (`promptGuardTimeoutMs`, 3.5 s) rather
 than the diet hook's 5 s. A missing key, a timeout or a malformed answer means the prompt goes
 through untouched.
 
@@ -106,6 +106,11 @@ Ten prompts through the live model, five that should flag and five that should n
 
 Every safe prompt scored 0.17 or below and every risky one scored 0.66 or above, so 0.7 sits in
 the gap with room on both sides. Lower it to 0.5 to catch more, at the cost of more noise.
+
+The deadline is 3.5 s because every hook invocation is a new process that pays for a new
+connection. Over six cold invocations the whole process took 1.07 to 1.94 s and the guard itself
+1.0 to 1.9 s. An earlier 2 s deadline silently timed out on two of eight real invocations, and a
+timeout is invisible: the prompt simply goes through unguarded.
 
 ## Gains
 
@@ -188,7 +193,7 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "injectionGuard": true,
   "promptGuard": false,
   "promptGuardThreshold": 0.7,
-  "promptGuardTimeoutMs": 2000,
+  "promptGuardTimeoutMs": 3500,
   "model": "jev-latest",
   "neverDietTools": [],
   "cacheMaxEntries": 40,

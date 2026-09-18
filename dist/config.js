@@ -5,7 +5,7 @@ export const DEFAULT_CONFIG = {
     minTokens: 2000, keepThreshold: 0.5, dropThreshold: 0.25, truncateHeadChars: 300,
     maxStateTokens: 25000, stateResultCapChars: 4000, requestTimeoutMs: 5000,
     injectionGuard: true, model: 'jev-latest', neverDietTools: [],
-    promptGuard: false, promptGuardThreshold: 0.7, promptGuardTimeoutMs: 2000,
+    promptGuard: false, promptGuardThreshold: 0.7, promptGuardTimeoutMs: 3500,
     cacheMaxEntries: 40, cacheMaxBytes: 262144, debug: false,
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
