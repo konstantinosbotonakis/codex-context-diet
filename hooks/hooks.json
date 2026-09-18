@@ -1,8 +1,8 @@
 {
-  "description": "Jev-guided context diet: replace bulky tool results with a bounded head and a note.",
   "hooks": {
     "PostToolUse": [
       {
+        "matcher": ".*",
         "hooks": [
           {
             "type": "command",
@@ -14,6 +14,7 @@
     ],
     "SessionStart": [
       {
+        "matcher": ".*",
         "hooks": [
           {
             "type": "command",
