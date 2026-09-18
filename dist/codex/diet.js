@@ -65,7 +65,7 @@ export async function runDiet(deps) {
         if (emit && decision.action === 'drop_result' && note !== null) {
             stdout = {
                 decision: 'block',
-                reason: 'Result dieted: ' + input.resultText.length + ' chars replaced with a ' +
+                reason: 'Result dieted: ' + input.resultText.length + '-char result replaced with a ' +
                     config.truncateHeadChars + '-char head.',
                 hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: note },
             };

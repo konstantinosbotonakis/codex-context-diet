@@ -67,7 +67,7 @@ describe('PostToolUse adapter', () => {
     const parsed = JSON.parse(await dietMain(payload(), env)) as Record<string, unknown>;
     expect(Object.keys(parsed).sort()).toEqual(['decision', 'hookSpecificOutput', 'reason']);
     expect(parsed.decision).toBe('block');
-    expect(String(parsed.reason)).toContain('chars replaced with a 300-char head');
+    expect(String(parsed.reason)).toContain('-char result replaced with a 300-char head');
     const hook = parsed.hookSpecificOutput as Record<string, unknown>;
     expect(hook.hookEventName).toBe('PostToolUse');
     expect(String(hook.additionalContext).startsWith(bigText().slice(0, 50))).toBe(true);

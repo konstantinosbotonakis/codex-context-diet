@@ -117,7 +117,7 @@ export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
       stdout = {
         decision: 'block',
         reason:
-          'Result dieted: ' + input.resultText.length + ' chars replaced with a ' +
+          'Result dieted: ' + input.resultText.length + '-char result replaced with a ' +
           config.truncateHeadChars + '-char head.',
         hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: note },
       };

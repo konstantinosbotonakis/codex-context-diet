@@ -100,7 +100,7 @@ describe('runDiet', () => {
     expect(dropped.blocked).toBe(true);
     const stdout = dropped.stdout as Record<string, unknown>;
     expect(stdout.decision).toBe('block');
-    expect(String(stdout.reason)).toContain('chars replaced with a 300-char head');
+    expect(String(stdout.reason)).toContain('-char result replaced with a 300-char head');
   });
 
   it('annotates but never edits when the injection guard fires', async () => {
