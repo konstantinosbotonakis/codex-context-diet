@@ -1,4 +1,5 @@
 import { mkdtempSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -43,6 +44,14 @@ describe('config', () => {
     expect(resolveConfig({ stateSource: 'off' }).stateSource).toBe('off');
     expect(resolveConfig({ stateSource: 'transcript' }).stateSource).toBe('cache');
     expect(resolveConfig({ stateSource: 7 }).stateSource).toBe('cache');
+  });
+
+  it('documents the real defaults in the README', () => {
+    const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+    const section = readme.split('## Configure')[1] ?? '';
+    const block = section.match(/```json\n([\s\S]*?)\n```/);
+    if (!block) throw new Error('no config block found under ## Configure');
+    expect(JSON.parse(block[1])).toEqual({ ...DEFAULT_CONFIG });
   });
 
   it('loads a valid file and survives a missing or invalid one', () => {
