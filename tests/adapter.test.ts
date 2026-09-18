@@ -54,7 +54,7 @@ describe('PostToolUse adapter', () => {
   });
 
   it('never diets the first result in a session, and records it', async () => {
-    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"keep_result":0.01,"keep_call":0.01}' };
+    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"needs_contents":0.01,"replaceable":0.5,"keep_call":0.01}' };
     expect(await dietMain(payload(), env)).toBe('');
     const cache = readCache(env, 's1');
     expect(cache).toHaveLength(1);
@@ -62,7 +62,7 @@ describe('PostToolUse adapter', () => {
   });
 
   it('replaces a bulky result once the session has history', async () => {
-    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"keep_result":0.05,"keep_call":0.9,"injection":0.02}' };
+    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"needs_contents":0.05,"replaceable":0.9,"keep_call":0.9,"agent_directed":0.02,"behaviour_change":0.02}' };
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     const parsed = JSON.parse(await dietMain(payload(), env)) as Record<string, unknown>;
     expect(Object.keys(parsed).sort()).toEqual(['decision', 'hookSpecificOutput', 'reason']);
@@ -75,7 +75,7 @@ describe('PostToolUse adapter', () => {
   });
 
   it('stays silent in dryRun while still recording the decision', async () => {
-    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"keep_result":0.05,"keep_call":0.05,"injection":0.02}' };
+    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"needs_contents":0.05,"replaceable":0.9,"keep_call":0.05,"agent_directed":0.02,"behaviour_change":0.02}' };
     writeFileSync(configPath(env), JSON.stringify({ dryRun: true }));
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     expect(await dietMain(payload(), env)).toBe('');
@@ -85,7 +85,7 @@ describe('PostToolUse adapter', () => {
   });
 
   it('annotates instead of replacing when the injection guard fires', async () => {
-    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"keep_result":0.05,"keep_call":0.05,"injection":0.95}' };
+    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"needs_contents":0.05,"replaceable":0.9,"keep_call":0.05,"agent_directed":0.95,"behaviour_change":0.1}' };
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     const parsed = JSON.parse(await dietMain(payload(), env)) as Record<string, unknown>;
     expect(parsed.decision).toBeUndefined();
@@ -95,14 +95,14 @@ describe('PostToolUse adapter', () => {
   });
 
   it('honours neverDietTools', async () => {
-    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"keep_result":0.01}' };
+    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"needs_contents":0.01}' };
     writeFileSync(configPath(env), JSON.stringify({ neverDietTools: ['Bash'] }));
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     expect(await dietMain(payload(), env)).toBe('');
   });
 
   it('keeps single-turn state and writes nothing when stateSource is off', async () => {
-    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"keep_result":0.05,"keep_call":0.9,"injection":0.02}' };
+    const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"needs_contents":0.05,"replaceable":0.9,"keep_call":0.9,"agent_directed":0.02,"behaviour_change":0.02}' };
     writeFileSync(configPath(env), JSON.stringify({ stateSource: 'off' }));
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     const parsed = JSON.parse(await dietMain(payload(), env)) as Record<string, unknown>;

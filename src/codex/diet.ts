@@ -1,15 +1,27 @@
 import type { CacheEntry } from '../cache.js';
 import type { DietConfig } from '../config.js';
 import { buildDietState } from '../dietState.js';
-import { dietQuestions, Q_INJECTION, Q_KEEP_CALL, Q_KEEP_RESULT } from '../questions.js';
+import {
+  dietQuestions,
+  Q_AGENT_DIRECTED,
+  Q_BEHAVIOUR_CHANGE,
+  Q_KEEP_CALL,
+  Q_NEEDS_CONTENTS,
+  Q_REPLACEABLE,
+} from '../questions.js';
 import { noulAnswer } from '../request.js';
 import type { JevAnswer, JevAsker } from '../types.js';
 
 export type DietAction = 'keep' | 'drop_result';
 
 export interface DietAnswers {
+  /** The call happened and its arguments still matter, even if the body does not. */
   keepCall: number;
-  keepResult: number;
+  /** The exact contents are still needed for the work ahead. */
+  needsContents: number;
+  /** The output can be produced again, or already exists elsewhere. */
+  replaceable: number;
+  /** Highest hazard probability, or null when the guard is off or unanswerable. */
   injection: number | null;
 }
 
@@ -47,7 +59,7 @@ export interface DietDeps {
 }
 
 function keptResult(reason: string): DietDecision {
-  return { keepCall: 1, keepResult: 1, injection: null, action: 'keep', reason };
+  return { keepCall: 1, needsContents: 1, replaceable: 0, injection: null, action: 'keep', reason };
 }
 
 function optionalNoul(answers: Record<string, JevAnswer>, name: string): number | null {
@@ -59,24 +71,26 @@ function optionalNoul(answers: Record<string, JevAnswer>, name: string): number 
 }
 
 /**
- * The injection verdict forces keep: flagging content and then discarding the
- * head would hide the evidence. Both other outcomes replace the result.
+ * Two thresholds, the TypeSafe guardrail shape: contents at or above
+ * keepThreshold are needed, at or below dropThreshold they are not, and the
+ * band between resolves to keep. A drop also requires the output to be
+ * reproducible, so an uncertain answer can only ever cost tokens, never
+ * information. A hazard verdict always keeps and annotates.
  */
 export function decideDiet(answers: DietAnswers, config: DietConfig): DietDecision {
   if (answers.injection !== null && answers.injection >= config.keepThreshold) {
-    return { ...answers, action: 'keep', reason: 'injection flagged; result kept and annotated' };
+    return { ...answers, action: 'keep', reason: 'hazard flagged; result kept and annotated' };
   }
-  if (answers.keepResult >= config.keepThreshold) {
-    return { ...answers, action: 'keep', reason: 'result still load-bearing' };
+  if (answers.needsContents >= config.keepThreshold) {
+    return { ...answers, action: 'keep', reason: 'contents still needed' };
   }
-  return {
-    ...answers,
-    action: 'drop_result',
-    reason:
-      answers.keepCall >= config.keepThreshold
-        ? 'call note kept, body omitted'
-        : 'call no longer relevant, body omitted',
-  };
+  if (answers.needsContents <= config.dropThreshold && answers.replaceable >= config.keepThreshold) {
+    return { ...answers, action: 'drop_result', reason: 'stale and reproducible, body omitted' };
+  }
+  if (answers.replaceable < config.keepThreshold) {
+    return { ...answers, action: 'keep', reason: 'not reproducible, kept' };
+  }
+  return { ...answers, action: 'keep', reason: 'uncertain, kept' };
 }
 
 export function buildNote(input: DietInput, decision: DietDecision, config: DietConfig): string | null {
@@ -160,10 +174,14 @@ export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
         config.injectionGuard,
       ),
     );
+    const agentDirected = config.injectionGuard ? optionalNoul(response.answers, Q_AGENT_DIRECTED) : null;
+    const behaviourChange = config.injectionGuard ? optionalNoul(response.answers, Q_BEHAVIOUR_CHANGE) : null;
+    const hazards = [agentDirected, behaviourChange].filter((value): value is number => value !== null);
     answers = {
       keepCall: noulAnswer(response.answers, Q_KEEP_CALL),
-      keepResult: noulAnswer(response.answers, Q_KEEP_RESULT),
-      injection: config.injectionGuard ? optionalNoul(response.answers, Q_INJECTION) : null,
+      needsContents: noulAnswer(response.answers, Q_NEEDS_CONTENTS),
+      replaceable: noulAnswer(response.answers, Q_REPLACEABLE),
+      injection: hazards.length > 0 ? Math.max(...hazards) : null,
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
@@ -184,3 +202,4 @@ export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
       : null;
   return outcomeOf(decision, note, warning);
 }
+

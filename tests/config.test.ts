@@ -15,7 +15,7 @@ describe('config', () => {
     expect(resolveConfig(undefined)).toEqual(DEFAULT_CONFIG);
     expect(DEFAULT_CONFIG).toMatchObject({
       enabled: true, mode: 'diet', dryRun: false, stateSource: 'cache',
-      minTokens: 2000, keepThreshold: 0.5, truncateHeadChars: 300,
+      minTokens: 2000, keepThreshold: 0.5, dropThreshold: 0.25, truncateHeadChars: 300,
       maxStateTokens: 25000, stateResultCapChars: 4000, requestTimeoutMs: 2500,
       injectionGuard: true, model: 'jev-latest', neverDietTools: [],
       cacheMaxEntries: 40, cacheMaxBytes: 262144, debug: false,
@@ -28,7 +28,7 @@ describe('config', () => {
       neverDietTools: 'Bash', cacheMaxEntries: -3, enabled: 'yes',
     });
     expect(config).toMatchObject({
-      minTokens: 2000, keepThreshold: 0.5, mode: 'diet', stateSource: 'cache',
+      minTokens: 2000, keepThreshold: 0.5, dropThreshold: 0.25, mode: 'diet', stateSource: 'cache',
       neverDietTools: [], cacheMaxEntries: 40, enabled: true, truncateHeadChars: 300,
     });
   });

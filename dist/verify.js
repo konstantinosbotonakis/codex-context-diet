@@ -1,7 +1,7 @@
 import { applyDecisions, batchCalls, decideCall, messageChars, reductionRatio } from './decide.js';
 import { buildNote, decideDiet } from './codex/diet.js';
 import { DEFAULT_CONFIG } from './config.js';
-import { dietQuestions, Q_INJECTION, Q_KEEP_CALL, Q_KEEP_RESULT } from './questions.js';
+import { dietQuestions, Q_AGENT_DIRECTED, Q_BEHAVIOUR_CHANGE, Q_KEEP_CALL, Q_NEEDS_CONTENTS, Q_REPLACEABLE, } from './questions.js';
 import { noulAnswer } from './request.js';
 import { collectToolCalls, estimateTokens, fitState } from './state.js';
 const PRESERVE = 0;
@@ -115,10 +115,11 @@ export async function verifyCompaction(deps) {
         const response = await deps.asker.ask(state, dietQuestions({ tool: 'Bash', inputLine: 'npm test', resultChars: sampleLog().length }, true));
         answers = {
             keepCall: noulAnswer(response.answers, Q_KEEP_CALL),
-            keepResult: noulAnswer(response.answers, Q_KEEP_RESULT),
-            injection: noulAnswer(response.answers, Q_INJECTION),
+            needsContents: noulAnswer(response.answers, Q_NEEDS_CONTENTS),
+            replaceable: noulAnswer(response.answers, Q_REPLACEABLE),
+            injection: Math.max(noulAnswer(response.answers, Q_AGENT_DIRECTED), noulAnswer(response.answers, Q_BEHAVIOUR_CHANGE)),
         };
-        record('asker-contract', true, 'three noul answers parsed: ' + JSON.stringify(answers));
+        record('asker-contract', true, 'five noul answers parsed: ' + JSON.stringify(answers));
     }
     catch (error) {
         record('asker-contract', false, error instanceof Error ? error.message : String(error));
@@ -132,12 +133,15 @@ export async function verifyCompaction(deps) {
             throw new Error('two high scores did not keep');
         if (low.action !== 'drop_call')
             throw new Error('two low scores did not drop the call');
-        const flagged = decideDiet({ keepCall: 0.9, keepResult: 0.1, injection: 0.9 }, DEFAULT_CONFIG);
+        const flagged = decideDiet({ keepCall: 0.9, needsContents: 0.1, replaceable: 0.9, injection: 0.9 }, DEFAULT_CONFIG);
         if (flagged.action !== 'keep')
             throw new Error('an injection flag did not force keep');
-        const dietLow = decideDiet({ keepCall: 0.1, keepResult: 0.1, injection: 0 }, DEFAULT_CONFIG);
+        const dietLow = decideDiet({ keepCall: 0.1, needsContents: 0.1, replaceable: 0.9, injection: 0 }, DEFAULT_CONFIG);
         if (dietLow.action !== 'drop_result')
             throw new Error('the hook treated two low scores as a keep');
+        const band = decideDiet({ keepCall: 0.9, needsContents: 0.4, replaceable: 0.9, injection: 0 }, DEFAULT_CONFIG);
+        if (band.action !== 'keep')
+            throw new Error('the uncertain band did not resolve to keep');
         const input = {
             toolName: 'Bash',
             toolUseId: 'b',
@@ -146,7 +150,7 @@ export async function verifyCompaction(deps) {
             isError: true,
             goalIndex: 0,
         };
-        const noted = buildNote(input, decideDiet({ keepCall: 0.9, keepResult: 0.1, injection: 0 }, DEFAULT_CONFIG), DEFAULT_CONFIG);
+        const noted = buildNote(input, decideDiet({ keepCall: 0.9, needsContents: 0.1, replaceable: 0.9, injection: 0 }, DEFAULT_CONFIG), DEFAULT_CONFIG);
         const bare = buildNote(input, dietLow, DEFAULT_CONFIG);
         if (!noted || !noted.includes('Ran:'))
             throw new Error('a kept call lost its one-line note');

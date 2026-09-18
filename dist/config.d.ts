@@ -6,6 +6,7 @@ export interface DietConfig {
     stateSource: 'cache' | 'off';
     minTokens: number;
     keepThreshold: number;
+    dropThreshold: number;
     truncateHeadChars: number;
     maxStateTokens: number;
     stateResultCapChars: number;

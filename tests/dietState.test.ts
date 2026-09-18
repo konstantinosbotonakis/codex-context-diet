@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { CacheEntry } from '../src/cache.js';
 import { buildDietState } from '../src/dietState.js';
-import { dietQuestions, Q_INJECTION, Q_KEEP_CALL, Q_KEEP_RESULT } from '../src/questions.js';
+import {
+  dietQuestions, Q_AGENT_DIRECTED, Q_BEHAVIOUR_CHANGE, Q_KEEP_CALL, Q_NEEDS_CONTENTS, Q_REPLACEABLE,
+} from '../src/questions.js';
 
 const entry = (n: number): CacheEntry => ({
   tool_use_id: 'tool-' + n, tool_name: 'Bash', at: '2026-09-18T00:00:00.000Z',
@@ -21,8 +23,10 @@ describe('questions', () => {
   it('asks two questions, or three with the guard on', () => {
     const two = dietQuestions({ tool: 'Bash', inputLine: 'npm test', resultChars: 10 }, false);
     const three = dietQuestions({ tool: 'Bash', inputLine: 'npm test', resultChars: 10 }, true);
-    expect(Object.keys(two)).toEqual([Q_KEEP_RESULT, Q_KEEP_CALL]);
-    expect(Object.keys(three)).toEqual([Q_KEEP_RESULT, Q_KEEP_CALL, Q_INJECTION]);
+    expect(Object.keys(two)).toEqual([Q_NEEDS_CONTENTS, Q_REPLACEABLE, Q_KEEP_CALL]);
+    expect(Object.keys(three)).toEqual([
+      Q_NEEDS_CONTENTS, Q_REPLACEABLE, Q_KEEP_CALL, Q_AGENT_DIRECTED, Q_BEHAVIOUR_CHANGE,
+    ]);
     for (const question of Object.values(three)) {
       expect(question.type).toBe('noul');
       expect(question.instructions.length).toBeGreaterThan(20);

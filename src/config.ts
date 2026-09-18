@@ -5,7 +5,7 @@ export interface DietConfig {
   enabled: boolean; mode: 'diet' | 'observe'; dryRun: boolean;
   /** 'cache' keeps a rolling per-session digest; 'off' is single-turn and writes nothing. */
   stateSource: 'cache' | 'off';
-  minTokens: number; keepThreshold: number; truncateHeadChars: number;
+  minTokens: number; keepThreshold: number; dropThreshold: number; truncateHeadChars: number;
   maxStateTokens: number; stateResultCapChars: number; requestTimeoutMs: number;
   injectionGuard: boolean; model: string; neverDietTools: string[];
   cacheMaxEntries: number; cacheMaxBytes: number; debug: boolean; apiKey?: string;
@@ -13,7 +13,7 @@ export interface DietConfig {
 
 export const DEFAULT_CONFIG: DietConfig = {
   enabled: true, mode: 'diet', dryRun: false, stateSource: 'cache',
-  minTokens: 2000, keepThreshold: 0.5, truncateHeadChars: 300,
+  minTokens: 2000, keepThreshold: 0.5, dropThreshold: 0.25, truncateHeadChars: 300,
   maxStateTokens: 25000, stateResultCapChars: 4000, requestTimeoutMs: 2500,
   injectionGuard: true, model: 'jev-latest', neverDietTools: [],
   cacheMaxEntries: 40, cacheMaxBytes: 262144, debug: false,
@@ -50,6 +50,7 @@ export function resolveConfig(raw: unknown): DietConfig {
     stateSource: o.stateSource === 'off' ? 'off' : 'cache',
     minTokens: num(o.minTokens, DEFAULT_CONFIG.minTokens),
     keepThreshold: num(o.keepThreshold, DEFAULT_CONFIG.keepThreshold),
+    dropThreshold: num(o.dropThreshold, DEFAULT_CONFIG.dropThreshold),
     truncateHeadChars: Math.floor(num(o.truncateHeadChars, DEFAULT_CONFIG.truncateHeadChars)),
     maxStateTokens: num(o.maxStateTokens, DEFAULT_CONFIG.maxStateTokens, 1),
     stateResultCapChars: Math.floor(num(o.stateResultCapChars, DEFAULT_CONFIG.stateResultCapChars, 1)),

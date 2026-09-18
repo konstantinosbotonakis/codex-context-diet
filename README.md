@@ -8,7 +8,7 @@ Long sessions fill up with tool output: test logs, build noise, large file reads
 
 1. `PostToolUse` fires after a tool produces output. The adapter reads one JSON payload on stdin.
 2. Results are left alone when they are small, come from `apply_patch`, name a tool in `neverDietTools`, or arrive as the first result of a session.
-3. Everything else goes to Jev in one request with two or three questions: does the full text still need to stay, does the fact that the call happened still matter, and does the output look like text addressed to an agent rather than to a reader.
+3. Everything else goes to Jev in one request carrying five literal questions, and the answer decides.
 4. When the body is stale, Codex replaces the tool result with the first `truncateHeadChars` characters and a note naming what ran and how much was dropped. The model can re-run the tool if it needs the rest.
 5. Every decision, including keep, is appended to a per-session digest cache. That cache is the history Jev sees next time, so the judgement improves as the session goes on.
 
@@ -23,6 +23,32 @@ There are exactly three, and nothing else is ever written to stdout:
 | `{"decision":"block","reason":...,"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":...}}` | the result was replaced; Codex swaps in the head and note |
 | `{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":...}}` | the result was kept and the injection guard flagged it; no `decision` field means the result is untouched |
 | no output | keep, every error, and every exempt case |
+
+### How the decision is made
+
+Five questions go out in one request. Each asks one literal condition, because `jev-1.13`
+answers the question it was given rather than the one that was meant; conditions that cannot
+be separated are combined here in code instead.
+
+| question | asks |
+|---|---|
+| `needs_contents` | are these exact contents still needed for the work ahead |
+| `replaceable` | would the same information come back if the call ran again |
+| `keep_call` | does the fact that the call happened still matter |
+| `agent_directed` | is the text addressed to an assistant rather than a reader |
+| `behaviour_change` | does it try to change what the assistant does next |
+
+Code owns the decision, with two thresholds in the shape TypeSafe's guardrail pattern uses:
+
+- `needs_contents` at or above `keepThreshold` (0.5) - keep.
+- `needs_contents` at or below `dropThreshold` (0.25) **and** `replaceable` at or above 0.5 - replace the body with the note.
+- anything between the two thresholds - keep. Uncertainty resolves to the side that costs tokens, not the side that loses information.
+- `replaceable` below 0.5 - keep, whatever `needs_contents` says. A one-off value cannot be recovered by re-running the command.
+- either hazard at or above `keepThreshold` - keep and annotate.
+
+A wrong drop is the only unrecoverable failure this plugin can cause, so every uncertain answer keeps the result.
+
+That split was not theoretical. An eval against the live model gave `node -e "console.log(crypto.randomUUID())"` a `replaceable` score of 0.89 under an earlier wording that said "produced again by re-running the same call" - Jev read it literally, and a one-off value was one step from being dropped. Stating the exact condition and listing the boundary cases in the criteria moved it to 0.03 and the decision to keep.
 
 ## Measured
 
@@ -78,6 +104,7 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "stateSource": "cache",
   "minTokens": 2000,
   "keepThreshold": 0.5,
+  "dropThreshold": 0.25,
   "truncateHeadChars": 300,
   "maxStateTokens": 25000,
   "stateResultCapChars": 4000,
@@ -99,6 +126,7 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `stateSource` | `cache` (default) keeps a rolling per-session digest; `off` is single-turn and writes nothing to disk |
 | `minTokens` | estimated-token floor; below it there is no key lookup and no network call |
 | `keepThreshold` | Jev score at or above which something is kept |
+| `dropThreshold` | Jev score at or below which the contents count as stale; the band between the two thresholds resolves to keep |
 | `truncateHeadChars` | characters of the result retained in the note |
 | `neverDietTools` | exact tool names to exempt |
 | `debug` | append one line per decision to `$PLUGIN_DATA/log/events.jsonl` |

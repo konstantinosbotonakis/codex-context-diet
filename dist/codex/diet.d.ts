@@ -3,8 +3,13 @@ import type { DietConfig } from '../config.js';
 import type { JevAsker } from '../types.js';
 export type DietAction = 'keep' | 'drop_result';
 export interface DietAnswers {
+    /** The call happened and its arguments still matter, even if the body does not. */
     keepCall: number;
-    keepResult: number;
+    /** The exact contents are still needed for the work ahead. */
+    needsContents: number;
+    /** The output can be produced again, or already exists elsewhere. */
+    replaceable: number;
+    /** Highest hazard probability, or null when the guard is off or unanswerable. */
     injection: number | null;
 }
 export interface DietDecision extends DietAnswers {
@@ -37,8 +42,11 @@ export interface DietDeps {
     firstResult: boolean;
 }
 /**
- * The injection verdict forces keep: flagging content and then discarding the
- * head would hide the evidence. Both other outcomes replace the result.
+ * Two thresholds, the TypeSafe guardrail shape: contents at or above
+ * keepThreshold are needed, at or below dropThreshold they are not, and the
+ * band between resolves to keep. A drop also requires the output to be
+ * reproducible, so an uncertain answer can only ever cost tokens, never
+ * information. A hazard verdict always keeps and annotates.
  */
 export declare function decideDiet(answers: DietAnswers, config: DietConfig): DietDecision;
 export declare function buildNote(input: DietInput, decision: DietDecision, config: DietConfig): string | null;

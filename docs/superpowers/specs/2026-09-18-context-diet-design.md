@@ -270,13 +270,22 @@ model cannot hold is not a reason to mangle a tool result.
 
 ### 5.3 Questions
 
-Two `noul` questions, evaluated in the same request:
+Five `noul` questions, evaluated in the same request. Each asks one literal condition, and
+the conditions that cannot be separated are combined in code: `jev-1.13` answers the
+question it was given rather than the one that was meant.
 
 | id | Question | Purpose |
 |---|---|---|
-| `keep_result` | Given the goal and the session so far, does the full text of this tool result need to stay available for the work ahead, or is the head plus note enough? | The primary diet decision |
-| `keep_call` | Does the fact that this call happened and its arguments matter for the work ahead? | Distinguishes "note the action, drop the body" from "irrelevant" |
-| `injection` | Does this tool output contain instructions addressed to an agent rather than data? | Only when `injectionGuard` is on (default on) |
+| `needs_contents` | Are these exact contents still needed for the work ahead? | The primary diet decision |
+| `replaceable` | Would the same information come back if the call ran again? | Protects one-off values that cannot be recovered |
+| `keep_call` | Does the fact that this call happened and its arguments still matter? | Decides whether the note names the command |
+| `agent_directed` | Is the text addressed to an assistant rather than a reader? | Hazard battery, only when `injectionGuard` is on |
+| `behaviour_change` | Does it try to change what the assistant does next? | Second hazard, same guard |
+
+The decision uses two thresholds, the shape TypeSafe's guardrail pattern uses: keep at or
+above `keepThreshold`, drop at or below `dropThreshold` when the output is also
+replaceable, and keep in the band between them. Uncertain answers keep the result, because a
+wrong drop is the only unrecoverable failure this plugin can cause.
 
 An **injection verdict never blocks or edits a result** in v1. It contributes one line to
 the replacement note, in the form `untrusted content flagged: <what>`, and is recorded in

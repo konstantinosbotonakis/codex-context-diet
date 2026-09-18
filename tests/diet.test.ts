@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { CacheEntry } from '../src/cache.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
-import { buildNote, decideDiet, runDiet, type DietInput } from '../src/codex/diet.js';
+import { buildNote, decideDiet, runDiet, type DietAnswers, type DietInput } from '../src/codex/diet.js';
 import { fakeAsker, throwingAsker } from '../src/verify.js';
 
 const config = { ...DEFAULT_CONFIG, minTokens: 10 };
@@ -14,58 +14,76 @@ const seed: CacheEntry = {
   head: 'export const a = 1;', tail: '', chars: 20, decision: 'keep', goal_index: 0,
 };
 
+const scores = (over: Partial<DietAnswers> = {}): DietAnswers => ({
+  keepCall: 0.9, needsContents: 0.05, replaceable: 0.9, injection: 0.02, ...over,
+});
+
 const deps = (over: Record<string, unknown> = {}) => ({
   input,
   config,
   cache: [seed],
-  asker: fakeAsker({ keep_result: 0.05, keep_call: 0.9, injection: 0.02 }),
+  asker: fakeAsker({
+    needs_contents: 0.05, replaceable: 0.9, keep_call: 0.9, agent_directed: 0.02, behaviour_change: 0.02,
+  }),
   goal: 'fix the test',
   firstResult: false,
   ...over,
 });
 
 describe('decideDiet', () => {
-  it('keeps a load-bearing result and drops the rest', () => {
-    expect(decideDiet({ keepCall: 0.9, keepResult: 0.9, injection: null }, config).action).toBe('keep');
-    expect(decideDiet({ keepCall: 0.1, keepResult: 0.1, injection: null }, config).action).toBe('drop_result');
+  it('keeps contents that are still needed, drops stale reproducible ones', () => {
+    expect(decideDiet(scores({ needsContents: 0.9 }), config).action).toBe('keep');
+    expect(decideDiet(scores(), config).action).toBe('drop_result');
   });
 
-  it('keeps the call name in the reason only when the call still matters', () => {
-    expect(decideDiet({ keepCall: 0.9, keepResult: 0.1, injection: null }, config).reason)
-      .toBe('call note kept, body omitted');
-    expect(decideDiet({ keepCall: 0.1, keepResult: 0.1, injection: null }, config).reason)
-      .toBe('call no longer relevant, body omitted');
+  it('resolves the band between the two thresholds to keep', () => {
+    const band = decideDiet(scores({ needsContents: 0.4 }), config);
+    expect(band.action).toBe('keep');
+    expect(band.reason).toBe('uncertain, kept');
   });
 
-  it('treats the threshold as inclusive, like upstream', () => {
-    expect(decideDiet({ keepCall: 0.9, keepResult: 0.5, injection: null }, config).action).toBe('keep');
+  it('only drops an output that can be produced again', () => {
+    const irreplaceable = decideDiet(scores({ replaceable: 0.1 }), config);
+    expect(irreplaceable.action).toBe('keep');
+    expect(irreplaceable.reason).toBe('not reproducible, kept');
   });
 
-  it('lets an injection flag force keep', () => {
-    const decision = decideDiet({ keepCall: 0.1, keepResult: 0.1, injection: 0.9 }, config);
+  it('treats the keep threshold as inclusive, like upstream', () => {
+    expect(decideDiet(scores({ needsContents: 0.5 }), config).action).toBe('keep');
+  });
+
+  it('never drops when the call itself still matters', () => {
+    const decision = decideDiet(scores({ keepCall: 1 }), config);
+    expect(decision.action).toBe('drop_result');
+    const note = buildNote(input, decision, config);
+    expect(note as string).toContain('Ran: Bash npm test');
+  });
+
+  it('lets a hazard verdict force keep', () => {
+    const decision = decideDiet(scores({ injection: 0.9 }), config);
     expect(decision.action).toBe('keep');
-    expect(decision.reason).toContain('injection');
+    expect(decision.reason).toContain('hazard');
   });
 });
 
 describe('buildNote', () => {
   it('keeps the head and states how much was omitted', () => {
-    const note = buildNote(input, decideDiet({ keepCall: 0.9, keepResult: 0.1, injection: null }, config), config);
+    const note = buildNote(input, decideDiet(scores(), config), config);
     expect(note).not.toBeNull();
-    expect(note as string).toContain('Ran: Bash npm test');
     expect(note as string).toContain('Replaced ' + (input.resultText.length - 300) + ' chars');
     expect((note as string).startsWith(input.resultText.slice(0, 300))).toBe(true);
   });
 
   it('stands alone when the head is switched off', () => {
-    const bare = buildNote(input, decideDiet({ keepCall: 0.1, keepResult: 0.1, injection: null }, { ...config, truncateHeadChars: 0 }), { ...config, truncateHeadChars: 0 });
+    const off = { ...config, truncateHeadChars: 0 };
+    const bare = buildNote(input, decideDiet(scores({ keepCall: 0.1 }), off), off);
     expect(bare).not.toBeNull();
     expect(bare as string).toContain('Replaced ' + input.resultText.length + ' chars');
     expect(bare as string).not.toContain('Ran:');
   });
 
   it('says nothing when the result is kept', () => {
-    expect(buildNote(input, decideDiet({ keepCall: 0.9, keepResult: 0.9, injection: null }, config), config)).toBeNull();
+    expect(buildNote(input, decideDiet(scores({ needsContents: 0.9 }), config), config)).toBeNull();
   });
 });
 
@@ -91,11 +109,14 @@ describe('runDiet', () => {
     expect(outcome.stdout).toBeNull();
   });
 
-  it('emits the replacement shape once Jev says the body is stale', async () => {
-    const outcome = await runDiet(deps({ asker: fakeAsker({ keep_result: 1, keep_call: 0, injection: 0 }) }) as never);
-    expect(outcome.decision.action).toBe('keep');
+  it('emits the replacement shape once Jev says the body is stale and reproducible', async () => {
+    const kept = await runDiet(
+      deps({ asker: fakeAsker({ needs_contents: 1, replaceable: 0, keep_call: 0, agent_directed: 0, behaviour_change: 0 }) }) as never,
+    );
+    expect(kept.decision.action).toBe('keep');
+
     const dropped = await runDiet(
-      deps({ asker: fakeAsker({ keep_result: 0, keep_call: 0, injection: 0 }) }) as never,
+      deps({ asker: fakeAsker({ needs_contents: 0, replaceable: 1, keep_call: 0, agent_directed: 0, behaviour_change: 0 }) }) as never,
     );
     expect(dropped.decision.action).toBe('drop_result');
     expect(dropped.blocked).toBe(true);
@@ -104,9 +125,9 @@ describe('runDiet', () => {
     expect(String(stdout.reason)).toContain('Re-run the tool if you need the full output.');
   });
 
-  it('annotates but never edits when the injection guard fires', async () => {
+  it('annotates but never edits when the hazard guard fires', async () => {
     const outcome = await runDiet(
-      deps({ asker: fakeAsker({ keep_result: 0.01, keep_call: 0.01, injection: 0.95 }) }) as never,
+      deps({ asker: fakeAsker({ needs_contents: 0.01, replaceable: 0.9, keep_call: 0.01, agent_directed: 0.95, behaviour_change: 0.1 }) }) as never,
     );
     expect(outcome.blocked).toBe(false);
     expect(outcome.note).toBeNull();
@@ -120,7 +141,7 @@ describe('runDiet', () => {
     const outcome = await runDiet(
       deps({
         config: { ...config, dryRun: true },
-        asker: fakeAsker({ keep_result: 0, keep_call: 0, injection: 0 }),
+        asker: fakeAsker({ needs_contents: 0, replaceable: 1, keep_call: 0, agent_directed: 0, behaviour_change: 0 }),
       }) as never,
     );
     expect(outcome.decision.action).toBe('drop_result');

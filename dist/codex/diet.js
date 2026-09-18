@@ -1,8 +1,8 @@
 import { buildDietState } from '../dietState.js';
-import { dietQuestions, Q_INJECTION, Q_KEEP_CALL, Q_KEEP_RESULT } from '../questions.js';
+import { dietQuestions, Q_AGENT_DIRECTED, Q_BEHAVIOUR_CHANGE, Q_KEEP_CALL, Q_NEEDS_CONTENTS, Q_REPLACEABLE, } from '../questions.js';
 import { noulAnswer } from '../request.js';
 function keptResult(reason) {
-    return { keepCall: 1, keepResult: 1, injection: null, action: 'keep', reason };
+    return { keepCall: 1, needsContents: 1, replaceable: 0, injection: null, action: 'keep', reason };
 }
 function optionalNoul(answers, name) {
     try {
@@ -13,23 +13,26 @@ function optionalNoul(answers, name) {
     }
 }
 /**
- * The injection verdict forces keep: flagging content and then discarding the
- * head would hide the evidence. Both other outcomes replace the result.
+ * Two thresholds, the TypeSafe guardrail shape: contents at or above
+ * keepThreshold are needed, at or below dropThreshold they are not, and the
+ * band between resolves to keep. A drop also requires the output to be
+ * reproducible, so an uncertain answer can only ever cost tokens, never
+ * information. A hazard verdict always keeps and annotates.
  */
 export function decideDiet(answers, config) {
     if (answers.injection !== null && answers.injection >= config.keepThreshold) {
-        return { ...answers, action: 'keep', reason: 'injection flagged; result kept and annotated' };
+        return { ...answers, action: 'keep', reason: 'hazard flagged; result kept and annotated' };
     }
-    if (answers.keepResult >= config.keepThreshold) {
-        return { ...answers, action: 'keep', reason: 'result still load-bearing' };
+    if (answers.needsContents >= config.keepThreshold) {
+        return { ...answers, action: 'keep', reason: 'contents still needed' };
     }
-    return {
-        ...answers,
-        action: 'drop_result',
-        reason: answers.keepCall >= config.keepThreshold
-            ? 'call note kept, body omitted'
-            : 'call no longer relevant, body omitted',
-    };
+    if (answers.needsContents <= config.dropThreshold && answers.replaceable >= config.keepThreshold) {
+        return { ...answers, action: 'drop_result', reason: 'stale and reproducible, body omitted' };
+    }
+    if (answers.replaceable < config.keepThreshold) {
+        return { ...answers, action: 'keep', reason: 'not reproducible, kept' };
+    }
+    return { ...answers, action: 'keep', reason: 'uncertain, kept' };
 }
 export function buildNote(input, decision, config) {
     if (decision.action !== 'drop_result')
@@ -99,10 +102,14 @@ export async function runDiet(deps) {
     let answers;
     try {
         const response = await asker.ask(state, dietQuestions({ tool: input.toolName, inputLine: input.inputLine, resultChars: input.resultText.length }, config.injectionGuard));
+        const agentDirected = config.injectionGuard ? optionalNoul(response.answers, Q_AGENT_DIRECTED) : null;
+        const behaviourChange = config.injectionGuard ? optionalNoul(response.answers, Q_BEHAVIOUR_CHANGE) : null;
+        const hazards = [agentDirected, behaviourChange].filter((value) => value !== null);
         answers = {
             keepCall: noulAnswer(response.answers, Q_KEEP_CALL),
-            keepResult: noulAnswer(response.answers, Q_KEEP_RESULT),
-            injection: config.injectionGuard ? optionalNoul(response.answers, Q_INJECTION) : null,
+            needsContents: noulAnswer(response.answers, Q_NEEDS_CONTENTS),
+            replaceable: noulAnswer(response.answers, Q_REPLACEABLE),
+            injection: hazards.length > 0 ? Math.max(...hazards) : null,
         };
     }
     catch (error) {
