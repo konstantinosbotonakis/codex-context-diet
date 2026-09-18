@@ -1,0 +1,15 @@
+{
+  "name": "context-diet-dev",
+  "interface": {
+    "displayName": "Context Diet (local development)"
+  },
+  "plugins": [
+    {
+      "name": "codex-context-diet",
+      "source": { "source": "local", "path": "." },
+      "description": "Jev-guided dieting of bulky tool results.",
+      "policy": { "installation": "AVAILABLE" },
+      "category": "Productivity"
+    }
+  ]
+}
