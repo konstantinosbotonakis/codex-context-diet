@@ -1,8 +1,18 @@
 # Context Diet
 
+Codex re-reads its whole desk before every reply. This plugin keeps the pages that still matter and clears the ones you can reprint.
+
+<img src="assets/context-diet.jpg" alt="Two panels. On the left a desk is buried under a tall pile of printed pages. On the right the same desk holds one page and two sticky notes" width="100%">
+
 A Codex plugin that asks TypeSafe's [Jev](https://typesafe.ai/) which bulky tool results the session still needs, then replaces the rest with a bounded head and a one-line note.
 
 Long sessions fill up with tool output. Test logs, build noise, large file reads, MCP payloads. Once a result lands in the transcript, Codex re-sends it on every later request until compaction summarises it away. Compaction runs after the context is already bloated. This plugin works at the moment the result is produced.
+
+## Why you'd install it
+
+- **You don't change how you work.** No new commands, no habits. Install it, click trust once, forget it.
+- **Your long sessions stay sharp.** This matters most in the sessions that go on for an hour with lots of commands. That's where the desk would otherwise be buried.
+- **It rarely makes you wait.** It only looks at big outputs, roughly a page and a half of dense text and up. Small stuff it ignores completely, and that costs you nothing.
 
 ## How it works
 
