@@ -63,12 +63,10 @@ export async function runDiet(deps) {
     const outcomeOf = (decision, note, warning) => {
         let stdout = null;
         if (emit && decision.action === 'drop_result' && note !== null) {
-            stdout = {
-                decision: 'block',
-                reason: 'Result dieted: ' + input.resultText.length + '-char result replaced with a ' +
-                    config.truncateHeadChars + '-char head.',
-                hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: note },
-            };
+            // continue:false replaces the model-visible tool result. decision:"block"
+            // would do the same but also rejects the promise of a nested code-mode
+            // tool call, which would break the caller's script.
+            stdout = { continue: false, stopReason: note };
         }
         else if (emit && warning !== null) {
             stdout = { hookSpecificOutput: { hookEventName: 'PostToolUse', additionalContext: warning } };
