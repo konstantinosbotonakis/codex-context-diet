@@ -36,6 +36,10 @@ One real session, `codex-cli 0.154.0`, three tool results of 40,106 characters e
 
 Input tokens on the request that followed a new bulky result: **+17,309 with the hook untrusted, +553 with it firing.** One run each, same prompt, not a controlled experiment - but the marginal cost of a 40k-character result went from five figures to three.
 
+Both runs got the same prompt, and that prompt's backticks were expanded by the shell before
+`codex exec` ever saw them, so what actually ran was a 5,000-line argument list rather than
+`seq`. The comparison holds; the example is less tidy than it looks.
+
 Two things worth knowing before installing:
 
 - The manifest is the legacy-compatible shape: top-level `interface`, hooks discovered at `hooks/hooks.json`. With the portable `$schema` / `extensions.com.openai` manifest, the skill still loaded but the hooks did not, on `codex-cli 0.154.0`.
