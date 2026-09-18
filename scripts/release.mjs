@@ -27,8 +27,10 @@ const fail = (message) => {
   process.exit(1);
 };
 
+// stderr is dropped: probing git for a previous tag is expected to fail on the
+// first release, and a stray "fatal:" line reads like the script broke.
 const capture = (cmd, args) =>
-  execFileSync(cmd, args, { cwd: root, encoding: 'utf8' }).trim();
+  execFileSync(cmd, args, { cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).trim();
 
 const run = (cmd, args, quiet = false) =>
   execFileSync(cmd, args, {
@@ -136,7 +138,8 @@ try {
   previous = '';
 }
 const range = previous ? previous + '..' + tag : tag;
-const notes = capture('git', ['log', '--pretty=format:- %s', range]);
+const commits = capture('git', ['log', '--pretty=format:- %s', '--invert-grep', '--grep=^Release v', range]);
+const notes = commits || '- No changes since the last tag.';
 const notesFile = join(tmpdir(), 'context-diet-' + tag + '-notes.md');
 writeFileSync(notesFile, 'Changes in ' + tag + ':\n\n' + notes + '\n');
 
@@ -147,4 +150,3 @@ try {
   console.error('release: the tag is pushed but the GitHub release was not created.');
   console.error('release: retry with gh release create ' + tag + ' --notes-file ' + notesFile);
 }
-
