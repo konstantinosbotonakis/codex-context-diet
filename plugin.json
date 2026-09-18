@@ -1,20 +1,15 @@
 {
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "codex-context-diet",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Asks TypeSafe's Jev which bulky tool results the session still needs, and replaces the rest with a bounded head plus a note.",
   "license": "MIT",
   "keywords": ["context", "compaction", "typesafe", "jev", "hooks"],
-  "extensions": {
-    "com.openai": {
-      "interface": {
-        "displayName": "Context Diet",
-        "shortDescription": "Jev-guided tool-result dieting",
-        "longDescription": "Every bulky tool result is judged by Jev the moment it is produced. Results the session no longer needs are replaced by a bounded head and a one-line note, so context is spent on work rather than on logs.",
-        "developerName": "Konstantinos Botonakis",
-        "category": "Productivity",
-        "capabilities": ["Read", "Write"]
-      }
-    }
+  "interface": {
+    "displayName": "Context Diet",
+    "shortDescription": "Jev-guided tool-result dieting",
+    "longDescription": "Every bulky tool result is judged by Jev the moment it is produced. Results the session no longer needs are replaced by a bounded head and a one-line note, so context is spent on work rather than on logs.",
+    "developerName": "Konstantinos Botonakis",
+    "category": "Productivity",
+    "capabilities": ["Read", "Write"]
   }
 }
