@@ -77,7 +77,7 @@ One decision is one Jev call, 625 to 700 input tokens in these runs, at $0.042 p
 
 ### The controlled run
 
-One real session, `codex-cli 0.154.0`, three tool results of 40,106 characters each, produced by a model-written script that handed a 5,000-line command to `exec_command`:
+One real session, three tool results of 40,106 characters each, produced by a model-written script that handed a 5,000-line command to `exec_command`:
 
 | result | decision | what the model received |
 |---|---|---|
@@ -88,15 +88,6 @@ One real session, `codex-cli 0.154.0`, three tool results of 40,106 characters e
 The request that followed a new bulky result cost 17,309 more input tokens with the hook untrusted, and 553 more with it firing. That is one run each on the same prompt, so read it as an illustration rather than a controlled experiment. The marginal cost of a 40k-character result still went from five figures to three.
 
 Both runs got the same prompt, and that prompt's backticks were expanded by the shell before `codex exec` ever saw them, so what actually ran was a 5,000-line argument list rather than `seq`. The comparison holds. The example is less tidy than it looks.
-
-### A failure mode worth knowing
-
-Seven of the first eleven logged decisions ended as `keep` with the reason `This operation was aborted`, which is the old 2.5 s deadline firing when several hook processes ran at once. An abort fails open, so nothing was lost except the opportunity. The deadline is now 5 s, and the hook itself allows 10 s. Latency was otherwise 267 to 1296 ms, and a 28,000-token state still answered in about 600 ms.
-
-Two things worth knowing before installing:
-
-- The manifest is the legacy-compatible shape, with hooks discovered at `hooks/hooks.json` and `interface` at the top level. Under the portable `$schema` / `extensions.com.openai` manifest, the skill still loaded but the hooks did not on `codex-cli 0.154.0`.
-- The replacement returns `decision: "block"`. In code mode that rejects the nested `exec_command` promise with the note, which is the point, because a model-written script then cannot read the full output and print it back into the transcript. `continue: false` was measured and does not achieve this. The promise still resolves with the full text, and the script re-exposed all 41k characters.
 
 ## Install
 
@@ -167,16 +158,6 @@ Resolution order is `TYPESAFE_API_KEY`, then `~/.typesafe_key` (override the pat
 printf %s "$YOUR_KEY" > ~/.typesafe_key && chmod 600 ~/.typesafe_key
 ```
 
-## Commands
-
-```bash
-node dist/cli.js status   # config path, key source, data directory, cached sessions
-node dist/cli.js verify   # eight checks over the decision path, fully offline
-node dist/cli.js test     # one real request to Jev; the only command that needs a key
-```
-
-`verify` runs those checks twice. Once with a working fake asker, where every check must pass. Once with an asker that always throws, where `asker-contract` and `decide-call` must fail. The second run is the proof that a broken transport fails closed instead of inventing a decision.
-
 ## What is never dieted
 
 - `apply_patch` and its `Edit` / `Write` aliases. Patch output is the record of what changed, and it is small.
@@ -189,14 +170,6 @@ Hooks are a guardrail, not an enforcement boundary. Some specialised tool paths 
 ## Measuring the effect
 
 Codex records token usage per turn in the session rollout as `token_usage_record` events. Compare the request after a diet against the request before it, and compare that delta against a baseline recorded from the same command with the plugin disabled or untrusted. A single before/after pair cannot separate the diet from ordinary turn-to-turn growth.
-
-## Differences from upstream
-
-The core is a port of [fast-jev-compaction](https://github.com/tamaratran/fast-jev-compaction). Three things changed:
-
-- The Claude Code entry point is gone. The outcome here is binary, because a tool result can only be replaced or left alone. `keep_call` narrows the note rather than changing whether a replacement happens.
-- `buildDietState` replaces the ported `fitState` for the diet path. `fitState` renders results as `ok, N chars (omitted)` notes, which would discard the digest that makes the cache useful. The staged-shrink discipline is preserved and the shape is not.
-- The injection guard only annotates and forces keep, so its line travels in the context-only warning rather than in a replacement note.
 
 ## Development
 
@@ -223,4 +196,3 @@ Add `--skip-github` to stop once the tag is pushed.
 ## Attribution
 
 Derived from `tamaratran/fast-jev-compaction` (MIT) at commit `e3f262a7f4d42bd8dd32ced30d26176f7cb545b0`. The upstream copyright notice is retained in `LICENSE`.
-

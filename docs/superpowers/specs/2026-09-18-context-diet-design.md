@@ -146,12 +146,12 @@ editing anything.
 The third shape — an empty object or no output at all — covers keep, every error, and every
 exempt case.
 
-`decision: "block"` is used rather than `continue: false` for a reason measured on
-`codex-cli 0.154.0` and recorded in the README: in code mode the block rejects the nested
-`exec_command` promise, so a model-written script cannot read the full output and print it
-back into the transcript. With `continue: false` the promise still resolves with the full
-text and the script re-exposed all 41k characters. The note travels in `reason` because
-that is the text the model sees in place of the result.
+`decision: "block"` is used rather than `continue: false` for a reason measured against
+the live CLI: in code mode the block rejects the nested `exec_command` promise, so a
+model-written script cannot read the full output and print it back into the transcript. With
+`continue: false` the promise still resolves with the full text and the script re-exposed
+all 41k characters. The note travels in `reason` because that is the text the model sees
+in place of the result.
 
 The adapter is synchronous in the hook sense (not `async: true`) and carries a
 `timeout` of 10 seconds. Its own internal Jev deadline is `requestTimeoutMs` (default
