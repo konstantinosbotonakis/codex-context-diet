@@ -1,6 +1,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sessionKey, sessionsDir } from '../cache.js';
+import { loadConfig } from '../config.js';
+import { resolveApiKey } from '../key.js';
+import { appendEvent } from './log.js';
+import { assessPrompt } from './promptGuard.js';
+import { createAsker } from './transport.js';
 const MAX_GOALS = 3;
 const MAX_PROMPT_CHARS = 500;
 function recordPath(env, sessionId) {
@@ -45,7 +50,28 @@ export function readGoal(env, sessionId) {
         return { goal: '', goalIndex: 0 };
     return { goal: record.goal.join('\n'), goalIndex: record.goal.length - 1 };
 }
-/** SessionStart records the session; UserPromptSubmit keeps the last three prompts. Never throws. */
+/**
+ * The prompt guard is opt-in and never blocks. It returns one line of developer
+ * context or nothing. It runs on the critical path, so it gets a shorter
+ * deadline than the diet hook.
+ */
+async function promptRiskLine(env, config, context) {
+    const { key } = resolveApiKey(config, env);
+    const asker = key !== null || env.CONTEXT_DIET_TEST_ANSWERS
+        ? createAsker({ ...config, requestTimeoutMs: config.promptGuardTimeoutMs }, key ?? 'test-key', env)
+        : null;
+    const started = Date.now();
+    const risk = await assessPrompt(context, asker, config);
+    appendEvent(env, config, {
+        kind: 'prompt_guard',
+        flagged: risk !== null && risk.hazards.length > 0,
+        hazards: risk?.hazards ?? [],
+        chars: context.prompt.length,
+        ms: Date.now() - started,
+    });
+    return risk?.line ?? null;
+}
+/** SessionStart records the session. UserPromptSubmit keeps the goals and runs the guard. Never throws. */
 export async function main(stdin, env) {
     try {
         const parsed = JSON.parse(stdin);
@@ -57,27 +83,34 @@ export async function main(stdin, env) {
         if (sessionId.length === 0)
             return '';
         const existing = readRecord(env, sessionId);
+        const cwd = text(payload.cwd) || existing?.cwd || '';
+        const model = text(payload.model) || existing?.model || '';
+        const startedAt = existing?.started_at || new Date().toISOString();
         if (event === 'SessionStart') {
-            writeRecord(env, {
-                session_id: sessionId,
-                cwd: text(payload.cwd) || existing?.cwd || '',
-                model: text(payload.model) || existing?.model || '',
-                started_at: existing?.started_at || new Date().toISOString(),
-                goal: existing?.goal ?? [],
-            });
+            writeRecord(env, { session_id: sessionId, cwd, model, started_at: startedAt, goal: existing?.goal ?? [] });
+            return '';
         }
-        else if (event === 'UserPromptSubmit') {
-            const prompt = text(payload.prompt).trim().slice(0, MAX_PROMPT_CHARS);
-            if (prompt.length > 0) {
-                writeRecord(env, {
-                    session_id: sessionId,
-                    cwd: text(payload.cwd) || existing?.cwd || '',
-                    model: text(payload.model) || existing?.model || '',
-                    started_at: existing?.started_at || new Date().toISOString(),
-                    goal: [...(existing?.goal ?? []), prompt].slice(-MAX_GOALS),
-                });
-            }
-        }
+        if (event !== 'UserPromptSubmit')
+            return '';
+        const prompt = text(payload.prompt).trim().slice(0, MAX_PROMPT_CHARS);
+        if (prompt.length === 0)
+            return '';
+        const config = loadConfig(env);
+        const line = config.promptGuard
+            ? await promptRiskLine(env, config, { cwd, recent: existing?.goal ?? [], prompt })
+            : null;
+        writeRecord(env, {
+            session_id: sessionId,
+            cwd,
+            model,
+            started_at: startedAt,
+            goal: [...(existing?.goal ?? []), prompt].slice(-MAX_GOALS),
+        });
+        if (line === null)
+            return '';
+        return JSON.stringify({
+            hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: line },
+        });
     }
     catch {
         // never block a session

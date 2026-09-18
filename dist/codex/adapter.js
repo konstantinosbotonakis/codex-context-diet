@@ -1,11 +1,10 @@
-import { appendFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
 import { appendCache, readCache } from '../cache.js';
-import { loadConfig, pluginDataDir } from '../config.js';
+import { loadConfig } from '../config.js';
 import { resolveApiKey } from '../key.js';
 import { estimateTokens } from '../state.js';
 import { capturePayload } from './capture.js';
 import { runDiet } from './diet.js';
+import { appendEvent } from './log.js';
 import { inputLine, isSkippedTool, toolResultText } from './payload.js';
 import { readGoal } from './session.js';
 import { createAsker } from './transport.js';
@@ -19,27 +18,18 @@ function isErrorResponse(toolResponse) {
     return record.is_error === true || record.isError === true;
 }
 function logEvent(env, config, outcome) {
-    if (!config.debug)
-        return;
-    try {
-        const dir = join(pluginDataDir(env), 'log');
-        mkdirSync(dir, { recursive: true });
-        appendFileSync(join(dir, 'events.jsonl'), JSON.stringify({
-            at: new Date().toISOString(),
-            tool: outcome.entry.tool_name,
-            action: outcome.decision.action,
-            reason: outcome.decision.reason,
-            keepCall: outcome.decision.keepCall,
-            needsContents: outcome.decision.needsContents,
-            replaceable: outcome.decision.replaceable,
-            injection: outcome.decision.injection,
-            chars: outcome.entry.chars,
-            blocked: outcome.blocked,
-        }) + '\n');
-    }
-    catch {
-        // diagnostics never break the run
-    }
+    appendEvent(env, config, {
+        kind: 'diet',
+        tool: outcome.entry.tool_name,
+        action: outcome.decision.action,
+        reason: outcome.decision.reason,
+        keepCall: outcome.decision.keepCall,
+        needsContents: outcome.decision.needsContents,
+        replaceable: outcome.decision.replaceable,
+        injection: outcome.decision.injection,
+        chars: outcome.entry.chars,
+        blocked: outcome.blocked,
+    });
 }
 /** Reads one hook payload and returns at most one stdout object. Never throws. */
 export async function main(stdin, env) {

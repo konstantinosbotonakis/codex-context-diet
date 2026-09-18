@@ -15,13 +15,17 @@ Config lives at `$PLUGIN_DATA/config.json` and survives reinstalls. It is never
 committed. `loadConfig` falls back to the defaults for any missing or invalid
 field, so a partial file is safe.
 
-The two settings worth tuning:
+The settings worth tuning:
 
-- `minTokens` (default 2000) - the estimated-token floor. Below it the plugin
-  does no work at all. Raise it when too much is being touched, lower it when
-  small results still cost too much.
-- `keepThreshold` (default 0.5) - the Jev score at or above which something is
-  kept. Lower means keep more.
+- `minTokens` (default 2000) is the estimated-token floor. Below it the plugin does no work at
+  all. Raise it when too much is being touched, lower it when small results still cost too much.
+- `keepThreshold` (default 0.5) is the Jev score at or above which something is kept. Lower
+  means keep more.
+- `dropThreshold` (default 0.25) is the score at or below which the contents count as stale.
+  Anything in the band between the two thresholds keeps the result.
+- `promptGuard` (off by default) adds one line of context to a prompt that looks
+  production-affecting. It never blocks and it never rewrites. Turning it on costs one Jev call
+  per prompt, on the critical path.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 
@@ -42,4 +46,3 @@ The result text and the key are never written.
 `enabled: false` in the config, or untrust the hook in `/hooks`. Neither needs a
 reinstall. Hooks are a guardrail, not an enforcement boundary: a specialised
 tool path can bypass them, and the plugin does nothing about that.
-

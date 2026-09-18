@@ -8,6 +8,7 @@ export interface DietConfig {
   minTokens: number; keepThreshold: number; dropThreshold: number; truncateHeadChars: number;
   maxStateTokens: number; stateResultCapChars: number; requestTimeoutMs: number;
   injectionGuard: boolean; model: string; neverDietTools: string[];
+  promptGuard: boolean; promptGuardThreshold: number; promptGuardTimeoutMs: number;
   cacheMaxEntries: number; cacheMaxBytes: number; debug: boolean; apiKey?: string;
 }
 
@@ -16,6 +17,7 @@ export const DEFAULT_CONFIG: DietConfig = {
   minTokens: 2000, keepThreshold: 0.5, dropThreshold: 0.25, truncateHeadChars: 300,
   maxStateTokens: 25000, stateResultCapChars: 4000, requestTimeoutMs: 5000,
   injectionGuard: true, model: 'jev-latest', neverDietTools: [],
+  promptGuard: false, promptGuardThreshold: 0.7, promptGuardTimeoutMs: 2000,
   cacheMaxEntries: 40, cacheMaxBytes: 262144, debug: false,
 };
 
@@ -56,6 +58,9 @@ export function resolveConfig(raw: unknown): DietConfig {
     stateResultCapChars: Math.floor(num(o.stateResultCapChars, DEFAULT_CONFIG.stateResultCapChars, 1)),
     requestTimeoutMs: num(o.requestTimeoutMs, DEFAULT_CONFIG.requestTimeoutMs, 1),
     injectionGuard: bool(o.injectionGuard, DEFAULT_CONFIG.injectionGuard),
+    promptGuard: bool(o.promptGuard, DEFAULT_CONFIG.promptGuard),
+    promptGuardThreshold: num(o.promptGuardThreshold, DEFAULT_CONFIG.promptGuardThreshold),
+    promptGuardTimeoutMs: num(o.promptGuardTimeoutMs, DEFAULT_CONFIG.promptGuardTimeoutMs, 1),
     model: str(o.model, DEFAULT_CONFIG.model),
     neverDietTools: Array.isArray(o.neverDietTools)
       ? o.neverDietTools.filter((tool): tool is string => typeof tool === 'string')

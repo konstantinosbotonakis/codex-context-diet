@@ -14,6 +14,9 @@ export interface DietConfig {
     injectionGuard: boolean;
     model: string;
     neverDietTools: string[];
+    promptGuard: boolean;
+    promptGuardThreshold: number;
+    promptGuardTimeoutMs: number;
     cacheMaxEntries: number;
     cacheMaxBytes: number;
     debug: boolean;
