@@ -73,20 +73,26 @@ export function decidePromptRisk(answers: Record<string, JevAnswer>, config: Die
   return { hazards, line: hazards.length > 0 ? warnLine(hazards) : null };
 }
 
-/** The line to inject, or null. Every failure path returns null, so the prompt goes through. */
+export interface PromptAssessment {
+  risk: PromptRisk | null;
+  /** The transport error, when there was one. The caller decides whether to mention it. */
+  error: string | null;
+}
+
+/** Never throws: a failure returns a null risk and the error text, and the prompt goes through. */
 export async function assessPrompt(
   context: PromptContext,
   asker: JevAsker | null,
   config: DietConfig,
-): Promise<PromptRisk | null> {
-  if (asker === null) return null;
+): Promise<PromptAssessment> {
+  if (asker === null) return { risk: null, error: null };
   try {
     const response = await asker.ask(
       { cwd: context.cwd, recent_prompts: context.recent, prompt: context.prompt },
       riskQuestions(),
     );
-    return decidePromptRisk(response.answers, config);
-  } catch {
-    return null;
+    return { risk: decidePromptRisk(response.answers, config), error: null };
+  } catch (error) {
+    return { risk: null, error: error instanceof Error ? error.message : String(error) };
   }
 }

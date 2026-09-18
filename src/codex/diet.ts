@@ -14,6 +14,21 @@ import type { JevAnswer, JevAsker } from '../types.js';
 
 export type DietAction = 'keep' | 'drop_result';
 
+/**
+ * The only reasons decideDiet produces, which means a Jev answer arrived. The
+ * stats command counts these as Jev calls: every other reason is a path that
+ * failed open before or during the request.
+ */
+export const JEV_REASONS = {
+  hazard: 'hazard flagged; result kept and annotated',
+  needed: 'contents still needed',
+  stale: 'stale and reproducible, body omitted',
+  irreplaceable: 'not reproducible, kept',
+  uncertain: 'uncertain, kept',
+} as const;
+
+export const JEV_REASON_VALUES: readonly string[] = Object.values(JEV_REASONS);
+
 export interface DietAnswers {
   /** The call happened and its arguments still matter, even if the body does not. */
   keepCall: number;
@@ -79,18 +94,18 @@ function optionalNoul(answers: Record<string, JevAnswer>, name: string): number 
  */
 export function decideDiet(answers: DietAnswers, config: DietConfig): DietDecision {
   if (answers.injection !== null && answers.injection >= config.keepThreshold) {
-    return { ...answers, action: 'keep', reason: 'hazard flagged; result kept and annotated' };
+    return { ...answers, action: 'keep', reason: JEV_REASONS.hazard };
   }
   if (answers.needsContents >= config.keepThreshold) {
-    return { ...answers, action: 'keep', reason: 'contents still needed' };
+    return { ...answers, action: 'keep', reason: JEV_REASONS.needed };
   }
   if (answers.needsContents <= config.dropThreshold && answers.replaceable >= config.keepThreshold) {
-    return { ...answers, action: 'drop_result', reason: 'stale and reproducible, body omitted' };
+    return { ...answers, action: 'drop_result', reason: JEV_REASONS.stale };
   }
   if (answers.replaceable < config.keepThreshold) {
-    return { ...answers, action: 'keep', reason: 'not reproducible, kept' };
+    return { ...answers, action: 'keep', reason: JEV_REASONS.irreplaceable };
   }
-  return { ...answers, action: 'keep', reason: 'uncertain, kept' };
+  return { ...answers, action: 'keep', reason: JEV_REASONS.uncertain };
 }
 
 export function buildNote(input: DietInput, decision: DietDecision, config: DietConfig): string | null {
@@ -202,4 +217,3 @@ export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
       : null;
   return outcomeOf(decision, note, warning);
 }
-

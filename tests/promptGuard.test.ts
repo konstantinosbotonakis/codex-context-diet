@@ -97,10 +97,14 @@ describe('session guard', () => {
     expect(readGoal(env, 's1').goal).toBe('purge the production cache');
   });
 
-  it('never blocks the prompt when there is no asker', async () => {
+  it('never blocks the prompt without an asker, and says Jev was skipped', async () => {
     const env = tempEnv();
     writeFileSync(configPath(env), JSON.stringify({ promptGuard: true }));
-    expect(await sessionMain(payload('drop the production table'), env)).toBe('');
+    const out = await sessionMain(payload('drop the production table'), env);
+    const parsed = JSON.parse(out) as Record<string, unknown>;
+    expect(Object.keys(parsed)).toEqual(['systemMessage']);
+    expect(String(parsed.systemMessage)).toContain('no TypeSafe API key');
+    expect(out).not.toContain('decision');
     expect(readGoal(env, 's1').goal).toBe('drop the production table');
   });
 });

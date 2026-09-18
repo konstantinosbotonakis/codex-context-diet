@@ -4,6 +4,7 @@ import { resolveApiKey } from '../key.js';
 import { estimateTokens } from '../state.js';
 import { capturePayload } from './capture.js';
 import { runDiet, type DietOutcome } from './diet.js';
+import { keyWarning, problemFromError, type KeyProblem } from './keyWarning.js';
 import { appendEvent } from './log.js';
 import { inputLine, isSkippedTool, toolResultText } from './payload.js';
 import { readGoal } from './session.js';
@@ -62,6 +63,7 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
     // stateSource 'off' is single-turn: no history is read and nothing is written.
     const singleTurn = config.stateSource === 'off';
     const cache = singleTurn ? [] : readCache(env, sessionId, config);
+    const firstResult = !singleTurn && cache.length === 0;
     const { goal, goalIndex } = readGoal(env, sessionId);
     const { key } = resolveApiKey(config, env);
     // CONTEXT_DIET_TEST_ANSWERS is a tests-only transport: it never reaches the
@@ -84,11 +86,29 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
       cache,
       asker,
       goal,
-      firstResult: !singleTurn && cache.length === 0,
+      firstResult,
     });
 
     if (!singleTurn) appendCache(env, sessionId, outcome.entry, config);
     logEvent(env, config, outcome);
+
+    // A missing or rejected key means Jev never ran. Say so once per session
+    // rather than failing silently.
+    // The first result of a session is never sent to Jev, so a missing key is
+    // not worth mentioning there.
+    const problem: KeyProblem | null = firstResult
+      ? null
+      : asker === null
+        ? 'missing'
+        : problemFromError(outcome.decision.reason);
+    if (problem !== null) {
+      const warning = keyWarning(env, sessionId, problem);
+      if (warning !== null) {
+        appendEvent(env, config, { kind: problem === 'missing' ? 'key_missing' : 'key_rejected', problem });
+        return JSON.stringify({ systemMessage: warning });
+      }
+    }
+
     return outcome.stdout === null ? '' : JSON.stringify(outcome.stdout);
   } catch {
     return '';

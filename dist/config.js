@@ -7,6 +7,7 @@ export const DEFAULT_CONFIG = {
     injectionGuard: true, model: 'jev-latest', neverDietTools: [],
     promptGuard: false, promptGuardThreshold: 0.7, promptGuardTimeoutMs: 3500,
     cacheMaxEntries: 40, cacheMaxBytes: 262144, debug: false,
+    logRetentionDays: 30,
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -50,6 +51,7 @@ export function resolveConfig(raw) {
         cacheMaxEntries: Math.floor(num(o.cacheMaxEntries, DEFAULT_CONFIG.cacheMaxEntries, 1)),
         cacheMaxBytes: Math.floor(num(o.cacheMaxBytes, DEFAULT_CONFIG.cacheMaxBytes, 1)),
         debug: bool(o.debug, DEFAULT_CONFIG.debug),
+        logRetentionDays: num(o.logRetentionDays, DEFAULT_CONFIG.logRetentionDays),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;

@@ -1,6 +1,19 @@
 import { buildDietState } from '../dietState.js';
 import { dietQuestions, Q_AGENT_DIRECTED, Q_BEHAVIOUR_CHANGE, Q_KEEP_CALL, Q_NEEDS_CONTENTS, Q_REPLACEABLE, } from '../questions.js';
 import { noulAnswer } from '../request.js';
+/**
+ * The only reasons decideDiet produces, which means a Jev answer arrived. The
+ * stats command counts these as Jev calls: every other reason is a path that
+ * failed open before or during the request.
+ */
+export const JEV_REASONS = {
+    hazard: 'hazard flagged; result kept and annotated',
+    needed: 'contents still needed',
+    stale: 'stale and reproducible, body omitted',
+    irreplaceable: 'not reproducible, kept',
+    uncertain: 'uncertain, kept',
+};
+export const JEV_REASON_VALUES = Object.values(JEV_REASONS);
 function keptResult(reason) {
     return { keepCall: 1, needsContents: 1, replaceable: 0, injection: null, action: 'keep', reason };
 }
@@ -21,18 +34,18 @@ function optionalNoul(answers, name) {
  */
 export function decideDiet(answers, config) {
     if (answers.injection !== null && answers.injection >= config.keepThreshold) {
-        return { ...answers, action: 'keep', reason: 'hazard flagged; result kept and annotated' };
+        return { ...answers, action: 'keep', reason: JEV_REASONS.hazard };
     }
     if (answers.needsContents >= config.keepThreshold) {
-        return { ...answers, action: 'keep', reason: 'contents still needed' };
+        return { ...answers, action: 'keep', reason: JEV_REASONS.needed };
     }
     if (answers.needsContents <= config.dropThreshold && answers.replaceable >= config.keepThreshold) {
-        return { ...answers, action: 'drop_result', reason: 'stale and reproducible, body omitted' };
+        return { ...answers, action: 'drop_result', reason: JEV_REASONS.stale };
     }
     if (answers.replaceable < config.keepThreshold) {
-        return { ...answers, action: 'keep', reason: 'not reproducible, kept' };
+        return { ...answers, action: 'keep', reason: JEV_REASONS.irreplaceable };
     }
-    return { ...answers, action: 'keep', reason: 'uncertain, kept' };
+    return { ...answers, action: 'keep', reason: JEV_REASONS.uncertain };
 }
 export function buildNote(input, decision, config) {
     if (decision.action !== 'drop_result')

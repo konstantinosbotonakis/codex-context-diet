@@ -21,6 +21,8 @@ export interface DietConfig {
     cacheMaxBytes: number;
     debug: boolean;
     apiKey?: string;
+    /** Days of event log to keep. 0 keeps everything. */
+    logRetentionDays: number;
 }
 export declare const DEFAULT_CONFIG: DietConfig;
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */

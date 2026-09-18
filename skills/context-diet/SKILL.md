@@ -26,6 +26,8 @@ The settings worth tuning:
 - `promptGuard` (off by default) adds one line of context to a prompt that looks
   production-affecting. It never blocks and it never rewrites. Turning it on costs one Jev call
   per prompt, on the critical path.
+- `logRetentionDays` (default 30) is how many days of the decision log survive rotation. The log
+  rotates once a day, and `0` keeps everything.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 
@@ -33,6 +35,7 @@ The settings worth tuning:
 
 ```bash
 node dist/cli.js status   # config path, key source (never the key), cache size
+node dist/cli.js stats    # sessions, results judged, results replaced, characters dropped
 node dist/cli.js verify   # eight offline checks, no network
 node dist/cli.js test     # one real request, needs a key
 ```

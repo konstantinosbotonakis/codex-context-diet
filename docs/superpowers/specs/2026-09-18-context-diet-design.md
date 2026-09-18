@@ -337,7 +337,8 @@ plugin reinstalls and is never committed.
   "neverDietTools": [],
   "cacheMaxEntries": 40,
   "cacheMaxBytes": 262144,
-  "debug": false
+  "debug": false,
+  "logRetentionDays": 30
 }
 ```
 
@@ -353,6 +354,7 @@ plugin reinstalls and is never committed.
 | `maxStateTokens` | Budget for the Jev state. |
 | `requestTimeoutMs` | Internal deadline; the hook `timeout` stays at 10s as the outer bound. |
 | `neverDietTools` | Exact tool names always exempted. `apply_patch` is exempt in code. |
+| `logRetentionDays` | Days of event log kept. Rotation runs at most once a day. |
 
 Key resolution order: `TYPESAFE_API_KEY` environment variable → `~/.typesafe_key` file →
 `apiKey` in config. The key is never written to logs, error messages, or the cache. The
@@ -366,8 +368,8 @@ Every failure is fail-open: the original tool result reaches the model.
 |---|---|
 | Unparseable stdin | exit 0, no output |
 | Unknown `hook_event_name` | exit 0, no output |
-| Missing key | exit 0, no output, one debug log line |
-| Jev non-2xx / network error | exit 0, no output, one debug log line with status (no body if it may echo the key) |
+| Missing key | exit 0, results kept in full, one warning line at most once an hour |
+| Jev non-2xx / network error | exit 0, results kept, one debug log line with status (no body if it may echo the key). 401 and 403 also trigger the key warning |
 | Timeout | abort, exit 0, no output |
 | Malformed or partial answers | treat as keep, exit 0 |
 | State does not fit | exit 0, no output |

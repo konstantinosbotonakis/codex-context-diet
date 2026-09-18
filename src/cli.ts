@@ -1,13 +1,16 @@
 #!/usr/bin/env node
 import { countSessions } from './cache.js';
 import { configPath, loadConfig, pluginDataDir } from './config.js';
+import { JEV_REASON_VALUES } from './codex/diet.js';
 import { keyFilePath, resolveApiKey } from './key.js';
+import { readUsageInput, renderUsage, summarizeUsage } from './stats.js';
 import { fakeAsker, throwingAsker, verifyCompaction } from './verify.js';
 
 const USAGE = [
   'context-diet <command>',
   '',
   '  status   show configuration, key source and data directory (offline)',
+  '  stats    usage totals for today, 7 days and 30 days (offline)',
   '  verify   run the offline verification harness (no network)',
   '  test     send one real request to TypeSafe/Jev (needs a key)',
   '',
@@ -91,8 +94,23 @@ async function live(): Promise<number> {
   }
 }
 
+async function stats(): Promise<number> {
+  const all = process.argv.includes('--all');
+  const asJson = process.argv.includes('--json');
+  const input = readUsageInput(process.env, { all });
+  const report = summarizeUsage(input, JEV_REASON_VALUES);
+  if (asJson) {
+    process.stdout.write(JSON.stringify(report, null, 2) + '\n');
+    return 0;
+  }
+  const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+  process.stdout.write(renderUsage(report, { timeZone, stores: input.stores }) + '\n');
+  return 0;
+}
+
 const command = process.argv[2] ?? '';
 if (command === 'status') process.exitCode = await status();
+else if (command === 'stats') process.exitCode = await stats();
 else if (command === 'verify') process.exitCode = await verify();
 else if (command === 'test') process.exitCode = await live();
 else process.stdout.write(USAGE);

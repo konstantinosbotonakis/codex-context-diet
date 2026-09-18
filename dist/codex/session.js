@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { sessionKey, sessionsDir } from '../cache.js';
 import { loadConfig } from '../config.js';
 import { resolveApiKey } from '../key.js';
+import { keyWarning, problemFromError } from './keyWarning.js';
 import { appendEvent } from './log.js';
 import { assessPrompt } from './promptGuard.js';
 import { createAsker } from './transport.js';
@@ -51,25 +52,36 @@ export function readGoal(env, sessionId) {
     return { goal: record.goal.join('\n'), goalIndex: record.goal.length - 1 };
 }
 /**
- * The prompt guard is opt-in and never blocks. It returns one line of developer
- * context or nothing. It runs on the critical path, so it gets a shorter
- * deadline than the diet hook.
+ * Opt-in, never blocking. Returns one line of developer context, or a one-off
+ * warning when Jev could not be asked at all, or nothing.
  */
-async function promptRiskLine(env, config, context) {
+async function promptGuardOutput(env, config, sessionId, context) {
     const { key } = resolveApiKey(config, env);
     const asker = key !== null || env.CONTEXT_DIET_TEST_ANSWERS
         ? createAsker({ ...config, requestTimeoutMs: config.promptGuardTimeoutMs }, key ?? 'test-key', env)
         : null;
     const started = Date.now();
-    const risk = await assessPrompt(context, asker, config);
+    const assessment = await assessPrompt(context, asker, config);
     appendEvent(env, config, {
         kind: 'prompt_guard',
-        flagged: risk !== null && risk.hazards.length > 0,
-        hazards: risk?.hazards ?? [],
+        flagged: assessment.risk !== null && assessment.risk.hazards.length > 0,
+        hazards: assessment.risk?.hazards ?? [],
         chars: context.prompt.length,
         ms: Date.now() - started,
+        error: assessment.error,
     });
-    return risk?.line ?? null;
+    const problem = asker === null ? 'missing' : assessment.error === null ? null : problemFromError(assessment.error);
+    if (problem !== null) {
+        const warning = keyWarning(env, sessionId, problem);
+        if (warning !== null) {
+            appendEvent(env, config, { kind: problem === 'missing' ? 'key_missing' : 'key_rejected', problem });
+            return { systemMessage: warning };
+        }
+    }
+    const line = assessment.risk?.line ?? null;
+    if (line === null)
+        return null;
+    return { hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: line } };
 }
 /** SessionStart records the session. UserPromptSubmit keeps the goals and runs the guard. Never throws. */
 export async function main(stdin, env) {
@@ -96,8 +108,8 @@ export async function main(stdin, env) {
         if (prompt.length === 0)
             return '';
         const config = loadConfig(env);
-        const line = config.promptGuard
-            ? await promptRiskLine(env, config, { cwd, recent: existing?.goal ?? [], prompt })
+        const stdout = config.promptGuard
+            ? await promptGuardOutput(env, config, sessionId, { cwd, recent: existing?.goal ?? [], prompt })
             : null;
         writeRecord(env, {
             session_id: sessionId,
@@ -106,11 +118,7 @@ export async function main(stdin, env) {
             started_at: startedAt,
             goal: [...(existing?.goal ?? []), prompt].slice(-MAX_GOALS),
         });
-        if (line === null)
-            return '';
-        return JSON.stringify({
-            hookSpecificOutput: { hookEventName: 'UserPromptSubmit', additionalContext: line },
-        });
+        return stdout === null ? '' : JSON.stringify(stdout);
     }
     catch {
         // never block a session

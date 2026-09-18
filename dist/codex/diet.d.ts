@@ -2,6 +2,19 @@ import type { CacheEntry } from '../cache.js';
 import type { DietConfig } from '../config.js';
 import type { JevAsker } from '../types.js';
 export type DietAction = 'keep' | 'drop_result';
+/**
+ * The only reasons decideDiet produces, which means a Jev answer arrived. The
+ * stats command counts these as Jev calls: every other reason is a path that
+ * failed open before or during the request.
+ */
+export declare const JEV_REASONS: {
+    readonly hazard: "hazard flagged; result kept and annotated";
+    readonly needed: "contents still needed";
+    readonly stale: "stale and reproducible, body omitted";
+    readonly irreplaceable: "not reproducible, kept";
+    readonly uncertain: "uncertain, kept";
+};
+export declare const JEV_REASON_VALUES: readonly string[];
 export interface DietAnswers {
     /** The call happened and its arguments still matter, even if the body does not. */
     keepCall: number;

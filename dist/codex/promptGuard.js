@@ -42,16 +42,16 @@ export function decidePromptRisk(answers, config) {
     }
     return { hazards, line: hazards.length > 0 ? warnLine(hazards) : null };
 }
-/** The line to inject, or null. Every failure path returns null, so the prompt goes through. */
+/** Never throws: a failure returns a null risk and the error text, and the prompt goes through. */
 export async function assessPrompt(context, asker, config) {
     if (asker === null)
-        return null;
+        return { risk: null, error: null };
     try {
         const response = await asker.ask({ cwd: context.cwd, recent_prompts: context.recent, prompt: context.prompt }, riskQuestions());
-        return decidePromptRisk(response.answers, config);
+        return { risk: decidePromptRisk(response.answers, config), error: null };
     }
-    catch {
-        return null;
+    catch (error) {
+        return { risk: null, error: error instanceof Error ? error.message : String(error) };
     }
 }
 //# sourceMappingURL=promptGuard.js.map

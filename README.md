@@ -198,7 +198,8 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "neverDietTools": [],
   "cacheMaxEntries": 40,
   "cacheMaxBytes": 262144,
-  "debug": false
+  "debug": false,
+  "logRetentionDays": 30
 }
 ```
 
@@ -217,12 +218,15 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `promptGuardThreshold` | Jev score at or above which either hazard adds the line |
 | `promptGuardTimeoutMs` | deadline for the prompt guard, which runs while you wait |
 | `debug` | append one line per decision to `$PLUGIN_DATA/log/events.jsonl` |
+| `logRetentionDays` | days of event log to keep, rotated once a day, and 0 keeps everything |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
 ### The API key
 
 Resolution order is `TYPESAFE_API_KEY`, then `~/.typesafe_key` (override the path with `TYPESAFE_KEY_FILE`), then `apiKey` in the config. The key is never written to stdout, stderr, the log, or the cache. Only its source is ever reported.
+
+When the key is missing, or TypeSafe rejects it, Jev is skipped and results stay in full. The hook then adds one line saying so, at most once an hour, so a broken key is neither silent nor noisy.
 
 ```bash
 printf %s "$YOUR_KEY" > ~/.typesafe_key && chmod 600 ~/.typesafe_key
@@ -240,6 +244,16 @@ Hooks are a guardrail, not an enforcement boundary. Some specialised tool paths 
 ## Measuring the effect
 
 Codex records token usage per turn in the session rollout as `token_usage_record` events. Compare the request after a diet against the request before it, and compare that delta against a baseline recorded from the same command with the plugin disabled or untrusted. A single before/after pair cannot separate the diet from ordinary turn-to-turn growth.
+
+### Usage totals on this machine
+
+```bash
+node dist/cli.js stats          # today, 7 days and 30 days
+node dist/cli.js stats --json   # the same numbers as JSON
+node dist/cli.js stats --all    # every store under ~/.codex/plugins/data
+```
+
+The table counts sessions, results judged, results replaced, the replaced share, characters dropped and a token estimate for each window. With `debug: true` it adds Jev calls, prompt guard runs and key warnings. Nothing in the table comes from tool output, prompts or commands. The event log behind those last rows rotates daily and keeps 30 days by default; change `logRetentionDays` to move that, or set it to 0 to keep everything.
 
 ## Development
 
