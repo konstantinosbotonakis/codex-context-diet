@@ -64,11 +64,13 @@ async function promptGuardOutput(env, config, sessionId, context) {
     const assessment = await assessPrompt(context, asker, config);
     appendEvent(env, config, {
         kind: 'prompt_guard',
+        asked: asker !== null,
         flagged: assessment.risk !== null && assessment.risk.hazards.length > 0,
         hazards: assessment.risk?.hazards ?? [],
         chars: context.prompt.length,
         ms: Date.now() - started,
         error: assessment.error,
+        inputTokens: assessment.inputTokens,
     });
     const problem = asker === null ? 'missing' : assessment.error === null ? null : problemFromError(assessment.error);
     if (problem !== null) {

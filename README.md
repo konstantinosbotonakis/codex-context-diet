@@ -199,7 +199,8 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "cacheMaxEntries": 40,
   "cacheMaxBytes": 262144,
   "debug": false,
-  "logRetentionDays": 30
+  "logRetentionDays": 30,
+  "pricePerMillionInputTokens": 0.042
 }
 ```
 
@@ -219,6 +220,7 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `promptGuardTimeoutMs` | deadline for the prompt guard, which runs while you wait |
 | `debug` | append one line per decision to `$PLUGIN_DATA/log/events.jsonl` |
 | `logRetentionDays` | days of event log to keep, rotated once a day, and 0 keeps everything |
+| `pricePerMillionInputTokens` | USD per million input tokens, used for the estimated cost in the stats table |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
@@ -254,6 +256,8 @@ node dist/cli.js stats --all    # every store under ~/.codex/plugins/data
 ```
 
 The table counts sessions, results judged, results replaced, the replaced share, characters dropped and a token estimate for each window. With `debug: true` it adds Jev calls, prompt guard runs and key warnings. Nothing in the table comes from tool output, prompts or commands. The event log behind those last rows rotates daily and keeps 30 days by default; change `logRetentionDays` to move that, or set it to 0 to keep everything.
+
+Every Jev response reports token usage, so the table also adds up input tokens and prices them at `pricePerMillionInputTokens`, 0.042 USD per million input tokens by default, which is the published Jev input price. Output tokens are free. Calls recorded before usage was kept make the cost a lower bound, and the table says so when that applies.
 
 ## Development
 

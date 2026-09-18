@@ -15,5 +15,7 @@ export declare function buildJevRequest(params: {
 }, state: JevState, questions: JevQuestions): JevRequest;
 /** Validates a Jev response body; throws on anything but an `answers` object. */
 export declare function parseJevResponse(status: number, ok: boolean, text: string): JevResponse;
+/** The input-token count the API reports for a call, or null when it is absent. */
+export declare function inputTokensOf(response: JevResponse): number | null;
 /** The `noul` probability of one answer; throws when it is not there. */
 export declare function noulAnswer(answers: Record<string, JevAnswer>, name: string): number;

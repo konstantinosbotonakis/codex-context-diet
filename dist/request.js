@@ -37,6 +37,11 @@ export function parseJevResponse(status, ok, text) {
     }
     return parsed;
 }
+/** The input-token count the API reports for a call, or null when it is absent. */
+export function inputTokensOf(response) {
+    const value = response.usage?.input_tokens;
+    return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
 /** The `noul` probability of one answer; throws when it is not there. */
 export function noulAnswer(answers, name) {
     const answer = answers[name];

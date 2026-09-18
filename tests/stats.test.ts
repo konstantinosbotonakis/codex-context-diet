@@ -69,6 +69,35 @@ describe('usage windows', () => {
     });
     expect(report.logLines).toBe(9);
   });
+
+  it('adds up input tokens and cost from the usage the API reported', () => {
+    const report = summarizeUsage(
+      usage({
+        events: [
+          { at: at(0), kind: 'diet', reason: JEV_REASONS.stale, inputTokens: 100_000 },
+          { at: at(0), kind: 'diet', reason: JEV_REASONS.needed, inputTokens: 50_000 },
+          { at: at(0), kind: 'diet', reason: JEV_REASONS.uncertain },
+          { at: at(0), kind: 'prompt_guard', asked: true, flagged: false, inputTokens: 2_000 },
+        ],
+      }),
+      JEV_REASON_VALUES,
+    );
+    const [today] = report.windows;
+    expect(today).toMatchObject({ jevCalls: 4, jevTokens: 152_000, jevMeasured: 3 });
+    expect(today?.costUsd).toBeCloseTo((152_000 * 0.042) / 1_000_000, 12);
+    expect(report.pricePerMillionInputTokens).toBe(0.042);
+  });
+
+  it('takes the price it is given, so a price change needs no release', () => {
+    const report = summarizeUsage(
+      usage({ events: [{ at: at(0), kind: 'diet', reason: JEV_REASONS.stale, inputTokens: 1_000_000 }] }),
+      JEV_REASON_VALUES,
+      undefined,
+      1.5,
+    );
+    expect(report.windows[0]?.costUsd).toBeCloseTo(1.5, 12);
+    expect(report.pricePerMillionInputTokens).toBe(1.5);
+  });
 });
 
 describe('usage table', () => {
@@ -88,6 +117,25 @@ describe('usage table', () => {
     const table = renderUsage(summarizeUsage(usage(), JEV_REASON_VALUES), { timeZone: 'UTC', now: NOW });
     expect(table).toContain('need debug: true');
     expect(table).not.toMatch(/^ {2}Jev calls /m);
+  });
+
+  it('prints tokens and cost, and calls the cost a lower bound when usage is missing', () => {
+    const table = renderUsage(
+      summarizeUsage(
+        usage({
+          events: [
+            { at: at(0), kind: 'diet', reason: JEV_REASONS.stale, inputTokens: 2_000 },
+            { at: at(0), kind: 'diet', reason: JEV_REASONS.uncertain },
+          ],
+        }),
+        JEV_REASON_VALUES,
+      ),
+      { timeZone: 'UTC', now: NOW },
+    );
+    expect(table).toContain('Jev input tokens');
+    expect(table).toContain('2,000');
+    expect(table).toContain('0.042 USD per million input tokens');
+    expect(table).toContain('Cost is a lower bound: 1 call recorded no usage.');
   });
 });
 

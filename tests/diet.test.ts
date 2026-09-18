@@ -109,6 +109,16 @@ describe('runDiet', () => {
     expect(outcome.stdout).toBeNull();
   });
 
+  it('carries the billed input tokens when the response reports usage', async () => {
+    const usageScores = {
+      needs_contents: 0.05, replaceable: 0.9, keep_call: 0.9, agent_directed: 0.02, behaviour_change: 0.02,
+    };
+    const metered = await runDiet(deps({ asker: fakeAsker(usageScores, { input_tokens: 12_345 }) }) as never);
+    expect(metered.inputTokens).toBe(12_345);
+    const unmetered = await runDiet(deps() as never);
+    expect(unmetered.inputTokens).toBeNull();
+  });
+
   it('emits the replacement shape once Jev says the body is stale and reproducible', async () => {
     const kept = await runDiet(
       deps({ asker: fakeAsker({ needs_contents: 1, replaceable: 0, keep_call: 0, agent_directed: 0, behaviour_change: 0 }) }) as never,

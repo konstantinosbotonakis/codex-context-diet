@@ -28,6 +28,8 @@ The settings worth tuning:
   per prompt, on the critical path.
 - `logRetentionDays` (default 30) is how many days of the decision log survive rotation. The log
   rotates once a day, and `0` keeps everything.
+- `pricePerMillionInputTokens` (default 0.042) prices the estimated cost in `stats`. Change it
+  when TypeSafe changes the price.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 
@@ -35,7 +37,7 @@ The settings worth tuning:
 
 ```bash
 node dist/cli.js status   # config path, key source (never the key), cache size
-node dist/cli.js stats    # sessions, results judged, results replaced, characters dropped
+node dist/cli.js stats    # usage table, with input tokens and the estimated cost
 node dist/cli.js verify   # eight offline checks, no network
 node dist/cli.js test     # one real request, needs a key
 ```

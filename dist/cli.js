@@ -3,7 +3,7 @@ import { countSessions } from './cache.js';
 import { configPath, loadConfig, pluginDataDir } from './config.js';
 import { JEV_REASON_VALUES } from './codex/diet.js';
 import { keyFilePath, resolveApiKey } from './key.js';
-import { readUsageInput, renderUsage, summarizeUsage } from './stats.js';
+import { readUsageInput, renderUsage, summarizeUsage, WINDOWS } from './stats.js';
 import { fakeAsker, throwingAsker, verifyCompaction } from './verify.js';
 const USAGE = [
     'context-diet <command>',
@@ -81,7 +81,7 @@ async function stats() {
     const all = process.argv.includes('--all');
     const asJson = process.argv.includes('--json');
     const input = readUsageInput(process.env, { all });
-    const report = summarizeUsage(input, JEV_REASON_VALUES);
+    const report = summarizeUsage(input, JEV_REASON_VALUES, WINDOWS, input.pricePerMillionInputTokens);
     if (asJson) {
         process.stdout.write(JSON.stringify(report, null, 2) + '\n');
         return 0;

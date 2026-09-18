@@ -338,7 +338,8 @@ plugin reinstalls and is never committed.
   "cacheMaxEntries": 40,
   "cacheMaxBytes": 262144,
   "debug": false,
-  "logRetentionDays": 30
+  "logRetentionDays": 30,
+  "pricePerMillionInputTokens": 0.042
 }
 ```
 
@@ -355,6 +356,7 @@ plugin reinstalls and is never committed.
 | `requestTimeoutMs` | Internal deadline; the hook `timeout` stays at 10s as the outer bound. |
 | `neverDietTools` | Exact tool names always exempted. `apply_patch` is exempt in code. |
 | `logRetentionDays` | Days of event log kept. Rotation runs at most once a day. |
+| `pricePerMillionInputTokens` | USD per million input tokens, for the estimated cost in stats. |
 
 Key resolution order: `TYPESAFE_API_KEY` environment variable → `~/.typesafe_key` file →
 `apiKey` in config. The key is never written to logs, error messages, or the cache. The

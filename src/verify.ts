@@ -54,7 +54,10 @@ export function sampleTranscript(): Message[] {
 }
 
 /** Deterministic asker for tests and offline runs. '*' is the fallback score. */
-export function fakeAsker(scores: Record<string, number>): JevAsker {
+export function fakeAsker(
+  scores: Record<string, number>,
+  usage?: { input_tokens?: number; output_tokens?: number },
+): JevAsker {
   return {
     async ask(_state, questions) {
       return {
@@ -64,6 +67,7 @@ export function fakeAsker(scores: Record<string, number>): JevAsker {
             { type: 'noul' as const, noul: scores[key] ?? scores['*'] ?? 0.5 },
           ]),
         ),
+        usage,
       };
     },
   };

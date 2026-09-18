@@ -18,7 +18,10 @@ export declare function sampleLog(): string;
 /** A goal, three tool calls, and one bulky failing result. Nothing here costs money. */
 export declare function sampleTranscript(): Message[];
 /** Deterministic asker for tests and offline runs. '*' is the fallback score. */
-export declare function fakeAsker(scores: Record<string, number>): JevAsker;
+export declare function fakeAsker(scores: Record<string, number>, usage?: {
+    input_tokens?: number;
+    output_tokens?: number;
+}): JevAsker;
 /** An asker that always throws, to prove the paths that must not reach the network. */
 export declare function throwingAsker(message: string): JevAsker;
 /** Offline proof that the decision path is wired correctly. Never touches the network. */

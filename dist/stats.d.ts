@@ -11,6 +11,8 @@ export interface UsageInput {
     now?: Date;
     /** Which data directories were read, for the header line. */
     stores?: string[];
+    /** USD per million input tokens, read from the store config when it is there. */
+    pricePerMillionInputTokens?: number;
 }
 export interface UsageWindow {
     label: string;
@@ -20,6 +22,10 @@ export interface UsageWindow {
     replaced: number;
     charsDropped: number;
     jevCalls: number;
+    jevTokens: number;
+    /** Jev calls in this window whose API response reported token usage. */
+    jevMeasured: number;
+    costUsd: number;
     guardRuns: number;
     guardFlags: number;
     keyWarnings: number;
@@ -28,6 +34,7 @@ export interface UsageReport {
     windows: UsageWindow[];
     earliest: number | null;
     logLines: number;
+    pricePerMillionInputTokens: number;
 }
 export declare const WINDOWS: readonly [{
     readonly label: "today";
@@ -44,7 +51,7 @@ export declare function localMidnight(now: Date, daysBack: number): number;
 export declare function summarizeUsage(input: UsageInput, jevReasons: readonly string[], specs?: readonly {
     label: string;
     days: number;
-}[]): UsageReport;
+}[], pricePerMillionInputTokens?: number): UsageReport;
 export interface RenderOptions {
     timeZone: string;
     now?: Date;

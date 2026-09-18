@@ -23,7 +23,11 @@ export interface DietConfig {
     apiKey?: string;
     /** Days of event log to keep. 0 keeps everything. */
     logRetentionDays: number;
+    /** USD per million input tokens, used by the cost line in stats. */
+    pricePerMillionInputTokens: number;
 }
+/** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
+export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;
 export declare const DEFAULT_CONFIG: DietConfig;
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export declare function pluginDataDir(env: NodeJS.ProcessEnv): string;

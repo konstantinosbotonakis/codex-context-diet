@@ -28,7 +28,7 @@ export function sampleTranscript() {
     ];
 }
 /** Deterministic asker for tests and offline runs. '*' is the fallback score. */
-export function fakeAsker(scores) {
+export function fakeAsker(scores, usage) {
     return {
         async ask(_state, questions) {
             return {
@@ -36,6 +36,7 @@ export function fakeAsker(scores) {
                     key,
                     { type: 'noul', noul: scores[key] ?? scores['*'] ?? 0.5 },
                 ])),
+                usage,
             };
         },
     };

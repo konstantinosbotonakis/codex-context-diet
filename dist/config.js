@@ -1,5 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+/** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
+export const JEV_INPUT_PRICE_PER_MTOK = 0.042;
 export const DEFAULT_CONFIG = {
     enabled: true, mode: 'diet', dryRun: false, stateSource: 'cache',
     minTokens: 2000, keepThreshold: 0.5, dropThreshold: 0.25, truncateHeadChars: 300,
@@ -8,6 +10,7 @@ export const DEFAULT_CONFIG = {
     promptGuard: false, promptGuardThreshold: 0.7, promptGuardTimeoutMs: 3500,
     cacheMaxEntries: 40, cacheMaxBytes: 262144, debug: false,
     logRetentionDays: 30,
+    pricePerMillionInputTokens: JEV_INPUT_PRICE_PER_MTOK,
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -52,6 +55,7 @@ export function resolveConfig(raw) {
         cacheMaxBytes: Math.floor(num(o.cacheMaxBytes, DEFAULT_CONFIG.cacheMaxBytes, 1)),
         debug: bool(o.debug, DEFAULT_CONFIG.debug),
         logRetentionDays: num(o.logRetentionDays, DEFAULT_CONFIG.logRetentionDays),
+        pricePerMillionInputTokens: num(o.pricePerMillionInputTokens, DEFAULT_CONFIG.pricePerMillionInputTokens),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;

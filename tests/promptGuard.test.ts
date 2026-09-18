@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG, configPath } from '../src/config.js';
 import {
+  assessPrompt,
   decidePromptRisk,
   Q_IRREVERSIBLE,
   Q_TOUCHES_PRODUCTION,
@@ -11,6 +12,7 @@ import {
   warnLine,
 } from '../src/codex/promptGuard.js';
 import { main as sessionMain, readGoal } from '../src/codex/session.js';
+import { fakeAsker } from '../src/verify.js';
 
 const config = { ...DEFAULT_CONFIG, promptGuard: true };
 const tempEnv = (): NodeJS.ProcessEnv =>
@@ -106,5 +108,17 @@ describe('session guard', () => {
     expect(String(parsed.systemMessage)).toContain('no TypeSafe API key');
     expect(out).not.toContain('decision');
     expect(readGoal(env, 's1').goal).toBe('drop the production table');
+  });
+});
+
+describe('prompt assessment', () => {
+  const context = { cwd: '/tmp', recent: [], prompt: 'deploy it' };
+  const quiet = { [Q_TOUCHES_PRODUCTION]: 0.1, [Q_IRREVERSIBLE]: 0.1 };
+
+  it('carries the billed input tokens when the response reports usage', async () => {
+    const metered = await assessPrompt(context, fakeAsker(quiet, { input_tokens: 321 }), config);
+    expect(metered.inputTokens).toBe(321);
+    const unmetered = await assessPrompt(context, fakeAsker(quiet), config);
+    expect(unmetered.inputTokens).toBeNull();
   });
 });

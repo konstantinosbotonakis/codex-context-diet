@@ -44,6 +44,8 @@ export interface DietOutcome {
     stdout: Record<string, unknown> | null;
     blocked: boolean;
     entry: CacheEntry;
+    /** Input tokens the API billed for this call, when it reported usage. */
+    inputTokens: number | null;
 }
 export interface DietDeps {
     input: DietInput;

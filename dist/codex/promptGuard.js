@@ -1,4 +1,4 @@
-import { noulAnswer } from '../request.js';
+import { inputTokensOf, noulAnswer } from '../request.js';
 export const Q_TOUCHES_PRODUCTION = 'touches_production';
 export const Q_IRREVERSIBLE = 'irreversible';
 const criteria = (yes, no) => ({ true: yes, false: no });
@@ -45,13 +45,13 @@ export function decidePromptRisk(answers, config) {
 /** Never throws: a failure returns a null risk and the error text, and the prompt goes through. */
 export async function assessPrompt(context, asker, config) {
     if (asker === null)
-        return { risk: null, error: null };
+        return { risk: null, error: null, inputTokens: null };
     try {
         const response = await asker.ask({ cwd: context.cwd, recent_prompts: context.recent, prompt: context.prompt }, riskQuestions());
-        return { risk: decidePromptRisk(response.answers, config), error: null };
+        return { risk: decidePromptRisk(response.answers, config), error: null, inputTokens: inputTokensOf(response) };
     }
     catch (error) {
-        return { risk: null, error: error instanceof Error ? error.message : String(error) };
+        return { risk: null, error: error instanceof Error ? error.message : String(error), inputTokens: null };
     }
 }
 //# sourceMappingURL=promptGuard.js.map

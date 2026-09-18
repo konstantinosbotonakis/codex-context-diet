@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { pluginDataDir } from './config.js';
+import { JEV_INPUT_PRICE_PER_MTOK, pluginDataDir } from './config.js';
 
 export interface RawRecord {
   [key: string]: unknown;
@@ -17,6 +17,8 @@ export interface UsageInput {
   now?: Date;
   /** Which data directories were read, for the header line. */
   stores?: string[];
+  /** USD per million input tokens, read from the store config when it is there. */
+  pricePerMillionInputTokens?: number;
 }
 
 export interface UsageWindow {
@@ -27,6 +29,10 @@ export interface UsageWindow {
   replaced: number;
   charsDropped: number;
   jevCalls: number;
+  jevTokens: number;
+  /** Jev calls in this window whose API response reported token usage. */
+  jevMeasured: number;
+  costUsd: number;
   guardRuns: number;
   guardFlags: number;
   keyWarnings: number;
@@ -36,6 +42,7 @@ export interface UsageReport {
   windows: UsageWindow[];
   earliest: number | null;
   logLines: number;
+  pricePerMillionInputTokens: number;
 }
 
 export const WINDOWS = [
@@ -61,6 +68,7 @@ export function summarizeUsage(
   input: UsageInput,
   jevReasons: readonly string[],
   specs: readonly { label: string; days: number }[] = WINDOWS,
+  pricePerMillionInputTokens: number = JEV_INPUT_PRICE_PER_MTOK,
 ): UsageReport {
   const now = input.now ?? new Date();
   const end = now.getTime();
@@ -72,6 +80,9 @@ export function summarizeUsage(
     replaced: 0,
     charsDropped: 0,
     jevCalls: 0,
+    jevTokens: 0,
+    jevMeasured: 0,
+    costUsd: 0,
     guardRuns: 0,
     guardFlags: 0,
     keyWarnings: 0,
@@ -106,29 +117,51 @@ export function summarizeUsage(
     if (when === null) continue;
     const kind = String(event.kind ?? 'diet');
     const reason = String(event.reason ?? '');
+    const tokens =
+      typeof event.inputTokens === 'number' && Number.isFinite(event.inputTokens) ? event.inputTokens : null;
     bump(when, (window) => {
+      if (tokens !== null) window.jevTokens += tokens;
       if (kind === 'prompt_guard') {
         window.guardRuns += 1;
         if (event.flagged === true) window.guardFlags += 1;
+        if (event.asked === true) {
+          window.jevCalls += 1;
+          if (tokens !== null) window.jevMeasured += 1;
+        }
         return;
       }
       if (kind === 'key_missing' || kind === 'key_rejected') {
         window.keyWarnings += 1;
         return;
       }
-      if (jevReasons.includes(reason)) window.jevCalls += 1;
+      if (jevReasons.includes(reason)) {
+        window.jevCalls += 1;
+        if (tokens !== null) window.jevMeasured += 1;
+      }
     });
   }
 
   return {
-    windows: windows.map((window, index) => ({ ...window, sessions: seen[index]!.size })),
+    windows: windows.map((window, index) => ({
+      ...window,
+      sessions: seen[index]!.size,
+      costUsd: (window.jevTokens * pricePerMillionInputTokens) / 1_000_000,
+    })),
     earliest,
     logLines: input.events.length,
+    pricePerMillionInputTokens,
   };
 }
 
 function formatNumber(value: number): string {
   return value.toLocaleString('en-US');
+}
+
+/** Dollars, precise enough for the fractions of a cent a small request costs. */
+function formatCost(value: number): string {
+  if (value === 0) return '$0';
+  if (value < 0.0001) return '<$0.0001';
+  return '$' + value.toFixed(value >= 1 ? 2 : 4);
 }
 
 export interface RenderOptions {
@@ -171,6 +204,8 @@ export function renderUsage(report: UsageReport, options: RenderOptions): string
       ['prompt guard runs', (w) => formatNumber(w.guardRuns)],
       ['  prompts flagged', (w) => formatNumber(w.guardFlags)],
       ['key warnings', (w) => formatNumber(w.keyWarnings)],
+      ['Jev input tokens', (w) => formatNumber(w.jevTokens)],
+      ['  estimated cost', (w) => formatCost(w.costUsd)],
     );
   }
 
@@ -196,6 +231,15 @@ export function renderUsage(report: UsageReport, options: RenderOptions): string
     lines.push('');
     lines.push('Jev calls, prompt guard runs and key warnings need debug: true in the plugin config.');
   }
+  const widest = report.windows[report.windows.length - 1];
+  if (widest !== undefined && widest.jevCalls > 0) {
+    lines.push('');
+    lines.push('Cost uses ' + report.pricePerMillionInputTokens + ' USD per million input tokens, the published Jev input price; output tokens are free.');
+    const missing = widest.jevCalls - widest.jevMeasured;
+    if (missing > 0) {
+      lines.push('Cost is a lower bound: ' + missing + ' call' + (missing === 1 ? '' : 's') + ' recorded no usage.');
+    }
+  }
   return lines.join('\n');
 }
 
@@ -216,6 +260,19 @@ function readLines(path: string): RawRecord[] {
   }
 }
 
+/** The price a store's config sets, when it sets a usable one. */
+function readPrice(root: string): number | null {
+  try {
+    const raw = JSON.parse(readFileSync(join(root, 'config.json'), 'utf8')) as {
+      pricePerMillionInputTokens?: unknown;
+    };
+    const value = raw.pricePerMillionInputTokens;
+    return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
 function readStore(root: string): UsageInput {
   const sessionsDir = join(root, 'sessions');
   const sessions: SessionData[] = [];
@@ -230,7 +287,11 @@ function readStore(root: string): UsageInput {
   } catch {
     // no sessions yet
   }
-  return { sessions, events: readLines(join(root, 'log', 'events.jsonl')) };
+  return {
+    sessions,
+    events: readLines(join(root, 'log', 'events.jsonl')),
+    pricePerMillionInputTokens: readPrice(root) ?? undefined,
+  };
 }
 
 /**
@@ -262,6 +323,9 @@ export function readUsageInput(env: NodeJS.ProcessEnv, options: { all?: boolean 
   const unique = [...new Set(roots)].filter((root) => existsSync(root));
   for (const root of unique) {
     const part = readStore(root);
+    if (merged.pricePerMillionInputTokens === undefined && part.pricePerMillionInputTokens !== undefined) {
+      merged.pricePerMillionInputTokens = part.pricePerMillionInputTokens;
+    }
     const prefix = unique.length > 1 ? basename(root) + '/' : '';
     merged.sessions.push(...part.sessions.map((s) => ({ ...s, sessionId: prefix + s.sessionId })));
     merged.events.push(...part.events);

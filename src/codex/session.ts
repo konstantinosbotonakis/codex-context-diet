@@ -81,11 +81,13 @@ async function promptGuardOutput(
   const assessment = await assessPrompt(context, asker, config);
   appendEvent(env, config, {
     kind: 'prompt_guard',
+    asked: asker !== null,
     flagged: assessment.risk !== null && assessment.risk.hazards.length > 0,
     hazards: assessment.risk?.hazards ?? [],
     chars: context.prompt.length,
     ms: Date.now() - started,
     error: assessment.error,
+    inputTokens: assessment.inputTokens,
   });
 
   const problem: KeyProblem | null =

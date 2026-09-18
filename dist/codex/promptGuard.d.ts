@@ -28,6 +28,8 @@ export interface PromptAssessment {
     risk: PromptRisk | null;
     /** The transport error, when there was one. The caller decides whether to mention it. */
     error: string | null;
+    /** Input tokens the API billed for this call, when it reported usage. */
+    inputTokens: number | null;
 }
 /** Never throws: a failure returns a null risk and the error text, and the prompt goes through. */
 export declare function assessPrompt(context: PromptContext, asker: JevAsker | null, config: DietConfig): Promise<PromptAssessment>;

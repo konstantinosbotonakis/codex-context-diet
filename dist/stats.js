@@ -1,6 +1,6 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
-import { pluginDataDir } from './config.js';
+import { JEV_INPUT_PRICE_PER_MTOK, pluginDataDir } from './config.js';
 export const WINDOWS = [
     { label: 'today', days: 1 },
     { label: '7 days', days: 7 },
@@ -17,7 +17,7 @@ function timestamp(record) {
     const value = Date.parse(String(record.at ?? ''));
     return Number.isFinite(value) ? value : null;
 }
-export function summarizeUsage(input, jevReasons, specs = WINDOWS) {
+export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMillionInputTokens = JEV_INPUT_PRICE_PER_MTOK) {
     const now = input.now ?? new Date();
     const end = now.getTime();
     const windows = specs.map((spec) => ({
@@ -28,6 +28,9 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS) {
         replaced: 0,
         charsDropped: 0,
         jevCalls: 0,
+        jevTokens: 0,
+        jevMeasured: 0,
+        costUsd: 0,
         guardRuns: 0,
         guardFlags: 0,
         keyWarnings: 0,
@@ -63,29 +66,53 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS) {
             continue;
         const kind = String(event.kind ?? 'diet');
         const reason = String(event.reason ?? '');
+        const tokens = typeof event.inputTokens === 'number' && Number.isFinite(event.inputTokens) ? event.inputTokens : null;
         bump(when, (window) => {
+            if (tokens !== null)
+                window.jevTokens += tokens;
             if (kind === 'prompt_guard') {
                 window.guardRuns += 1;
                 if (event.flagged === true)
                     window.guardFlags += 1;
+                if (event.asked === true) {
+                    window.jevCalls += 1;
+                    if (tokens !== null)
+                        window.jevMeasured += 1;
+                }
                 return;
             }
             if (kind === 'key_missing' || kind === 'key_rejected') {
                 window.keyWarnings += 1;
                 return;
             }
-            if (jevReasons.includes(reason))
+            if (jevReasons.includes(reason)) {
                 window.jevCalls += 1;
+                if (tokens !== null)
+                    window.jevMeasured += 1;
+            }
         });
     }
     return {
-        windows: windows.map((window, index) => ({ ...window, sessions: seen[index].size })),
+        windows: windows.map((window, index) => ({
+            ...window,
+            sessions: seen[index].size,
+            costUsd: (window.jevTokens * pricePerMillionInputTokens) / 1_000_000,
+        })),
         earliest,
         logLines: input.events.length,
+        pricePerMillionInputTokens,
     };
 }
 function formatNumber(value) {
     return value.toLocaleString('en-US');
+}
+/** Dollars, precise enough for the fractions of a cent a small request costs. */
+function formatCost(value) {
+    if (value === 0)
+        return '$0';
+    if (value < 0.0001)
+        return '<$0.0001';
+    return '$' + value.toFixed(value >= 1 ? 2 : 4);
 }
 /** A table of counts. Never prints tool output, prompts, commands, or any other content. */
 export function renderUsage(report, options) {
@@ -111,7 +138,7 @@ export function renderUsage(report, options) {
         ['  roughly tokens', (w) => '~' + formatNumber(Math.round(w.charsDropped / 4))],
     ];
     if (report.logLines > 0) {
-        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)]);
+        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)]);
     }
     const labelWidth = Math.max(...rows.map(([label]) => label.length));
     const cells = rows.map(([, value]) => report.windows.map(value));
@@ -125,6 +152,15 @@ export function renderUsage(report, options) {
     if (report.logLines === 0) {
         lines.push('');
         lines.push('Jev calls, prompt guard runs and key warnings need debug: true in the plugin config.');
+    }
+    const widest = report.windows[report.windows.length - 1];
+    if (widest !== undefined && widest.jevCalls > 0) {
+        lines.push('');
+        lines.push('Cost uses ' + report.pricePerMillionInputTokens + ' USD per million input tokens, the published Jev input price; output tokens are free.');
+        const missing = widest.jevCalls - widest.jevMeasured;
+        if (missing > 0) {
+            lines.push('Cost is a lower bound: ' + missing + ' call' + (missing === 1 ? '' : 's') + ' recorded no usage.');
+        }
     }
     return lines.join('\n');
 }
@@ -147,6 +183,17 @@ function readLines(path) {
         return [];
     }
 }
+/** The price a store's config sets, when it sets a usable one. */
+function readPrice(root) {
+    try {
+        const raw = JSON.parse(readFileSync(join(root, 'config.json'), 'utf8'));
+        const value = raw.pricePerMillionInputTokens;
+        return typeof value === 'number' && Number.isFinite(value) && value >= 0 ? value : null;
+    }
+    catch {
+        return null;
+    }
+}
 function readStore(root) {
     const sessionsDir = join(root, 'sessions');
     const sessions = [];
@@ -163,7 +210,11 @@ function readStore(root) {
     catch {
         // no sessions yet
     }
-    return { sessions, events: readLines(join(root, 'log', 'events.jsonl')) };
+    return {
+        sessions,
+        events: readLines(join(root, 'log', 'events.jsonl')),
+        pricePerMillionInputTokens: readPrice(root) ?? undefined,
+    };
 }
 /**
  * Reads the active plugin data directory. With all, every sibling store is
@@ -196,6 +247,9 @@ export function readUsageInput(env, options = {}) {
     const unique = [...new Set(roots)].filter((root) => existsSync(root));
     for (const root of unique) {
         const part = readStore(root);
+        if (merged.pricePerMillionInputTokens === undefined && part.pricePerMillionInputTokens !== undefined) {
+            merged.pricePerMillionInputTokens = part.pricePerMillionInputTokens;
+        }
         const prefix = unique.length > 1 ? basename(root) + '/' : '';
         merged.sessions.push(...part.sessions.map((s) => ({ ...s, sessionId: prefix + s.sessionId })));
         merged.events.push(...part.events);

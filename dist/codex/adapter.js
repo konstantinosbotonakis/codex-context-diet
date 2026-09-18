@@ -30,6 +30,7 @@ function logEvent(env, config, outcome) {
         injection: outcome.decision.injection,
         chars: outcome.entry.chars,
         blocked: outcome.blocked,
+        inputTokens: outcome.inputTokens,
     });
 }
 /** Reads one hook payload and returns at most one stdout object. Never throws. */

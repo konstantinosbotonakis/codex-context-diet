@@ -32,6 +32,7 @@ function logEvent(env: NodeJS.ProcessEnv, config: DietConfig, outcome: DietOutco
     injection: outcome.decision.injection,
     chars: outcome.entry.chars,
     blocked: outcome.blocked,
+    inputTokens: outcome.inputTokens,
   });
 }
 
