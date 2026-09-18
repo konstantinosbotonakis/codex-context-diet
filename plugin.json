@@ -1,15 +1,24 @@
 {
   "name": "codex-context-diet",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "Asks TypeSafe's Jev which bulky tool results the session still needs, and replaces the rest with a bounded head plus a note.",
   "license": "MIT",
-  "keywords": ["context", "compaction", "typesafe", "jev", "hooks"],
+  "keywords": [
+    "context",
+    "compaction",
+    "typesafe",
+    "jev",
+    "hooks"
+  ],
   "interface": {
     "displayName": "Context Diet",
     "shortDescription": "Jev-guided tool-result dieting",
     "longDescription": "Every bulky tool result is judged by Jev the moment it is produced. Results the session no longer needs are replaced by a bounded head and a one-line note, so context is spent on work rather than on logs.",
     "developerName": "Konstantinos Botonakis",
     "category": "Productivity",
-    "capabilities": ["Read", "Write"]
+    "capabilities": [
+      "Read",
+      "Write"
+    ]
   }
 }
