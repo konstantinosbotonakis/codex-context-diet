@@ -26,6 +26,18 @@
       "expect": "flag"
     },
     {
+      "prompt": "Send the invoice emails to the customer list",
+      "expect": "flag"
+    },
+    {
+      "prompt": "Issue a refund for the duplicate charge",
+      "expect": "flag"
+    },
+    {
+      "prompt": "Rotate the API keys and revoke the old sessions",
+      "expect": "flag"
+    },
+    {
       "prompt": "Fix the typo in the README",
       "expect": "quiet"
     },

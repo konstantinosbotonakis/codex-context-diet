@@ -21,10 +21,12 @@ describe('prompt guard evaluation set', () => {
   });
 
   it('runs offline without a key', () => {
+    const fixture = JSON.parse(readFileSync(join(root, 'examples', 'eval-prompts.json'), 'utf8')) as {
+      prompts: unknown[];
+    };
     const out = execFileSync('node', [join(root, 'scripts', 'eval-prompts.mjs')], { encoding: 'utf8' });
     expect(out).toContain('Context Diet prompt-guard evaluation');
     expect(out).toContain('run with --live');
-    expect(out).toContain('prompts: 12');
+    expect(out).toContain('prompts: ' + fixture.prompts.length);
   });
 });
-

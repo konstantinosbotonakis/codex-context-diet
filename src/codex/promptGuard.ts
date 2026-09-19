@@ -5,6 +5,21 @@ import type { JevAnswer, JevAsker, JevQuestions } from '../types.js';
 
 export const Q_TOUCHES_PRODUCTION = 'touches_production';
 export const Q_IRREVERSIBLE = 'irreversible';
+export const Q_SENDS_EXTERNAL = 'sends_external_communications';
+export const Q_MODIFIES_BILLING = 'modifies_billing';
+export const Q_CHANGES_ACCESS = 'changes_authentication_or_access';
+export const Q_DELETES_DATA = 'deletes_or_overwrites_data';
+export const Q_TOUCHES_CREDENTIALS = 'touches_credentials_or_secrets';
+
+export const HAZARD_IDS = [
+  Q_TOUCHES_PRODUCTION,
+  Q_IRREVERSIBLE,
+  Q_SENDS_EXTERNAL,
+  Q_MODIFIES_BILLING,
+  Q_CHANGES_ACCESS,
+  Q_DELETES_DATA,
+  Q_TOUCHES_CREDENTIALS,
+];
 
 export interface PromptHazard {
   id: string;
@@ -25,7 +40,7 @@ export interface PromptContext {
 const criteria = (yes: string, no: string) => ({ true: yes, false: no });
 
 /**
- * Two hazard questions, one literal condition each. Same rule as the diet path:
+ * Seven hazard questions, one literal condition each. Same rule as the diet path:
  * jev-1.13 answers the question that was written, so the boundary cases go in
  * the criteria instead of being left to interpretation.
  */
@@ -48,6 +63,49 @@ export function riskQuestions(): JevQuestions {
         'The change is easy to take back: a commit, a file edit, or a re-run.',
       ),
     },
+    [Q_SENDS_EXTERNAL]: {
+      type: 'noul',
+      instructions:
+        'This request would send messages or data to recipients outside the workspace: email, SMS, chat, webhooks, or public posts.',
+      criteria: criteria(
+        'Something is delivered to a recipient outside the workspace.',
+        'Nothing is sent, or the output stays local.',
+      ),
+    },
+    [Q_MODIFIES_BILLING]: {
+      type: 'noul',
+      instructions:
+        'This request would change billing or payment state: charges, refunds, subscriptions, invoices, or payouts.',
+      criteria: criteria(
+        'Money movement or billing records are created, changed or cancelled.',
+        'Billing and payment state are untouched.',
+      ),
+    },
+    [Q_CHANGES_ACCESS]: {
+      type: 'noul',
+      instructions:
+        'This request would change who can authenticate or what they are allowed to access: keys, roles, permissions, or logins.',
+      criteria: criteria(
+        'Access rules, roles, sessions or credentials for people or services change.',
+        'Access stays exactly as it is.',
+      ),
+    },
+    [Q_DELETES_DATA]: {
+      type: 'noul',
+      instructions: 'This request deletes or overwrites stored data rather than adding to it.',
+      criteria: criteria(
+        'Rows, files, records or backups are removed or replaced.',
+        'Data is added, read, or left alone.',
+      ),
+    },
+    [Q_TOUCHES_CREDENTIALS]: {
+      type: 'noul',
+      instructions: 'This request reads, writes, rotates or exposes credentials or secrets.',
+      criteria: criteria(
+        'Keys, tokens, passwords or secret material are handled or shown.',
+        'No credential or secret is involved.',
+      ),
+    },
   };
 }
 
@@ -62,7 +120,7 @@ export function warnLine(hazards: readonly PromptHazard[]): string {
 /** Pure. A hazard at or above the threshold flags the prompt. */
 export function decidePromptRisk(answers: Record<string, JevAnswer>, config: DietConfig): PromptRisk {
   const hazards: PromptHazard[] = [];
-  for (const id of [Q_TOUCHES_PRODUCTION, Q_IRREVERSIBLE]) {
+  for (const id of HAZARD_IDS) {
     let score: number | null = null;
     try {
       score = noulAnswer(answers, id);

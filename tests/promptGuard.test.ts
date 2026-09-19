@@ -6,8 +6,13 @@ import { DEFAULT_CONFIG, configPath } from '../src/config.js';
 import {
   assessPrompt,
   decidePromptRisk,
+  Q_CHANGES_ACCESS,
+  Q_DELETES_DATA,
   Q_IRREVERSIBLE,
+  Q_MODIFIES_BILLING,
+  Q_SENDS_EXTERNAL,
   Q_TOUCHES_PRODUCTION,
+  Q_TOUCHES_CREDENTIALS,
   riskQuestions,
   warnLine,
 } from '../src/codex/promptGuard.js';
@@ -20,12 +25,20 @@ const tempEnv = (): NodeJS.ProcessEnv =>
 const payload = (prompt: string): string =>
   JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt, cwd: '/tmp' });
 const answers = (over: Record<string, number>): string =>
-  JSON.stringify({ [Q_TOUCHES_PRODUCTION]: 0, [Q_IRREVERSIBLE]: 0, ...over });
+  JSON.stringify({ '*': 0, [Q_TOUCHES_PRODUCTION]: 0, [Q_IRREVERSIBLE]: 0, ...over });
 
 describe('prompt risk', () => {
-  it('asks two literal questions with both boundary cases spelled out', () => {
+  it('asks seven literal questions with both boundary cases spelled out', () => {
     const questions = riskQuestions();
-    expect(Object.keys(questions)).toEqual([Q_TOUCHES_PRODUCTION, Q_IRREVERSIBLE]);
+    expect(Object.keys(questions)).toEqual([
+      Q_TOUCHES_PRODUCTION,
+      Q_IRREVERSIBLE,
+      Q_SENDS_EXTERNAL,
+      Q_MODIFIES_BILLING,
+      Q_CHANGES_ACCESS,
+      Q_DELETES_DATA,
+      Q_TOUCHES_CREDENTIALS,
+    ]);
     for (const question of Object.values(questions)) {
       expect(question.type).toBe('noul');
       expect(question.criteria?.true).toBeTruthy();
@@ -52,6 +65,18 @@ describe('prompt risk', () => {
       config,
     );
     expect(below).toEqual({ hazards: [], line: null });
+  });
+
+  it('scores every hazard independently', () => {
+    const pair = decidePromptRisk(
+      { [Q_SENDS_EXTERNAL]: { noul: 0.92 }, [Q_TOUCHES_CREDENTIALS]: { noul: 0.85 } },
+      config,
+    );
+    expect(pair.hazards.map((hazard) => hazard.id)).toEqual([Q_SENDS_EXTERNAL, Q_TOUCHES_CREDENTIALS]);
+    expect(String(pair.line)).toContain('sends_external_communications 0.92');
+    expect(String(pair.line)).toContain('touches_credentials_or_secrets 0.85');
+    const billing = decidePromptRisk({ [Q_MODIFIES_BILLING]: { noul: 0.9 } }, config);
+    expect(billing.hazards.map((hazard) => hazard.id)).toEqual([Q_MODIFIES_BILLING]);
   });
 
   it('names every hazard that fired', () => {

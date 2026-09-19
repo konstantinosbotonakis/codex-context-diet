@@ -47,7 +47,7 @@ const dietPayload = {
 
 const dietAnswers =
   '{"needs_contents":0.05,"replaceable":0.9,"keep_call":0.9,"agent_directed":0.02,"behaviour_change":0.02}';
-const guardAnswers = '{"touches_production":0.95,"irreversible":0.2}';
+const guardAnswers = '{"touches_production":0.95,"irreversible":0.2,"*":0}';
 
 describe('built entry points', () => {
   it('explains the policy resolution from the CLI', () => {

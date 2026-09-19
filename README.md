@@ -74,14 +74,19 @@ That split was not theoretical. An eval against the live model gave `node -e "co
 turn, and blocking your own work on a model's opinion is a bad trade. So the prompt guard only
 ever adds one line, and only when it is confident.
 
-Two literal questions run against the prompt, its directory and your last few prompts:
+Seven literal questions run against the prompt, its directory and your last few prompts. Each hazard is scored on its own, because one opaque score hides which risk fired:
 
 | question | asks |
 |---|---|
 | `touches_production` | would this change a live system, live customer data, or live billing |
 | `irreversible` | would undoing it need a restore, a migration, or a manual rollback |
+| `sends_external_communications` | would it deliver email, chat, webhooks or public posts outside the workspace |
+| `modifies_billing` | would it create, change or cancel charges, refunds, invoices or payouts |
+| `changes_authentication_or_access` | would it change keys, roles, permissions or logins |
+| `deletes_or_overwrites_data` | would it remove or replace stored data rather than add to it |
+| `touches_credentials_or_secrets` | would it read, write, rotate or expose credentials |
 
-Either one at or above `promptGuardThreshold` (0.7) adds a line like this:
+Any one at or above `promptGuardThreshold` (0.7) adds a line that names every hazard that fired, like this:
 
 > [codex-context-diet] This request may affect a live system (touches_production 0.94). Start read-only, and confirm before changing anything live.
 

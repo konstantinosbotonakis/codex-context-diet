@@ -30,6 +30,8 @@ The settings worth tuning:
 - `promptGuard` (off by default) adds one line of context to a prompt that looks
   production-affecting. It never blocks and it never rewrites. Turning it on costs one Jev call
   per prompt, on the critical path.
+- the guard scores seven hazards independently, from live-system changes to external messages,
+  billing, access, deletions and credentials, and names each one that fired.
 - `logRetentionDays` (default 30) is how many days of the decision log survive rotation. The log
   rotates once a day, and `0` keeps everything.
 - `pricePerMillionInputTokens` (default 0.042) prices the estimated cost in `stats`. Change it
