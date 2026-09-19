@@ -1,25 +1,43 @@
 import { buildJevRequest, parseJevResponse } from '../request.js';
 import type { DietConfig } from '../config.js';
-import type { JevAsker, JevQuestions, JevResponse } from '../types.js';
+import type { JevAnswer, JevAsker, JevQuestions, JevResponse } from '../types.js';
+
+type TestAnswer =
+  | number
+  | { noul?: number; choice?: string; score?: number; confidence?: number; probabilities?: Record<string, number> };
 
 /** Deterministic asker for tests and offline runs. '*' is the fallback score. */
-export function testAsker(spec: string | Record<string, number>): JevAsker {
-  const scores = typeof spec === 'string' ? (JSON.parse(spec) as Record<string, number>) : spec;
-  const scoreOf = (key: string): number => {
+export function testAsker(spec: string | Record<string, TestAnswer>): JevAsker {
+  const scores = typeof spec === 'string' ? (JSON.parse(spec) as Record<string, TestAnswer>) : spec;
+  const answerOf = (key: string): JevAnswer => {
     const value = scores[key] ?? scores['*'];
-    if (typeof value !== 'number' || !Number.isFinite(value)) {
-      throw new Error('testAsker has no score for ' + key);
+    if (typeof value === 'number' && Number.isFinite(value)) return { type: 'noul', noul: value };
+    if (value && typeof value === 'object') {
+      if (typeof value.choice === 'string') {
+        return {
+          type: 'choice',
+          choice: value.choice,
+          confidence: value.confidence ?? 1,
+          probabilities: value.probabilities ?? {},
+        };
+      }
+      if (typeof value.score === 'number' && Number.isFinite(value.score)) {
+        return {
+          type: 'score',
+          score: value.score,
+          confidence: value.confidence ?? 1,
+          probabilities: value.probabilities ?? {},
+        };
+      }
+      if (typeof value.noul === 'number' && Number.isFinite(value.noul)) return { type: 'noul', noul: value.noul };
     }
-    return value;
+    throw new Error('testAsker has no score for ' + key);
   };
   return {
     async ask(_state, questions: JevQuestions): Promise<JevResponse> {
       return {
         answers: Object.fromEntries(
-          Object.keys(questions).map((key) => [
-            key,
-            { type: 'noul' as const, noul: scoreOf(key) },
-          ]),
+          Object.keys(questions).map((key) => [key, answerOf(key)]),
         ),
       };
     },

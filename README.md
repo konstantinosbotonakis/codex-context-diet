@@ -307,6 +307,8 @@ For output above `chunkMinChars` that is already being dropped, one extra reques
 
 When a dropped result is re-run soon afterwards, the table counts one recovery, with rows for recovery reruns, recovery rate and net useful replacements. The match uses the tool and the normalised input, so an intentional rerun looks the same and is counted too. Recovery is the quality metric that matters: a drop that had to be undone was not a saving.
 
+Every Jev response reports token usage, so the table also adds up input tokens and prices them at `pricePerMillionInputTokens`, 0.042 USD per million input tokens by default, which is the published Jev input price. Output tokens are free. Calls recorded before usage was kept make the cost a lower bound, and the table says so when that applies.
+
 ### Policies and pressure
 
 Policies override the size gate and the thresholds per tool. `match` accepts `*`, an exact tool such as `Read`, a command category such as `Bash:test`, a family such as `family:bash`, or an output class such as `output:test-log`. The last matching entry wins as a whole, so the list reads top to bottom.
@@ -325,10 +327,34 @@ Context pressure is the plugin's own estimate of what the session is still carry
 
 `node dist/cli.js policy` prints the base values, the pressure floors, every configured policy, and the resolution it would apply to a few representative calls at low, high and critical pressure. Every diet decision in the debug log carries the policy name, the pressure stage, and the size gate it used.
 
-*** End Patch
 
+### The persistent MCP server
 
-Every Jev response reports token usage, so the table also adds up input tokens and prices them at `pricePerMillionInputTokens`, 0.042 USD per million input tokens by default, which is the published Jev input price. Output tokens are free. Calls recorded before usage was kept make the cost a lower bound, and the table says so when that applies.
+The plugin ships a stdio MCP server in `.mcp.json` and points its lifecycle hooks at it with `mcp_tool` handlers. One long-lived Node process handles every qualifying tool result, so the per-call process spawn is gone and the HTTP connection pool is reused between Jev requests.
+
+Measured on the development machine with the test asker standing in for Jev, 30 iterations against one session and a 52,806-character result:
+
+| transport | p50 | p95 | mean |
+|---|---|---|---|
+| command hook, one process per call | 71.0 ms | 76.2 ms | 71.0 ms |
+| MCP tool call, one shared process | 3.7 ms | 5.4 ms | 4.0 ms |
+| MCP server startup | 48.6 ms once per session | | |
+
+`npm run bench:hooks` reproduces this. It is offline on purpose: Jev network time is excluded, and a real Jev call costs hundreds of milliseconds to a couple of seconds, so the local saving shows up as latency removed from every qualifying call rather than as a different end-to-end shape.
+
+The server also backs the hooks with `stop_guard`, which reports once per session when several dropped results were re-run within 15 minutes.
+
+Command hooks remain in `hooks/hooks.command.json`. To fall back, copy it over `hooks/hooks.json` and trust the hooks again in `/hooks`. If the MCP server is unavailable, hooks do nothing and the session continues unchanged: MCP tool hooks never block an operation.
+
+### Direct Jev tools
+
+The same server exposes three typed Jev primitives for the assistant itself:
+
+- `jev_boolean(state, question)` returns the probability that the answer is yes.
+- `jev_choice(state, question, options)` returns the chosen option with its full probability distribution.
+- `jev_score(state, question, levels)` returns the probability-weighted score across the ordered levels.
+
+They enforce a 120,000-character state limit, redact secrets before the request, validate every answer, use the configured model and timeout, and fail with a readable error instead of throwing. Reach for them when one calibrated judgement over a bounded piece of text is cheaper than a reasoning model, for example classifying a fixture, choosing between named options, or scoring noise. The `$codex-context-diet:jev` skill documents the cases.
 
 ## Development
 

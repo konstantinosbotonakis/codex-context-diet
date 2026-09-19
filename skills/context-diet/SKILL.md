@@ -5,6 +5,10 @@ description: Understand, tune, or debug Codex Context Diet, the plugin that asks
 
 # Context Diet
 
+The plugin runs as a persistent MCP server, and its hooks call that server with `mcp_tool`
+handlers. `hooks/hooks.command.json` holds the command-hook fallback: copy it over
+`hooks/hooks.json` and trust the hooks again to use it.
+
 The plugin judges every bulky tool result at PostToolUse and replaces the ones
 the session no longer needs. Replaced results keep a bounded head and a note
 saying what was dropped, so the model can re-run the tool.

@@ -2,20 +2,36 @@ import { buildJevRequest, parseJevResponse } from '../request.js';
 /** Deterministic asker for tests and offline runs. '*' is the fallback score. */
 export function testAsker(spec) {
     const scores = typeof spec === 'string' ? JSON.parse(spec) : spec;
-    const scoreOf = (key) => {
+    const answerOf = (key) => {
         const value = scores[key] ?? scores['*'];
-        if (typeof value !== 'number' || !Number.isFinite(value)) {
-            throw new Error('testAsker has no score for ' + key);
+        if (typeof value === 'number' && Number.isFinite(value))
+            return { type: 'noul', noul: value };
+        if (value && typeof value === 'object') {
+            if (typeof value.choice === 'string') {
+                return {
+                    type: 'choice',
+                    choice: value.choice,
+                    confidence: value.confidence ?? 1,
+                    probabilities: value.probabilities ?? {},
+                };
+            }
+            if (typeof value.score === 'number' && Number.isFinite(value.score)) {
+                return {
+                    type: 'score',
+                    score: value.score,
+                    confidence: value.confidence ?? 1,
+                    probabilities: value.probabilities ?? {},
+                };
+            }
+            if (typeof value.noul === 'number' && Number.isFinite(value.noul))
+                return { type: 'noul', noul: value.noul };
         }
-        return value;
+        throw new Error('testAsker has no score for ' + key);
     };
     return {
         async ask(_state, questions) {
             return {
-                answers: Object.fromEntries(Object.keys(questions).map((key) => [
-                    key,
-                    { type: 'noul', noul: scoreOf(key) },
-                ])),
+                answers: Object.fromEntries(Object.keys(questions).map((key) => [key, answerOf(key)])),
             };
         },
     };

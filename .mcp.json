@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "context-diet": {
+      "command": "sh",
+      "args": ["-c", "exec node \"$PLUGIN_ROOT/dist/mcp-server.js\""]
+    }
+  }
+}

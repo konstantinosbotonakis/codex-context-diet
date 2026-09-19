@@ -16,6 +16,7 @@
     "jev",
     "hooks"
   ],
+  "mcpServers": "./.mcp.json",
   "interface": {
     "displayName": "Context Diet",
     "shortDescription": "Jev-guided tool-result dieting",
