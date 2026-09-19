@@ -56,6 +56,42 @@
         ]
       }
     ],
+    "SubagentStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "context-diet",
+            "tool": "subagent_start",
+            "input": {
+              "agent_id": "${agent_id}",
+              "agent_type": "${agent_type}"
+            },
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "context-diet",
+            "tool": "subagent_stop",
+            "input": {
+              "agent_id": "${agent_id}",
+              "agent_type": "${agent_type}",
+              "last_assistant_message": "${last_assistant_message}",
+              "stop_hook_active": "${stop_hook_active}"
+            },
+            "timeout": 10
+          }
+        ]
+      }
+    ],
     "PreCompact": [
       {
         "matcher": ".*",

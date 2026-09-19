@@ -87,6 +87,7 @@ describe('the Context Diet MCP server', () => {
     const tools = (listed.result as { tools: { name: string }[] }).tools.map((entry) => entry.name);
     expect(tools).toEqual([
       'post_tool_use', 'prompt_guard', 'stop_guard', 'session_event',
+      'subagent_start', 'subagent_stop',
       'pre_compact', 'post_compact',
       'jev_boolean', 'jev_choice', 'jev_score',
     ]);

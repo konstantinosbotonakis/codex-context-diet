@@ -33,6 +33,9 @@ export const DEFAULT_CONFIG = {
     toolPolicies: [],
     compactionResurrection: true,
     snapshotMaxChars: 1500,
+    subagentGuard: true,
+    subagentGuardThreshold: 0.8,
+    subagentGuardMaxInterventions: 1,
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -128,6 +131,9 @@ export function resolveConfig(raw) {
         toolPolicies: toolPolicies(o.toolPolicies),
         compactionResurrection: bool(o.compactionResurrection, DEFAULT_CONFIG.compactionResurrection),
         snapshotMaxChars: num(o.snapshotMaxChars, DEFAULT_CONFIG.snapshotMaxChars, 1),
+        subagentGuard: bool(o.subagentGuard, DEFAULT_CONFIG.subagentGuard),
+        subagentGuardThreshold: num(o.subagentGuardThreshold, DEFAULT_CONFIG.subagentGuardThreshold),
+        subagentGuardMaxInterventions: Math.floor(num(o.subagentGuardMaxInterventions, DEFAULT_CONFIG.subagentGuardMaxInterventions)),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;

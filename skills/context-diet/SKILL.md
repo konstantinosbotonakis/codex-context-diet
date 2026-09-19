@@ -53,6 +53,8 @@ The settings worth tuning:
   40k, 90k or 150k retained tokens. It never lowers the keep threshold.
 - `compactionResurrection` (default on) takes a bounded snapshot before Codex compacts and
   injects it on the first prompt after, once. `snapshotMaxChars` bounds that snapshot.
+- `subagentGuard` (default on) gives subagents a result contract and judges their finished result
+  before it returns to the parent, asking for one revision at most.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 

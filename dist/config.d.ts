@@ -67,6 +67,10 @@ export interface DietConfig {
     compactionResurrection: boolean;
     /** Character cap for that snapshot. */
     snapshotMaxChars: number;
+    /** Judge whether a subagent result is ready for the parent agent. */
+    subagentGuard: boolean;
+    subagentGuardThreshold: number;
+    subagentGuardMaxInterventions: number;
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;

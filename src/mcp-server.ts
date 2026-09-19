@@ -22,6 +22,7 @@ import { appendEvent } from './codex/log.js';
 import { main as adapterMain } from './codex/adapter.js';
 import { main as sessionMain } from './codex/session.js';
 import { handleCompaction } from './codex/compaction.js';
+import { handleSubagent } from './codex/subagent.js';
 import { createAsker } from './codex/transport.js';
 import { readRecoveries } from './cache.js';
 import { loadConfig, pluginDataDir } from './config.js';
@@ -81,6 +82,23 @@ const TOOLS = [
     'Record a session lifecycle event such as SessionStart or SessionEnd.',
     { session_id: { type: 'string' }, event: { type: 'string' } },
     ['session_id', 'event'],
+  ),
+  tool(
+    'subagent_start',
+    'Return the concise result contract a subagent should follow.',
+    { agent_id: { type: 'string' }, agent_type: { type: 'string' } },
+    [],
+  ),
+  tool(
+    'subagent_stop',
+    'Judge whether a finished subagent result is ready for the parent, and ask for one revision when it is not.',
+    {
+      agent_id: { type: 'string' },
+      agent_type: { type: 'string' },
+      last_assistant_message: { type: 'string' },
+      stop_hook_active: { type: 'boolean' },
+    },
+    [],
   ),
   tool(
     'pre_compact',
@@ -186,6 +204,19 @@ async function callTool(name: string, args: Args, env: NodeJS.ProcessEnv): Promi
     const config = loadConfig(env);
     appendEvent(env, config, { kind: 'session_event', event: text(args.event), session: text(args.session_id) });
     return ok('');
+  }
+  if (name === 'subagent_start' || name === 'subagent_stop') {
+    const output = await handleSubagent(
+      {
+        hook_event_name: name === 'subagent_start' ? 'SubagentStart' : 'SubagentStop',
+        agent_id: text(args.agent_id),
+        agent_type: text(args.agent_type),
+        last_assistant_message: text(args.last_assistant_message),
+        stop_hook_active: args.stop_hook_active === true,
+      },
+      env,
+    );
+    return ok(output);
   }
   if (name === 'pre_compact' || name === 'post_compact') {
     const output = await handleCompaction(

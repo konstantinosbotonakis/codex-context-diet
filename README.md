@@ -222,7 +222,10 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "pressureCriticalTokens": 750,
   "toolPolicies": [],
   "compactionResurrection": true,
-  "snapshotMaxChars": 1500
+  "snapshotMaxChars": 1500,
+  "subagentGuard": true,
+  "subagentGuardThreshold": 0.8,
+  "subagentGuardMaxInterventions": 1
 }
 ```
 
@@ -265,6 +268,9 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `toolPolicies` | per-tool overrides, applied through `match` strings |
 | `compactionResurrection` | snapshot plugin state before compaction and inject it once after |
 | `snapshotMaxChars` | character cap for that snapshot |
+| `subagentGuard` | hand subagents a result contract and judge their result before it returns |
+| `subagentGuardThreshold` | Jev score at or above which the subagent result passes each check |
+| `subagentGuardMaxInterventions` | how many times one subagent can be asked to revise |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
@@ -390,6 +396,12 @@ The script refuses to start unless the tree is clean and you are on `main`, and 
 Add `--skip-github` to stop once the tag is pushed.
 
 ## More documentation
+
+### Subagents
+
+`SubagentStart` hands every subagent a short result contract: conclusion, relevant files, important evidence, what was tested, unresolved questions, and no raw logs unless they support a conclusion. `SubagentStop` asks Jev four separate questions about the finished message, then deterministic policy decides. A padded result is asked to condense, and a result that is not actionable or missing evidence is asked to finish and summarise.
+
+Loop safety is layered: a subagent that Codex already continued is never asked again, each agent has a revision cap, short messages are ignored, and any failure means the result passes through untouched. Revisions are counted separately from diet decisions.
 
 [docs/architecture.md](docs/architecture.md) has the decision path, the module map and the storage layout.
 

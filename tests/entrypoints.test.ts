@@ -57,6 +57,17 @@ describe('built entry points', () => {
     expect(out).toContain('resolution at critical pressure:');
   });
 
+  it('subagent hook returns the result contract as JSON', () => {
+    const out = run(
+      'subagent-main.js',
+      { hook_event_name: 'SubagentStart', session_id: 's1', agent_id: 'a1', agent_type: 'explorer' },
+      {},
+    );
+    const parsed = JSON.parse(out) as Record<string, unknown>;
+    const hook = parsed.hookSpecificOutput as Record<string, unknown>;
+    expect(hook.hookEventName).toBe('SubagentStart');
+    expect(String(hook.additionalContext)).toContain('conclusion');
+  });
   it('are built', () => {
     expect(existsSync(entry('session-main.js'))).toBe(true);
     expect(existsSync(entry('adapter-main.js'))).toBe(true);

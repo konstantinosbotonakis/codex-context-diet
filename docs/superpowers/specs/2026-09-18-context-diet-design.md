@@ -361,7 +361,10 @@ plugin reinstalls and is never committed.
   "pressureCriticalTokens": 750,
   "toolPolicies": [],
   "compactionResurrection": true,
-  "snapshotMaxChars": 1500
+  "snapshotMaxChars": 1500,
+  "subagentGuard": true,
+  "subagentGuardThreshold": 0.8,
+  "subagentGuardMaxInterventions": 1
 }
 ```
 
