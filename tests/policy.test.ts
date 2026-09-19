@@ -1,4 +1,4 @@
-import { existsSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -121,7 +121,10 @@ describe('policies through the hook', () => {
     env.CONTEXT_DIET_TEST_ANSWERS = dropAnswers;
     await adapterMain(payload('t1', 'x'.repeat(400)), env);
     expect(await adapterMain(payload('t2', 'y'.repeat(400)), env)).toBe('');
-    // Below the floor nothing is judged and nothing is logged at all.
-    expect(existsSync(logPath(env))).toBe(false);
+    // Below the floor nothing is judged and no model answer is asked for.
+    // The skip line is the only trace, so stats can count what was seen.
+    const log = readFileSync(logPath(env), 'utf8');
+    expect(log).toContain('"reason":"below size floor"');
+    expect(log).not.toContain('"decision"');
   });
 });

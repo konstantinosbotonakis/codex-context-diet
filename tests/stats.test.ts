@@ -10,8 +10,8 @@ const NOW = new Date('2026-09-18T12:00:00Z');
 const at = (daysAgo: number, hoursAgo = 0) =>
   new Date(NOW.getTime() - daysAgo * 86_400_000 - hoursAgo * 3_600_000).toISOString();
 
-const cacheEntry = (daysAgo: number, decision: string, chars: number) => ({
-  at: at(daysAgo), decision, chars, tool_name: 'Bash', head: 'SECRET-HEAD', input: 'SECRET-INPUT',
+const cacheEntry = (daysAgo: number, decision: string, chars: number, extra: Record<string, unknown> = {}) => ({
+  at: at(daysAgo), decision, chars, tool_name: 'Bash', head: 'SECRET-HEAD', input: 'SECRET-INPUT', ...extra,
 });
 
 const usage = (over: Record<string, unknown> = {}) => ({
@@ -51,6 +51,16 @@ describe('usage windows', () => {
   it('counts only real Jev answers and the guard, and ignores future timestamps', () => {
     const report = summarizeUsage(
       usage({
+        sessions: [
+          {
+            sessionId: 's1',
+            entries: [
+              cacheEntry(0, 'drop_result', 1000, { reason: JEV_REASONS.stale, keptChars: 200 }),
+              cacheEntry(0, 'keep', 500),
+              cacheEntry(0, 'drop_result', 100, { reason: DUPLICATE_REASON, keptChars: 90 }),
+            ],
+          },
+        ],
         events: [
           { at: at(0), kind: 'diet', reason: JEV_REASONS.stale },
           { at: at(0), kind: 'diet', reason: JEV_REASONS.uncertain },
@@ -60,7 +70,6 @@ describe('usage windows', () => {
           { at: at(0), kind: 'prompt_guard', flagged: true },
           { at: at(0), kind: 'prompt_guard', flagged: false },
           { at: at(0), kind: 'key_missing' },
-          { at: at(0), kind: 'diet', reason: DUPLICATE_REASON },
           { at: at(0), kind: 'recovery', tool: 'Bash', of: 't1', afterMs: 1000, afterCalls: 3 },
           { at: new Date(NOW.getTime() + 60_000).toISOString(), kind: 'diet', reason: JEV_REASONS.stale },
         ],
@@ -69,9 +78,9 @@ describe('usage windows', () => {
     );
     expect(report.windows[0]).toMatchObject({
       jevCalls: 2, guardRuns: 2, guardFlags: 1, keyWarnings: 1, deterministicDrops: 1,
-      recoveryReruns: 1, recoveryCalls: 3,
+      recoveryReruns: 1, recoveryCalls: 3, semanticDrops: 1, entries: 3, keeps: 1, capsuleChars: 290,
     });
-    expect(report.logLines).toBe(11);
+    expect(report.logLines).toBe(10);
   });
 
   it('adds up input tokens and cost from the usage the API reported', () => {

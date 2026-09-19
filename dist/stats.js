@@ -2,6 +2,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { JEV_INPUT_PRICE_PER_MTOK, pluginDataDir } from './config.js';
 import { DUPLICATE_REASON } from './dedupe.js';
+import { JEV_REASONS } from './codex/diet.js';
 export const WINDOWS = [
     { label: 'today', days: 1 },
     { label: '7 days', days: 7 },
@@ -36,10 +37,27 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
         guardFlags: 0,
         keyWarnings: 0,
         deterministicDrops: 0,
+        entries: 0,
+        skipped: 0,
+        keeps: 0,
+        neededKeeps: 0,
+        uncertainKeeps: 0,
+        irreplaceableKeeps: 0,
+        hazardKeeps: 0,
+        semanticDrops: 0,
+        capsuleChars: 0,
+        redactions: 0,
+        qualityInterventions: 0,
+        subagentChecks: 0,
+        subagentRevisions: 0,
+        recoveryChars: 0,
+        dietP50: 0,
+        dietP95: 0,
         recoveryReruns: 0,
         recoveryCalls: 0,
     }));
     const seen = windows.map(() => new Set());
+    const latencies = windows.map(() => []);
     let earliest = null;
     const bump = (when, apply) => {
         if (earliest === null || when < earliest)
@@ -56,10 +74,30 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
                 continue;
             bump(when, (window, index) => {
                 window.judged += 1;
+                window.entries += 1;
                 seen[index].add(session.sessionId);
+                const chars = typeof entry.chars === 'number' ? entry.chars : 0;
+                const kept = typeof entry.keptChars === 'number' ? entry.keptChars : 0;
+                const reason = typeof entry.reason === 'string' ? entry.reason : '';
                 if (entry.decision === 'drop_result') {
                     window.replaced += 1;
-                    window.charsDropped += typeof entry.chars === 'number' ? entry.chars : 0;
+                    window.charsDropped += chars;
+                    window.capsuleChars += kept;
+                    if (reason === JEV_REASONS.stale)
+                        window.semanticDrops += 1;
+                    else if (reason === DUPLICATE_REASON)
+                        window.deterministicDrops += 1;
+                }
+                else {
+                    window.keeps += 1;
+                    if (reason === JEV_REASONS.hazard)
+                        window.hazardKeeps += 1;
+                    else if (reason === JEV_REASONS.needed)
+                        window.neededKeeps += 1;
+                    else if (reason === JEV_REASONS.irreplaceable)
+                        window.irreplaceableKeeps += 1;
+                    else if (reason === JEV_REASONS.uncertain)
+                        window.uncertainKeeps += 1;
                 }
             });
         }
@@ -71,7 +109,7 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
         const kind = String(event.kind ?? 'diet');
         const reason = String(event.reason ?? '');
         const tokens = typeof event.inputTokens === 'number' && Number.isFinite(event.inputTokens) ? event.inputTokens : null;
-        bump(when, (window) => {
+        bump(when, (window, index) => {
             if (tokens !== null)
                 window.jevTokens += tokens;
             if (kind === 'recovery') {
@@ -79,7 +117,36 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
                 if (typeof event.afterCalls === 'number' && Number.isFinite(event.afterCalls)) {
                     window.recoveryCalls += event.afterCalls;
                 }
+                if (typeof event.chars === 'number' && Number.isFinite(event.chars)) {
+                    window.recoveryChars += event.chars;
+                }
                 return;
+            }
+            if (kind === 'skip') {
+                window.skipped += 1;
+                return;
+            }
+            if (kind === 'privacy' && event.action === 'redacted') {
+                const findings = typeof event.findings === 'number' && Number.isFinite(event.findings) ? event.findings : 0;
+                window.redactions += findings;
+                return;
+            }
+            if (kind === 'quality_verdict') {
+                if (event.action === 'continue')
+                    window.qualityInterventions += 1;
+                return;
+            }
+            if (kind === 'subagent_stop') {
+                window.subagentChecks += 1;
+                return;
+            }
+            if (kind === 'subagent_verdict') {
+                if (event.action === 'revise')
+                    window.subagentRevisions += 1;
+                return;
+            }
+            if (typeof event.ms === 'number' && Number.isFinite(event.ms)) {
+                latencies[index].push(event.ms);
             }
             if (kind === 'prompt_guard') {
                 window.guardRuns += 1;
@@ -96,10 +163,6 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
                 window.keyWarnings += 1;
                 return;
             }
-            if (reason === DUPLICATE_REASON) {
-                window.deterministicDrops += 1;
-                return;
-            }
             if (jevReasons.includes(reason)) {
                 window.jevCalls += 1;
                 if (tokens !== null)
@@ -111,6 +174,8 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
         windows: windows.map((window, index) => ({
             ...window,
             sessions: seen[index].size,
+            dietP50: percentile(latencies[index], 0.5),
+            dietP95: percentile(latencies[index], 0.95),
             costUsd: (window.jevTokens * pricePerMillionInputTokens) / 1_000_000,
         })),
         earliest,
@@ -120,6 +185,12 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
 }
 function formatNumber(value) {
     return value.toLocaleString('en-US');
+}
+function percentile(values, fraction) {
+    if (values.length === 0)
+        return 0;
+    const sorted = [...values].sort((left, right) => left - right);
+    return Math.round(sorted[Math.min(sorted.length - 1, Math.floor(sorted.length * fraction))]);
 }
 /** Dollars, precise enough for the fractions of a cent a small request costs. */
 function formatCost(value) {
@@ -146,14 +217,24 @@ export function renderUsage(report, options) {
     }
     const rows = [
         ['sessions', (w) => formatNumber(w.sessions)],
+        ['results seen', (w) => formatNumber(w.entries + w.skipped)],
+        ['  results skipped', (w) => formatNumber(w.skipped)],
         ['results judged', (w) => formatNumber(w.judged)],
         ['results replaced', (w) => formatNumber(w.replaced)],
         ['  replaced share', (w) => (w.judged === 0 ? '0%' : Math.round((w.replaced / w.judged) * 100) + '%')],
+        ['keeps', (w) => formatNumber(w.keeps)],
+        ['  uncertain keeps', (w) => formatNumber(w.uncertainKeeps)],
+        ['  irreplaceable keeps', (w) => formatNumber(w.irreplaceableKeeps)],
+        ['  hazard keeps', (w) => formatNumber(w.hazardKeeps)],
+        ['  deterministic drops', (w) => formatNumber(w.deterministicDrops)],
+        ['  semantic drops', (w) => formatNumber(w.semanticDrops)],
         ['characters dropped', (w) => formatNumber(w.charsDropped)],
-        ['  roughly tokens', (w) => '~' + formatNumber(Math.round(w.charsDropped / 4))],
+        ['  original tokens', (w) => '~' + formatNumber(Math.round(w.charsDropped / 4))],
+        ['  capsule tokens', (w) => '~' + formatNumber(Math.round(w.capsuleChars / 4))],
+        ['  net tokens avoided', (w) => '~' + formatNumber(Math.round(Math.max(0, w.charsDropped - w.capsuleChars) / 4))],
     ];
     if (report.logLines > 0) {
-        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['  deterministic drops', (w) => formatNumber(w.deterministicDrops)], ['  recovery reruns', (w) => formatNumber(w.recoveryReruns)], ['  recovery rate', (w) => (w.replaced === 0 ? '0%' : Math.round((w.recoveryReruns / w.replaced) * 100) + '%')], ['  net useful replacements', (w) => formatNumber(Math.max(0, w.replaced - w.recoveryReruns))], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)]);
+        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['  recovery reruns', (w) => formatNumber(w.recoveryReruns)], ['  recovery rate', (w) => (w.replaced === 0 ? '0%' : Math.round((w.recoveryReruns / w.replaced) * 100) + '%')], ['  net useful replacements', (w) => formatNumber(Math.max(0, w.replaced - w.recoveryReruns))], ['  recovery tokens', (w) => '~' + formatNumber(Math.round(w.recoveryChars / 4))], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)], ['secret redactions', (w) => formatNumber(w.redactions)], ['quality interventions', (w) => formatNumber(w.qualityInterventions)], ['subagent checks', (w) => formatNumber(w.subagentChecks)], ['  subagent revisions', (w) => formatNumber(w.subagentRevisions)], ['diet p50', (w) => (w.dietP50 === 0 ? '0 ms' : w.dietP50 + ' ms')], ['  diet p95', (w) => (w.dietP95 === 0 ? '0 ms' : w.dietP95 + ' ms')]);
     }
     const labelWidth = Math.max(...rows.map(([label]) => label.length));
     const cells = rows.map(([, value]) => report.windows.map(value));
@@ -176,6 +257,10 @@ export function renderUsage(report, options) {
         if (missing > 0) {
             lines.push('Cost is a lower bound: ' + missing + ' call' + (missing === 1 ? '' : 's') + ' recorded no usage.');
         }
+    }
+    if (widest !== undefined && widest.replaced > 0) {
+        lines.push('');
+        lines.push('Context saved counts characters the session no longer carries, less the capsule text that replaced them. Jev tokens are a separate resource and are never netted against context.');
     }
     if (widest !== undefined && widest.recoveryReruns > 0) {
         const average = (widest.recoveryCalls / widest.recoveryReruns).toFixed(1);

@@ -31,6 +31,26 @@ export interface UsageWindow {
     keyWarnings: number;
     /** Results removed because the session already held an identical one. */
     deterministicDrops: number;
+    /** Results the adapter looked at and left alone before any decision. */
+    entries: number;
+    skipped: number;
+    keeps: number;
+    neededKeeps: number;
+    uncertainKeeps: number;
+    irreplaceableKeeps: number;
+    hazardKeeps: number;
+    /** Drops decided by a Jev answer, as opposed to a deterministic rule. */
+    semanticDrops: number;
+    /** Characters the model still carries in capsules that replaced results. */
+    capsuleChars: number;
+    redactions: number;
+    qualityInterventions: number;
+    subagentChecks: number;
+    subagentRevisions: number;
+    /** Characters put back into context by re-runs of dropped output. */
+    recoveryChars: number;
+    dietP50: number;
+    dietP95: number;
     /** Later calls that look like they re-ran a dropped result. */
     recoveryReruns: number;
     /** Sum of the tool calls between those drops and their reruns. */

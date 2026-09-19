@@ -24,7 +24,7 @@ function isErrorResponse(toolResponse) {
     const record = toolResponse;
     return record.is_error === true || record.isError === true;
 }
-function logEvent(env, config, outcome, policy) {
+function logEvent(env, config, outcome, policy, ms) {
     appendEvent(env, config, {
         kind: 'diet',
         tool: outcome.entry.tool_name,
@@ -41,6 +41,7 @@ function logEvent(env, config, outcome, policy) {
         policy: policy.source,
         pressure: policy.pressure,
         minTokens: policy.minTokens,
+        ms: Math.round(ms),
     });
 }
 /** Reads one hook payload and returns at most one stdout object. Never throws. */
@@ -70,20 +71,31 @@ export async function main(stdin, env) {
         if (touched.length > 0) {
             appendTouch(env, sessionId, { at: new Date().toISOString(), tool: toolName, paths: touched });
         }
-        if (isSkippedTool(toolName, config))
+        if (isSkippedTool(toolName, config)) {
+            appendEvent(env, config, { kind: 'skip', reason: 'excluded tool', tool: toolName });
             return '';
+        }
         const resultText = toolResultText(toolName, payload.tool_response);
-        if (resultText === null)
+        if (resultText === null) {
+            appendEvent(env, config, { kind: 'skip', reason: 'unsupported payload', tool: toolName });
             return '';
+        }
         const rawInput = inputLine(toolName, payload.tool_input);
         // Paths and tools the user excluded stay on the machine: no Jev call, no
         // cache write, no replacement.
         if (isNeverSendInput(toolName, rawInput, config)) {
             appendEvent(env, config, { kind: 'privacy', action: 'never_send', tool: toolName });
+            appendEvent(env, config, { kind: 'skip', reason: 'never-send path', tool: toolName });
             return '';
         }
-        const safeResultText = redactText(resultText, config.privacyMode).text;
-        const safeInput = redactText(rawInput, config.privacyMode).text;
+        const resultRedaction = redactText(resultText, config.privacyMode);
+        const inputRedaction = redactText(rawInput, config.privacyMode);
+        const findings = resultRedaction.findings + inputRedaction.findings;
+        if (findings > 0) {
+            appendEvent(env, config, { kind: 'privacy', action: 'redacted', findings, tool: toolName });
+        }
+        const safeResultText = resultRedaction.text;
+        const safeInput = inputRedaction.text;
         // stateSource 'off' is single-turn: no history is read and nothing is written.
         const singleTurn = config.stateSource === 'off';
         const cache = singleTurn ? [] : readCache(env, sessionId, config);
@@ -95,8 +107,17 @@ export async function main(stdin, env) {
             ? outputClassOf(safeResultText, 20_000)
             : '';
         const policy = resolveEffectivePolicy(config, { toolName, inputLine: safeInput, outputClass, pressure });
-        if (estimateTokens(safeResultText) < policy.minTokens)
+        if (estimateTokens(safeResultText) < policy.minTokens) {
+            appendEvent(env, config, {
+                kind: 'skip',
+                reason: 'below size floor',
+                tool: toolName,
+                minTokens: policy.minTokens,
+                pressure: policy.pressure,
+                policy: policy.source,
+            });
             return '';
+        }
         const effectiveConfig = {
             ...config,
             minTokens: policy.minTokens,
@@ -118,6 +139,7 @@ export async function main(stdin, env) {
                 tool: toolName,
                 afterMs: recovery.afterMs,
                 afterCalls: recovery.afterCalls,
+                chars: recovery.entry.chars,
             });
             appendEvent(env, config, {
                 kind: 'recovery',
@@ -135,6 +157,7 @@ export async function main(stdin, env) {
         const asker = key !== null || env.CONTEXT_DIET_TEST_ANSWERS
             ? createAsker(config, key ?? 'test-key', env)
             : null;
+        const startedAt = performance.now();
         const outcome = await runDiet({
             input: {
                 toolName,
@@ -153,7 +176,7 @@ export async function main(stdin, env) {
         });
         if (!singleTurn)
             appendCache(env, sessionId, outcome.entry, config);
-        logEvent(env, config, outcome, policy);
+        logEvent(env, config, outcome, policy, performance.now() - startedAt);
         // A missing or rejected key means Jev never ran. Say so once per session
         // rather than failing silently.
         // The first result of a session is never sent to Jev, so a missing key is

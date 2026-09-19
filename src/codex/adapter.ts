@@ -31,6 +31,7 @@ function logEvent(
   config: DietConfig,
   outcome: DietOutcome,
   policy: { source: string; pressure: string; minTokens: number },
+  ms: number,
 ): void {
   appendEvent(env, config, {
     kind: 'diet',
@@ -48,6 +49,7 @@ function logEvent(
     policy: policy.source,
     pressure: policy.pressure,
     minTokens: policy.minTokens,
+    ms: Math.round(ms),
   });
 }
 
@@ -76,20 +78,33 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
     if (touched.length > 0) {
       appendTouch(env, sessionId, { at: new Date().toISOString(), tool: toolName, paths: touched });
     }
-    if (isSkippedTool(toolName, config)) return '';
+    if (isSkippedTool(toolName, config)) {
+      appendEvent(env, config, { kind: 'skip', reason: 'excluded tool', tool: toolName });
+      return '';
+    }
 
     const resultText = toolResultText(toolName, payload.tool_response);
-    if (resultText === null) return '';
+    if (resultText === null) {
+      appendEvent(env, config, { kind: 'skip', reason: 'unsupported payload', tool: toolName });
+      return '';
+    }
     const rawInput = inputLine(toolName, payload.tool_input);
 
     // Paths and tools the user excluded stay on the machine: no Jev call, no
     // cache write, no replacement.
     if (isNeverSendInput(toolName, rawInput, config)) {
       appendEvent(env, config, { kind: 'privacy', action: 'never_send', tool: toolName });
+      appendEvent(env, config, { kind: 'skip', reason: 'never-send path', tool: toolName });
       return '';
     }
-    const safeResultText = redactText(resultText, config.privacyMode).text;
-    const safeInput = redactText(rawInput, config.privacyMode).text;
+    const resultRedaction = redactText(resultText, config.privacyMode);
+    const inputRedaction = redactText(rawInput, config.privacyMode);
+    const findings = resultRedaction.findings + inputRedaction.findings;
+    if (findings > 0) {
+      appendEvent(env, config, { kind: 'privacy', action: 'redacted', findings, tool: toolName });
+    }
+    const safeResultText = resultRedaction.text;
+    const safeInput = inputRedaction.text;
 
     // stateSource 'off' is single-turn: no history is read and nothing is written.
     const singleTurn = config.stateSource === 'off';
@@ -103,7 +118,17 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
       ? outputClassOf(safeResultText, 20_000)
       : '';
     const policy = resolveEffectivePolicy(config, { toolName, inputLine: safeInput, outputClass, pressure });
-    if (estimateTokens(safeResultText) < policy.minTokens) return '';
+    if (estimateTokens(safeResultText) < policy.minTokens) {
+      appendEvent(env, config, {
+        kind: 'skip',
+        reason: 'below size floor',
+        tool: toolName,
+        minTokens: policy.minTokens,
+        pressure: policy.pressure,
+        policy: policy.source,
+      });
+      return '';
+    }
     const effectiveConfig = {
       ...config,
       minTokens: policy.minTokens,
@@ -133,6 +158,7 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
         tool: toolName,
         afterMs: recovery.afterMs,
         afterCalls: recovery.afterCalls,
+        chars: recovery.entry.chars,
       });
       appendEvent(env, config, {
         kind: 'recovery',
@@ -152,6 +178,7 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
         ? createAsker(config, key ?? 'test-key', env)
         : null;
 
+    const startedAt = performance.now();
     const outcome = await runDiet({
       input: {
         toolName,
@@ -170,7 +197,7 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
     });
 
     if (!singleTurn) appendCache(env, sessionId, outcome.entry, config);
-    logEvent(env, config, outcome, policy);
+    logEvent(env, config, outcome, policy, performance.now() - startedAt);
 
     // A missing or rejected key means Jev never ran. Say so once per session
     // rather than failing silently.
