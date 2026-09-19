@@ -24,6 +24,12 @@ In strict mode, anything matching `neverSendPaths` and anything from a tool in
 no log line carrying the content. The event log records that the exclusion happened, not
 what it excluded.
 
+The development capture (`CONTEXT_DIET_CAPTURE`) follows the same rule and is redacted by
+default. Recording raw payloads needs `CONTEXT_DIET_CAPTURE_UNREDACTED=1`, and that file can
+then hold secrets; it exists for fixture collection, not for normal use. The session goal
+is redacted when it is captured, because it is replayed in the diet state and in the
+compaction snapshot.
+
 ## What leaves the machine
 
 One Jev request carries:
@@ -70,4 +76,3 @@ drops that had to be undone.
 
 Report security issues through the repository's issue tracker rather than a public
 disclosure when the report would include a working payload.
-

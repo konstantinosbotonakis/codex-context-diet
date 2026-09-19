@@ -472,7 +472,7 @@ npm install
 npm test && npm run typecheck && npm run build
 ```
 
-`dist/` is committed, so a change under `src/` does not ship until `npm run build` runs and `dist/` is staged with it. `CONTEXT_DIET_TEST_ANSWERS` and `CONTEXT_DIET_CAPTURE` exist for tests and for recording real payloads. Neither belongs in a normal session.
+`dist/` is committed, so a change under `src/` does not ship until `npm run build` runs and `dist/` is staged with it. `CONTEXT_DIET_TEST_ANSWERS` and `CONTEXT_DIET_CAPTURE` exist for tests and for recording real payloads. A capture is redacted like every other write; `CONTEXT_DIET_CAPTURE_UNREDACTED=1` records it raw instead, which can persist secrets. Neither belongs in a normal session.
 
 ### Releasing
 

@@ -6,6 +6,7 @@ import { resolveApiKey } from '../key.js';
 import { keyWarning, problemFromError } from './keyWarning.js';
 import { appendEvent } from './log.js';
 import { assessPrompt } from './promptGuard.js';
+import { redactText } from '../privacy.js';
 import { createAsker } from './transport.js';
 import { takeResurrection } from './compaction.js';
 const MAX_GOALS = 3;
@@ -111,15 +112,18 @@ export async function main(stdin, env) {
         if (prompt.length === 0)
             return '';
         const config = loadConfig(env);
+        // The goal is replayed in the diet state and in the compaction snapshot,
+        // so it is redacted once here, at the point it is captured.
+        const safePrompt = redactText(prompt, config.privacyMode).text;
         const stdout = config.promptGuard
-            ? await promptGuardOutput(env, config, sessionId, { cwd, recent: existing?.goal ?? [], prompt })
+            ? await promptGuardOutput(env, config, sessionId, { cwd, recent: existing?.goal ?? [], prompt: safePrompt })
             : null;
         writeRecord(env, {
             session_id: sessionId,
             cwd,
             model,
             started_at: startedAt,
-            goal: [...(existing?.goal ?? []), prompt].slice(-MAX_GOALS),
+            goal: [...(existing?.goal ?? []), safePrompt].slice(-MAX_GOALS),
         });
         // A snapshot written by PreCompact rides in the first prompt after the
         // compaction, which is the hook where model-visible context is supported.
