@@ -59,6 +59,29 @@ A regression test feeds a 2 MB result through the hook and asserts that the repl
 stays under 8 KB and that the call completes in bounded time. A second test asserts that a
 result below the gate stays silent.
 
+## Session state
+
+The persistent MCP process removed the per-call Node spawn. The remaining question was
+whether cache, touches, recoveries and the goal should live in memory instead of being read
+from disk on every decision. `node scripts/bench-state.mjs` measures the reads an in-memory
+layer would replace, on a realistic session with 40 cache entries, 10 touches and 2
+recoveries:
+
+| measurement | value |
+|---|---|
+| state reads per decision | 4 |
+| their median cost | 0.244 ms |
+| full local decision | 2.07 ms |
+| share of the local decision | 11.8% |
+
+Decision: keep the disk-backed state. A quarter of a millisecond is a rounding error next to
+the 267 to 1296 ms a Jev call takes, and an in-memory layer would have to add bounded sizing,
+session keying, eviction, restart recovery, corruption tolerance and a rule that the cache is
+never the only source of correctness. It would also only help the MCP transport: the command
+fallback runs one process per hook, so it has to read from disk regardless, and the two
+transports would then behave differently. The measurement is reproducible, and the simpler
+design is the one that stays correct.
+
 ## Reproducing
 
 ```bash
@@ -70,4 +93,3 @@ node dist/cli.js benchmark 30 --live   # one real request
 ```
 
 All but the last command are offline and cost nothing.
-

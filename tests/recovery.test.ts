@@ -7,7 +7,7 @@ import { configPath, DEFAULT_CONFIG } from '../src/config.js';
 import { main as adapterMain } from '../src/codex/adapter.js';
 import { cacheEntryOf, decideDiet, type DietAnswers, type DietInput } from '../src/codex/diet.js';
 import { logPath } from '../src/codex/log.js';
-import { detectRecovery, inputKey } from '../src/recovery.js';
+import { classifyRecovery, detectRecovery, inputKey } from '../src/recovery.js';
 
 const tempEnv = (config: Record<string, unknown> = {}): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-recovery-'));
@@ -82,5 +82,69 @@ describe('recovery telemetry through the hook', () => {
     expect(recoveries[0]).toContain('"of":"t2"');
     expect(readFileSync(recoveryPath(env, 's1'), 'utf8').trim().split('\n')).toHaveLength(1);
     expect(readRecoveries(env, 's1')[0]?.tool).toBe('Bash');
+  });
+});
+
+describe('recovery classification', () => {
+  const dropAt = new Date(Date.now() - 5_000).toISOString();
+  const writeAt = new Date(Date.now() - 2_000).toISOString();
+  const write = { at: writeAt, tool: 'Write', paths: ['/repo/src/app.ts'] };
+
+  it('calls a rerun with nothing written in between a likely recovery', () => {
+    const verdict = classifyRecovery(entry({ at: dropAt }), { toolName: 'Bash', inputLine: 'npm test' }, []);
+    expect(verdict.classification).toBe('likely_recovery');
+  });
+
+  it('softens the verdict when something was written after the drop', () => {
+    const verdict = classifyRecovery(entry({ at: dropAt }), { toolName: 'Bash', inputLine: 'npm test' }, [write]);
+    expect(verdict.classification).toBe('possible_rerun');
+  });
+
+  it('calls a re-read of a file that changed an invalidated rerun', () => {
+    const verdict = classifyRecovery(
+      entry({ at: dropAt, tool_name: 'Read', input: '/repo/src/app.ts' }),
+      { toolName: 'Read', inputLine: '/repo/src/app.ts' },
+      [write],
+    );
+    expect(verdict.classification).toBe('invalidated_rerun');
+  });
+
+  it('treats an unknown write as dirty for every later read', () => {
+    const verdict = classifyRecovery(
+      entry({ at: dropAt, tool_name: 'Read', input: '/repo/src/app.ts' }),
+      { toolName: 'Read', inputLine: '/repo/src/app.ts' },
+      [{ at: writeAt, tool: 'Bash', paths: ['*'] }],
+    );
+    expect(verdict.classification).toBe('invalidated_rerun');
+  });
+
+  it('ignores touches that predate the drop', () => {
+    const old = { at: new Date(Date.now() - 60_000).toISOString(), tool: 'Write', paths: ['/repo/src/app.ts'] };
+    const verdict = classifyRecovery(entry({ at: dropAt }), { toolName: 'Bash', inputLine: 'npm test' }, [old]);
+    expect(verdict.classification).toBe('likely_recovery');
+  });
+
+  it('records the classification with the rerun', async () => {
+    const env = tempEnv({ debug: true, minTokens: 10 });
+    env.CONTEXT_DIET_TEST_ANSWERS = JSON.stringify({
+      needs_contents: 0.05, replaceable: 0.9, keep_call: 0.9, agent_directed: 0.02, behaviour_change: 0.02,
+    });
+    await adapterMain(payload('t1', 'run one output\n'.repeat(200)), env);
+    // t2 is the first result that can be dropped, because t1 is exempt.
+    await adapterMain(payload('t2', 'run two output\n'.repeat(200)), env);
+    await adapterMain(
+      JSON.stringify({
+        hook_event_name: 'PostToolUse',
+        session_id: 's1',
+        tool_name: 'Write',
+        tool_use_id: 'w1',
+        tool_input: { file_path: '/repo/app.ts', content: 'x' },
+        tool_response: { output: 'ok' },
+      }),
+      env,
+    );
+    await adapterMain(payload('t3', 'run two output\n'.repeat(200)), env);
+    const records = readRecoveries(env, 's1');
+    expect(records.at(-1)?.classification).toBe('possible_rerun');
   });
 });

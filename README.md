@@ -378,7 +378,7 @@ Repeated commands are handled before Jev is asked: a result that is byte-identic
 
 For output above `chunkMinChars` that is already being dropped, one extra request splits a bounded sample into chunks and asks whether each one still matters. The chunks that matter ride along in the capsule, and only the clearly unnecessary ones are left out, so uncertainty keeps evidence. The request never changes the keep or drop decision.
 
-When a dropped result is re-run soon afterwards, the table counts one recovery, with rows for recovery reruns, recovery rate and net useful replacements. The match uses the tool and the normalised input, so an intentional rerun looks the same and is counted too. Recovery is the quality metric that matters: a drop that had to be undone was not a saving.
+When a dropped result is re-run soon afterwards, the table counts one recovery rerun, with rows for the rerun rate, likely recoveries, net useful replacements and the tokens the reruns put back. The match uses the tool and the normalised input, and every rerun is classified: a rerun with nothing written in between is a likely recovery, one after a write is a possible rerun, and a re-read of a file that changed is an invalidated rerun, because that read was needed whatever the diet did. The rate is a rerun rate, not a false-drop rate: an intentional rerun looks the same from here.
 
 Every Jev response reports token usage, so the table also adds up input tokens and prices them at `pricePerMillionInputTokens`, 0.042 USD per million input tokens by default, which is the published Jev input price. Output tokens are free. Calls recorded before usage was kept make the cost a lower bound, and the table says so when that applies.
 

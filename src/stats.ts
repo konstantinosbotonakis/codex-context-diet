@@ -62,6 +62,12 @@ export interface UsageWindow {
   dietP95: number;
   /** Later calls that look like they re-ran a dropped result. */
   recoveryReruns: number;
+  /** Reruns where nothing was written in between: the strongest recovery signal. */
+  recoveryLikely: number;
+  /** Reruns after some write, where routine work looks the same. */
+  recoveryPossible: number;
+  /** Reruns of a file that changed after the drop, so the re-read was required anyway. */
+  recoveryInvalidated: number;
   /** Sum of the tool calls between those drops and their reruns. */
   recoveryCalls: number;
 }
@@ -132,6 +138,9 @@ export function summarizeUsage(
     dietP50: 0,
     dietP95: 0,
     recoveryReruns: 0,
+    recoveryLikely: 0,
+    recoveryPossible: 0,
+    recoveryInvalidated: 0,
     recoveryCalls: 0,
   }));
   const seen = windows.map(() => new Set<string>());
@@ -184,6 +193,9 @@ export function summarizeUsage(
       if (tokens !== null) window.jevTokens += tokens;
       if (kind === 'recovery') {
         window.recoveryReruns += 1;
+        if (event.classification === 'likely_recovery') window.recoveryLikely += 1;
+        else if (event.classification === 'possible_rerun') window.recoveryPossible += 1;
+        else if (event.classification === 'invalidated_rerun') window.recoveryInvalidated += 1;
         if (typeof event.afterCalls === 'number' && Number.isFinite(event.afterCalls)) {
           window.recoveryCalls += event.afterCalls;
         }
@@ -318,7 +330,8 @@ export function renderUsage(report: UsageReport, options: RenderOptions): string
       ['  prompts flagged', (w) => formatNumber(w.guardFlags)],
       ['key warnings', (w) => formatNumber(w.keyWarnings)],
       ['  recovery reruns', (w) => formatNumber(w.recoveryReruns)],
-      ['  recovery rate', (w) => (w.replaced === 0 ? '0%' : Math.round((w.recoveryReruns / w.replaced) * 100) + '%')],
+      ['  recovery rerun rate', (w) => (w.replaced === 0 ? '0%' : Math.round((w.recoveryReruns / w.replaced) * 100) + '%')],
+      ['  likely recoveries', (w) => formatNumber(w.recoveryLikely)],
       ['  net useful replacements', (w) => formatNumber(Math.max(0, w.replaced - w.recoveryReruns))],
       ['  recovery tokens', (w) => '~' + formatNumber(Math.round(w.recoveryChars / 4))],
       ['Jev input tokens', (w) => formatNumber(w.jevTokens)],
@@ -370,7 +383,7 @@ export function renderUsage(report: UsageReport, options: RenderOptions): string
   if (widest !== undefined && widest.recoveryReruns > 0) {
     const average = (widest.recoveryCalls / widest.recoveryReruns).toFixed(1);
     lines.push('');
-    lines.push('Recoveries were re-run ' + average + ' tool calls after the drop on average. This is inferred from repeated commands and re-reads, so an intentional rerun counts too.');
+    lines.push('Recoveries were re-run ' + average + ' tool calls after the drop on average. The rate is a rerun rate, not a false-drop rate: a rerun with nothing written in between is a likely recovery, one after a write is a possible rerun, and a re-read of a file that changed is counted as an invalidated rerun.');
   }
   return lines.join('\n');
 }

@@ -171,6 +171,24 @@ describe('usage table', () => {
     expect(table).toContain('net useful replacements');
     expect(table).toContain('Recoveries were re-run 4.0 tool calls after the drop on average.');
   });
+
+  it('counts reruns by classification', () => {
+    const report = summarizeUsage(
+      usage({
+        events: [
+          { at: at(0), kind: 'recovery', tool: 'Bash', afterCalls: 1, chars: 100, classification: 'likely_recovery' },
+          { at: at(0), kind: 'recovery', tool: 'Bash', afterCalls: 1, chars: 100, classification: 'possible_rerun' },
+          { at: at(0), kind: 'recovery', tool: 'Bash', afterCalls: 1, chars: 100, classification: 'invalidated_rerun' },
+        ],
+      }),
+      JEV_REASON_VALUES,
+    );
+    const today = report.windows[0];
+    expect(today?.recoveryReruns).toBe(3);
+    expect(today?.recoveryLikely).toBe(1);
+    expect(today?.recoveryPossible).toBe(1);
+    expect(today?.recoveryInvalidated).toBe(1);
+  });
 });
 
 describe('reading stores', () => {

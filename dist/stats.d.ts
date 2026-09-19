@@ -53,6 +53,12 @@ export interface UsageWindow {
     dietP95: number;
     /** Later calls that look like they re-ran a dropped result. */
     recoveryReruns: number;
+    /** Reruns where nothing was written in between: the strongest recovery signal. */
+    recoveryLikely: number;
+    /** Reruns after some write, where routine work looks the same. */
+    recoveryPossible: number;
+    /** Reruns of a file that changed after the drop, so the re-read was required anyway. */
+    recoveryInvalidated: number;
     /** Sum of the tool calls between those drops and their reruns. */
     recoveryCalls: number;
 }

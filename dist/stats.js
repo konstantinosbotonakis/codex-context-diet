@@ -54,6 +54,9 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
         dietP50: 0,
         dietP95: 0,
         recoveryReruns: 0,
+        recoveryLikely: 0,
+        recoveryPossible: 0,
+        recoveryInvalidated: 0,
         recoveryCalls: 0,
     }));
     const seen = windows.map(() => new Set());
@@ -114,6 +117,12 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
                 window.jevTokens += tokens;
             if (kind === 'recovery') {
                 window.recoveryReruns += 1;
+                if (event.classification === 'likely_recovery')
+                    window.recoveryLikely += 1;
+                else if (event.classification === 'possible_rerun')
+                    window.recoveryPossible += 1;
+                else if (event.classification === 'invalidated_rerun')
+                    window.recoveryInvalidated += 1;
                 if (typeof event.afterCalls === 'number' && Number.isFinite(event.afterCalls)) {
                     window.recoveryCalls += event.afterCalls;
                 }
@@ -234,7 +243,7 @@ export function renderUsage(report, options) {
         ['  net tokens avoided', (w) => '~' + formatNumber(Math.round(Math.max(0, w.charsDropped - w.capsuleChars) / 4))],
     ];
     if (report.logLines > 0) {
-        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['  recovery reruns', (w) => formatNumber(w.recoveryReruns)], ['  recovery rate', (w) => (w.replaced === 0 ? '0%' : Math.round((w.recoveryReruns / w.replaced) * 100) + '%')], ['  net useful replacements', (w) => formatNumber(Math.max(0, w.replaced - w.recoveryReruns))], ['  recovery tokens', (w) => '~' + formatNumber(Math.round(w.recoveryChars / 4))], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)], ['secret redactions', (w) => formatNumber(w.redactions)], ['quality interventions', (w) => formatNumber(w.qualityInterventions)], ['subagent checks', (w) => formatNumber(w.subagentChecks)], ['  subagent revisions', (w) => formatNumber(w.subagentRevisions)], ['diet p50', (w) => (w.dietP50 === 0 ? '0 ms' : w.dietP50 + ' ms')], ['  diet p95', (w) => (w.dietP95 === 0 ? '0 ms' : w.dietP95 + ' ms')]);
+        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['  recovery reruns', (w) => formatNumber(w.recoveryReruns)], ['  recovery rerun rate', (w) => (w.replaced === 0 ? '0%' : Math.round((w.recoveryReruns / w.replaced) * 100) + '%')], ['  likely recoveries', (w) => formatNumber(w.recoveryLikely)], ['  net useful replacements', (w) => formatNumber(Math.max(0, w.replaced - w.recoveryReruns))], ['  recovery tokens', (w) => '~' + formatNumber(Math.round(w.recoveryChars / 4))], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)], ['secret redactions', (w) => formatNumber(w.redactions)], ['quality interventions', (w) => formatNumber(w.qualityInterventions)], ['subagent checks', (w) => formatNumber(w.subagentChecks)], ['  subagent revisions', (w) => formatNumber(w.subagentRevisions)], ['diet p50', (w) => (w.dietP50 === 0 ? '0 ms' : w.dietP50 + ' ms')], ['  diet p95', (w) => (w.dietP95 === 0 ? '0 ms' : w.dietP95 + ' ms')]);
     }
     const labelWidth = Math.max(...rows.map(([label]) => label.length));
     const cells = rows.map(([, value]) => report.windows.map(value));
@@ -265,7 +274,7 @@ export function renderUsage(report, options) {
     if (widest !== undefined && widest.recoveryReruns > 0) {
         const average = (widest.recoveryCalls / widest.recoveryReruns).toFixed(1);
         lines.push('');
-        lines.push('Recoveries were re-run ' + average + ' tool calls after the drop on average. This is inferred from repeated commands and re-reads, so an intentional rerun counts too.');
+        lines.push('Recoveries were re-run ' + average + ' tool calls after the drop on average. The rate is a rerun rate, not a false-drop rate: a rerun with nothing written in between is a likely recovery, one after a write is a possible rerun, and a re-read of a file that changed is counted as an invalidated rerun.');
     }
     return lines.join('\n');
 }

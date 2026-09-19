@@ -39,6 +39,10 @@ export interface RecoveryRecord {
   input?: string;
   /** Characters the original result carried, for the recovery cost estimate. */
   chars?: number;
+  /** likely_recovery, possible_rerun or invalidated_rerun. Absent on older records. */
+  classification?: string;
+  /** One line explaining the classification. */
+  because?: string;
 }
 
 const UNSAFE = /[^A-Za-z0-9._-]+/g;

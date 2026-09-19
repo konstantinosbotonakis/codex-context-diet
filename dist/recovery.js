@@ -1,7 +1,39 @@
-import { fingerprint, normalizeText } from './dedupe.js';
+import { fingerprint, normalizeText, resourceOf } from './dedupe.js';
 /** Stable key for one tool plus one input, so a recovery scores once per input. */
 export function inputKey(toolName, inputLine) {
     return fingerprint(toolName, inputLine, '');
+}
+/**
+ * How much weight a matched rerun deserves.
+ *
+ * The match itself only says the same call ran again. What happened in
+ * between decides whether that reads as a lost result or as ordinary work:
+ * a file that changed had to be read again whatever the diet did, and any
+ * write in between makes a routine rerun indistinguishable from a recovery.
+ */
+export function classifyRecovery(entry, current, touches) {
+    const at = Date.parse(entry.at);
+    const after = touches.filter((touch) => {
+        const touchedAt = Date.parse(touch.at);
+        return Number.isFinite(touchedAt) && (!Number.isFinite(at) || touchedAt > at);
+    });
+    const resource = resourceOf(current.toolName, current.inputLine);
+    if (resource !== null && after.some((touch) => touch.paths.includes('*') || touch.paths.includes(resource))) {
+        return {
+            classification: 'invalidated_rerun',
+            because: 'the file changed after the drop, so reading it again was required anyway',
+        };
+    }
+    if (after.length > 0) {
+        return {
+            classification: 'possible_rerun',
+            because: 'something was written after the drop, so a routine rerun looks the same',
+        };
+    }
+    return {
+        classification: 'likely_recovery',
+        because: 'nothing was written between the drop and the rerun',
+    };
 }
 export function detectRecovery(cache, alreadySeen, current, now, windowMs) {
     const input = normalizeText(current.inputLine);

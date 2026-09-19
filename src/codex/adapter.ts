@@ -12,7 +12,7 @@ import { readGoal } from './session.js';
 import { createAsker } from './transport.js';
 import { isNeverSendInput, redactText } from '../privacy.js';
 import { DUPLICATE_REASON, findDuplicate, touchedPaths } from '../dedupe.js';
-import { detectRecovery, inputKey } from '../recovery.js';
+import { classifyRecovery, detectRecovery, inputKey } from '../recovery.js';
 import { pressureStage, retainedTokens } from '../pressure.js';
 import { outputClassOf, resolveEffectivePolicy } from '../policy.js';
 
@@ -135,10 +135,13 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
       keepThreshold: policy.keepThreshold,
       dropThreshold: policy.dropThreshold,
     };
+    // Read once: the duplicate check and the recovery classification both
+    // need to know what has been written in this session.
+    const touches = readTouches(env, sessionId);
     const duplicate =
       config.dedupe &&
       !firstResult &&
-      findDuplicate(toolName, safeInput, safeResultText, cache, readTouches(env, sessionId)) !== null;
+      findDuplicate(toolName, safeInput, safeResultText, cache, touches) !== null;
 
     // A later call with the same tool and input, soon after a dropped result,
     // is scored as a recovery. It is an inference, not a certainty.
@@ -150,6 +153,7 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
       config.recoveryWindowMs,
     );
     if (recovery !== null) {
+      const verdict = classifyRecovery(recovery.entry, { toolName, inputLine: safeInput }, touches);
       appendRecovery(env, sessionId, {
         of: recovery.entry.tool_use_id,
         inputHash: inputKey(toolName, safeInput),
@@ -159,6 +163,8 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
         afterMs: recovery.afterMs,
         afterCalls: recovery.afterCalls,
         chars: recovery.entry.chars,
+        classification: verdict.classification,
+        because: verdict.because,
       });
       appendEvent(env, config, {
         kind: 'recovery',
@@ -167,6 +173,7 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
         reason: recovery.entry.reason ?? recovery.entry.decision,
         afterMs: recovery.afterMs,
         afterCalls: recovery.afterCalls,
+        classification: verdict.classification,
       });
     }
     const { goal, goalIndex } = readGoal(env, sessionId);

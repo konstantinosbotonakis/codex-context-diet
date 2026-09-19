@@ -46,6 +46,10 @@ export interface RecoveryRecord {
     input?: string;
     /** Characters the original result carried, for the recovery cost estimate. */
     chars?: number;
+    /** likely_recovery, possible_rerun or invalidated_rerun. Absent on older records. */
+    classification?: string;
+    /** One line explaining the classification. */
+    because?: string;
 }
 /** Session ids come from the host, so a hostile one must not escape the data directory. */
 export declare function sessionKey(sessionId: string): string;
