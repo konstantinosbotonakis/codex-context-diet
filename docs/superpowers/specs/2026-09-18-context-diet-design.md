@@ -339,7 +339,10 @@ plugin reinstalls and is never committed.
   "cacheMaxBytes": 262144,
   "debug": false,
   "logRetentionDays": 30,
-  "pricePerMillionInputTokens": 0.042
+  "pricePerMillionInputTokens": 0.042,
+  "privacyMode": "strict",
+  "neverSendPaths": ["**/.env", "**/.env.*", "**/*.pem", "**/*.key"],
+  "neverSendTools": []
 }
 ```
 
@@ -357,6 +360,7 @@ plugin reinstalls and is never committed.
 | `neverDietTools` | Exact tool names always exempted. `apply_patch` is exempt in code. |
 | `logRetentionDays` | Days of event log kept. Rotation runs at most once a day. |
 | `pricePerMillionInputTokens` | USD per million input tokens, for the estimated cost in stats. |
+| `privacyMode` | `strict` redacts and excludes paths, `standard` redacts only, `off` disables both. |
 
 Key resolution order: `TYPESAFE_API_KEY` environment variable → `~/.typesafe_key` file →
 `apiKey` in config. The key is never written to logs, error messages, or the cache. The

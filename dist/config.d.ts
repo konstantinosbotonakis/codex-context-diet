@@ -1,3 +1,4 @@
+export type PrivacyMode = 'strict' | 'standard' | 'off';
 export interface DietConfig {
     enabled: boolean;
     mode: 'diet' | 'observe';
@@ -25,6 +26,12 @@ export interface DietConfig {
     logRetentionDays: number;
     /** USD per million input tokens, used by the cost line in stats. */
     pricePerMillionInputTokens: number;
+    /** strict redacts and honours path exclusions, standard only redacts, off does neither. */
+    privacyMode: PrivacyMode;
+    /** Path globs that must never reach Jev or the cache. Strict mode only. */
+    neverSendPaths: string[];
+    /** Tools whose results must never leave the machine. */
+    neverSendTools: string[];
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;

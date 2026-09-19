@@ -30,6 +30,10 @@ The settings worth tuning:
   rotates once a day, and `0` keeps everything.
 - `pricePerMillionInputTokens` (default 0.042) prices the estimated cost in `stats`. Change it
   when TypeSafe changes the price.
+- `privacyMode` (default `strict`) redacts secrets before Jev, the cache, and the log. `standard`
+  redacts but ignores path exclusions, and `off` disables both.
+- `neverSendPaths` are globs that stay on the machine in strict mode, and `neverSendTools` names
+  tools whose results are never sent at all.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 

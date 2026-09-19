@@ -1,6 +1,7 @@
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pluginDataDir, type DietConfig } from '../config.js';
+import { redactText } from '../privacy.js';
 
 function logDir(env: NodeJS.ProcessEnv): string {
   return join(pluginDataDir(env), 'log');
@@ -67,7 +68,10 @@ export function appendEvent(
   if (!config.debug) return;
   try {
     mkdirSync(logDir(env), { recursive: true });
-    appendFileSync(logPath(env), JSON.stringify({ at: new Date().toISOString(), ...event }) + '\n');
+    // Belt and braces: an event field added later must not be able to leak a
+    // secret into the log, so the serialised line passes the same redaction.
+    const line = JSON.stringify({ at: new Date().toISOString(), ...event });
+    appendFileSync(logPath(env), redactText(line, config.privacyMode).text + '\n');
     rotateLog(env, config);
   } catch {
     // diagnostics never break a run

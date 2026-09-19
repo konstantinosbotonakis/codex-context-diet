@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
+export type PrivacyMode = 'strict' | 'standard' | 'off';
+
 export interface DietConfig {
   enabled: boolean; mode: 'diet' | 'observe'; dryRun: boolean;
   /** 'cache' keeps a rolling per-session digest; 'off' is single-turn and writes nothing. */
@@ -14,6 +16,12 @@ export interface DietConfig {
   logRetentionDays: number;
   /** USD per million input tokens, used by the cost line in stats. */
   pricePerMillionInputTokens: number;
+  /** strict redacts and honours path exclusions, standard only redacts, off does neither. */
+  privacyMode: PrivacyMode;
+  /** Path globs that must never reach Jev or the cache. Strict mode only. */
+  neverSendPaths: string[];
+  /** Tools whose results must never leave the machine. */
+  neverSendTools: string[];
 }
 
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
@@ -28,6 +36,9 @@ export const DEFAULT_CONFIG: DietConfig = {
   cacheMaxEntries: 40, cacheMaxBytes: 262144, debug: false,
   logRetentionDays: 30,
   pricePerMillionInputTokens: JEV_INPUT_PRICE_PER_MTOK,
+  privacyMode: 'strict',
+  neverSendPaths: ['**/.env', '**/.env.*', '**/*.pem', '**/*.key'],
+  neverSendTools: [],
 };
 
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
@@ -49,6 +60,15 @@ function bool(raw: unknown, fallback: boolean): boolean {
 
 function str(raw: unknown, fallback: string): string {
   return typeof raw === 'string' && raw.length > 0 ? raw : fallback;
+}
+
+function strArray(raw: unknown, fallback: string[]): string[] {
+  if (!Array.isArray(raw)) return [...fallback];
+  return raw.filter((value): value is string => typeof value === 'string' && value.length > 0);
+}
+
+function privacyMode(raw: unknown, fallback: PrivacyMode): PrivacyMode {
+  return raw === 'strict' || raw === 'standard' || raw === 'off' ? raw : fallback;
 }
 
 /** Total: never throws, and never returns a field of the wrong type. */
@@ -79,6 +99,9 @@ export function resolveConfig(raw: unknown): DietConfig {
     debug: bool(o.debug, DEFAULT_CONFIG.debug),
     logRetentionDays: num(o.logRetentionDays, DEFAULT_CONFIG.logRetentionDays),
     pricePerMillionInputTokens: num(o.pricePerMillionInputTokens, DEFAULT_CONFIG.pricePerMillionInputTokens),
+    privacyMode: privacyMode(o.privacyMode, DEFAULT_CONFIG.privacyMode),
+    neverSendPaths: strArray(o.neverSendPaths, DEFAULT_CONFIG.neverSendPaths),
+    neverSendTools: strArray(o.neverSendTools, DEFAULT_CONFIG.neverSendTools),
   };
   if (typeof o.apiKey === 'string' && o.apiKey.length > 0) config.apiKey = o.apiKey;
   return config;

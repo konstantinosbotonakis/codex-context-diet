@@ -9,6 +9,7 @@ import { appendEvent } from './log.js';
 import { inputLine, isSkippedTool, toolResultText } from './payload.js';
 import { readGoal } from './session.js';
 import { createAsker } from './transport.js';
+import { isNeverSendInput, redactText } from '../privacy.js';
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -58,7 +59,17 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
 
     const resultText = toolResultText(toolName, payload.tool_response);
     if (resultText === null) return '';
-    if (estimateTokens(resultText) < config.minTokens) return '';
+    const rawInput = inputLine(toolName, payload.tool_input);
+
+    // Paths and tools the user excluded stay on the machine: no Jev call, no
+    // cache write, no replacement.
+    if (isNeverSendInput(toolName, rawInput, config)) {
+      appendEvent(env, config, { kind: 'privacy', action: 'never_send', tool: toolName });
+      return '';
+    }
+    const safeResultText = redactText(resultText, config.privacyMode).text;
+    const safeInput = redactText(rawInput, config.privacyMode).text;
+    if (estimateTokens(safeResultText) < config.minTokens) return '';
 
     const sessionId = text(payload.session_id);
     // stateSource 'off' is single-turn: no history is read and nothing is written.
@@ -78,8 +89,8 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
       input: {
         toolName,
         toolUseId: text(payload.tool_use_id),
-        inputLine: inputLine(toolName, payload.tool_input),
-        resultText,
+        inputLine: safeInput,
+        resultText: safeResultText,
         isError: isErrorResponse(payload.tool_response),
         goalIndex,
       },

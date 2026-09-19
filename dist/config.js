@@ -11,6 +11,9 @@ export const DEFAULT_CONFIG = {
     cacheMaxEntries: 40, cacheMaxBytes: 262144, debug: false,
     logRetentionDays: 30,
     pricePerMillionInputTokens: JEV_INPUT_PRICE_PER_MTOK,
+    privacyMode: 'strict',
+    neverSendPaths: ['**/.env', '**/.env.*', '**/*.pem', '**/*.key'],
+    neverSendTools: [],
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -27,6 +30,14 @@ function bool(raw, fallback) {
 }
 function str(raw, fallback) {
     return typeof raw === 'string' && raw.length > 0 ? raw : fallback;
+}
+function strArray(raw, fallback) {
+    if (!Array.isArray(raw))
+        return [...fallback];
+    return raw.filter((value) => typeof value === 'string' && value.length > 0);
+}
+function privacyMode(raw, fallback) {
+    return raw === 'strict' || raw === 'standard' || raw === 'off' ? raw : fallback;
 }
 /** Total: never throws, and never returns a field of the wrong type. */
 export function resolveConfig(raw) {
@@ -56,6 +67,9 @@ export function resolveConfig(raw) {
         debug: bool(o.debug, DEFAULT_CONFIG.debug),
         logRetentionDays: num(o.logRetentionDays, DEFAULT_CONFIG.logRetentionDays),
         pricePerMillionInputTokens: num(o.pricePerMillionInputTokens, DEFAULT_CONFIG.pricePerMillionInputTokens),
+        privacyMode: privacyMode(o.privacyMode, DEFAULT_CONFIG.privacyMode),
+        neverSendPaths: strArray(o.neverSendPaths, DEFAULT_CONFIG.neverSendPaths),
+        neverSendTools: strArray(o.neverSendTools, DEFAULT_CONFIG.neverSendTools),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;

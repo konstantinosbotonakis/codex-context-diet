@@ -10,6 +10,7 @@ import {
   Q_REPLACEABLE,
 } from '../questions.js';
 import { inputTokensOf, noulAnswer } from '../request.js';
+import { redactValue } from '../privacy.js';
 import type { JevAnswer, JevAsker } from '../types.js';
 
 export type DietAction = 'keep' | 'drop_result';
@@ -192,7 +193,7 @@ export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
   let inputTokens: number | null = null;
   try {
     const response = await asker.ask(
-      state,
+      redactValue(state, config.privacyMode) as typeof state,
       dietQuestions(
         { tool: input.toolName, inputLine: input.inputLine, resultChars: input.resultText.length },
         config.injectionGuard,

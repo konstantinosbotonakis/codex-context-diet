@@ -1,5 +1,6 @@
 import type { DietConfig } from '../config.js';
 import { inputTokensOf, noulAnswer } from '../request.js';
+import { redactValue } from '../privacy.js';
 import type { JevAnswer, JevAsker, JevQuestions } from '../types.js';
 
 export const Q_TOUCHES_PRODUCTION = 'touches_production';
@@ -90,7 +91,10 @@ export async function assessPrompt(
   if (asker === null) return { risk: null, error: null, inputTokens: null };
   try {
     const response = await asker.ask(
-      { cwd: context.cwd, recent_prompts: context.recent, prompt: context.prompt },
+      redactValue(
+        { cwd: context.cwd, recent_prompts: context.recent, prompt: context.prompt },
+        config.privacyMode,
+      ) as Record<string, unknown>,
       riskQuestions(),
     );
     return { risk: decidePromptRisk(response.answers, config), error: null, inputTokens: inputTokensOf(response) };

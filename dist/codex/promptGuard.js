@@ -1,4 +1,5 @@
 import { inputTokensOf, noulAnswer } from '../request.js';
+import { redactValue } from '../privacy.js';
 export const Q_TOUCHES_PRODUCTION = 'touches_production';
 export const Q_IRREVERSIBLE = 'irreversible';
 const criteria = (yes, no) => ({ true: yes, false: no });
@@ -47,7 +48,7 @@ export async function assessPrompt(context, asker, config) {
     if (asker === null)
         return { risk: null, error: null, inputTokens: null };
     try {
-        const response = await asker.ask({ cwd: context.cwd, recent_prompts: context.recent, prompt: context.prompt }, riskQuestions());
+        const response = await asker.ask(redactValue({ cwd: context.cwd, recent_prompts: context.recent, prompt: context.prompt }, config.privacyMode), riskQuestions());
         return { risk: decidePromptRisk(response.answers, config), error: null, inputTokens: inputTokensOf(response) };
     }
     catch (error) {

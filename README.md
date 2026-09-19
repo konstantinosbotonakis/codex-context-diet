@@ -200,7 +200,10 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "cacheMaxBytes": 262144,
   "debug": false,
   "logRetentionDays": 30,
-  "pricePerMillionInputTokens": 0.042
+  "pricePerMillionInputTokens": 0.042,
+  "privacyMode": "strict",
+  "neverSendPaths": ["**/.env", "**/.env.*", "**/*.pem", "**/*.key"],
+  "neverSendTools": []
 }
 ```
 
@@ -221,6 +224,9 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `debug` | append one line per decision to `$PLUGIN_DATA/log/events.jsonl` |
 | `logRetentionDays` | days of event log to keep, rotated once a day, and 0 keeps everything |
 | `pricePerMillionInputTokens` | USD per million input tokens, used for the estimated cost in the stats table |
+| `privacyMode` | `strict` redacts secrets and honours path exclusions, `standard` only redacts, `off` disables both |
+| `neverSendPaths` | path globs that never reach Jev or the cache, enforced in strict mode |
+| `neverSendTools` | tool names whose results never leave the machine |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
@@ -229,6 +235,10 @@ Reading Codex's own transcript is deliberately not implemented. The format is do
 Resolution order is `TYPESAFE_API_KEY`, then `~/.typesafe_key` (override the path with `TYPESAFE_KEY_FILE`), then `apiKey` in the config. The key is never written to stdout, stderr, the log, or the cache. Only its source is ever reported.
 
 When the key is missing, or TypeSafe rejects it, Jev is skipped and results stay in full. The hook then adds one line saying so, at most once an hour, so a broken key is neither silent nor noisy.
+
+### Secrets
+
+Before any Jev request, and before any cache or log write, a deterministic local pass replaces common secrets with placeholders such as `<REDACTED_API_KEY>`, `<REDACTED_JWT>`, and `<REDACTED_PRIVATE_KEY>`. It covers provider key shapes, bearer tokens, JWTs, PEM blocks, password assignments, and connection strings. The classification is local: no candidate secret is ever sent to a model to ask whether it is a secret. In strict mode, anything matching `neverSendPaths` is kept entirely on the machine, with no Jev call, no cache entry, and no replacement.
 
 ```bash
 printf %s "$YOUR_KEY" > ~/.typesafe_key && chmod 600 ~/.typesafe_key
