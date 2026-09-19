@@ -42,6 +42,8 @@ export interface RecoveryRecord {
     tool: string;
     afterMs: number;
     afterCalls: number;
+    /** The command or path that was re-run, bounded, for the snapshot. */
+    input?: string;
 }
 /** Session ids come from the host, so a hostile one must not escape the data directory. */
 export declare function sessionKey(sessionId: string): string;

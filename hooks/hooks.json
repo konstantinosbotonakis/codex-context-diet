@@ -30,7 +30,10 @@
             "type": "mcp_tool",
             "server": "context-diet",
             "tool": "session_event",
-            "input": { "session_id": "${session_id}", "event": "SessionStart" },
+            "input": {
+              "session_id": "${session_id}",
+              "event": "SessionStart"
+            },
             "timeout": 5
           }
         ]
@@ -43,8 +46,46 @@
             "type": "mcp_tool",
             "server": "context-diet",
             "tool": "prompt_guard",
-            "input": { "session_id": "${session_id}", "prompt": "${prompt}", "cwd": "${cwd}" },
+            "input": {
+              "session_id": "${session_id}",
+              "prompt": "${prompt}",
+              "cwd": "${cwd}"
+            },
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "context-diet",
+            "tool": "pre_compact",
+            "input": {
+              "session_id": "${session_id}",
+              "trigger": "${trigger}"
+            },
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "context-diet",
+            "tool": "post_compact",
+            "input": {
+              "session_id": "${session_id}",
+              "trigger": "${trigger}"
+            },
+            "timeout": 10
           }
         ]
       }
@@ -56,7 +97,9 @@
             "type": "mcp_tool",
             "server": "context-diet",
             "tool": "stop_guard",
-            "input": { "session_id": "${session_id}" },
+            "input": {
+              "session_id": "${session_id}"
+            },
             "timeout": 5
           }
         ]

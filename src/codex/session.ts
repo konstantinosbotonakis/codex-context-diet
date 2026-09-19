@@ -7,6 +7,7 @@ import { keyWarning, problemFromError, type KeyProblem } from './keyWarning.js';
 import { appendEvent } from './log.js';
 import { assessPrompt, type PromptContext } from './promptGuard.js';
 import { createAsker } from './transport.js';
+import { takeResurrection } from './compaction.js';
 
 export interface SessionRecord {
   session_id: string;
@@ -141,7 +142,18 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
       goal: [...(existing?.goal ?? []), prompt].slice(-MAX_GOALS),
     });
 
-    return stdout === null ? '' : JSON.stringify(stdout);
+    // A snapshot written by PreCompact rides in the first prompt after the
+    // compaction, which is the hook where model-visible context is supported.
+    const resurrection = takeResurrection(env, sessionId, config);
+    if (resurrection === null) return stdout === null ? '' : JSON.stringify(stdout);
+    const merged = (stdout ?? {}) as Record<string, unknown>;
+    const hook = (merged.hookSpecificOutput ?? {}) as Record<string, unknown>;
+    hook.hookEventName = 'UserPromptSubmit';
+    hook.additionalContext = [resurrection, text(hook.additionalContext)]
+      .filter((part) => part.length > 0)
+      .join('\n\n');
+    merged.hookSpecificOutput = hook;
+    return JSON.stringify(merged);
   } catch {
     // never block a session
   }

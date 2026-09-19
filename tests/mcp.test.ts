@@ -1,5 +1,5 @@
 import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -15,6 +15,7 @@ afterEach(() => {
 });
 
 interface Server {
+  data: string;
   call: (method: string, params?: unknown) => Promise<Record<string, unknown>>;
 }
 
@@ -56,7 +57,7 @@ async function start(overrides: Record<string, string> = {}): Promise<Server> {
     clientInfo: { name: 'test', version: '1' },
   });
   expect(started.result).toBeTruthy();
-  return { call };
+  return { data, call };
 }
 
 const toolText = (response: Record<string, unknown>): string => {
@@ -86,6 +87,7 @@ describe('the Context Diet MCP server', () => {
     const tools = (listed.result as { tools: { name: string }[] }).tools.map((entry) => entry.name);
     expect(tools).toEqual([
       'post_tool_use', 'prompt_guard', 'stop_guard', 'session_event',
+      'pre_compact', 'post_compact',
       'jev_boolean', 'jev_choice', 'jev_score',
     ]);
   });
@@ -144,6 +146,19 @@ describe('the Context Diet MCP server', () => {
     expect(toolText(response)).toContain('over the');
   });
 
+
+  it('snapshots state on pre_compact for the next prompt', async () => {
+    const { call, data } = await start({ CONTEXT_DIET_TEST_ANSWERS: dropAnswers });
+    await call('tools/call', { name: 'post_tool_use', arguments: bigPayload('t1') });
+    const pre = await call('tools/call', { name: 'pre_compact', arguments: { session_id: 's1', trigger: 'auto' } });
+    expect(isError(pre)).toBe(false);
+    expect(toolText(pre)).toBe('');
+    const snapshot = readFileSync(join(data, 'state', 'resurrection-s1.md'), 'utf8');
+    expect(snapshot).toContain('[codex-context-diet resurrection]');
+    const post = await call('tools/call', { name: 'post_compact', arguments: { session_id: 's1', trigger: 'auto' } });
+    expect(isError(post)).toBe(false);
+  });
+
   it('fails safely on an unknown tool', async () => {
     const { call } = await start();
     const response = await call('tools/call', { name: 'nope', arguments: {} });
@@ -151,4 +166,3 @@ describe('the Context Diet MCP server', () => {
     expect(toolText(response)).toContain('unknown tool');
   });
 });
-

@@ -359,7 +359,9 @@ plugin reinstalls and is never committed.
   "pressureModerateTokens": 0,
   "pressureHighTokens": 1000,
   "pressureCriticalTokens": 750,
-  "toolPolicies": []
+  "toolPolicies": [],
+  "compactionResurrection": true,
+  "snapshotMaxChars": 1500
 }
 ```
 

@@ -31,6 +31,8 @@ export const DEFAULT_CONFIG = {
     pressureHighTokens: 1000,
     pressureCriticalTokens: 750,
     toolPolicies: [],
+    compactionResurrection: true,
+    snapshotMaxChars: 1500,
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -124,6 +126,8 @@ export function resolveConfig(raw) {
         pressureHighTokens: num(o.pressureHighTokens, DEFAULT_CONFIG.pressureHighTokens),
         pressureCriticalTokens: num(o.pressureCriticalTokens, DEFAULT_CONFIG.pressureCriticalTokens),
         toolPolicies: toolPolicies(o.toolPolicies),
+        compactionResurrection: bool(o.compactionResurrection, DEFAULT_CONFIG.compactionResurrection),
+        snapshotMaxChars: num(o.snapshotMaxChars, DEFAULT_CONFIG.snapshotMaxChars, 1),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;

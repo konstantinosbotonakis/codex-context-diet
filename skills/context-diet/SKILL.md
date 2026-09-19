@@ -51,6 +51,8 @@ The settings worth tuning:
   `node dist/cli.js policy` to see the resolution.
 - `contextPressure` (default on) lowers the size gate once the session is estimated to carry
   40k, 90k or 150k retained tokens. It never lowers the keep threshold.
+- `compactionResurrection` (default on) takes a bounded snapshot before Codex compacts and
+  injects it on the first prompt after, once. `snapshotMaxChars` bounds that snapshot.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 

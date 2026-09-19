@@ -220,7 +220,9 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "pressureModerateTokens": 0,
   "pressureHighTokens": 1000,
   "pressureCriticalTokens": 750,
-  "toolPolicies": []
+  "toolPolicies": [],
+  "compactionResurrection": true,
+  "snapshotMaxChars": 1500
 }
 ```
 
@@ -261,6 +263,8 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `pressureHighTokens` | size floor at high pressure |
 | `pressureCriticalTokens` | size floor at critical pressure |
 | `toolPolicies` | per-tool overrides, applied through `match` strings |
+| `compactionResurrection` | snapshot plugin state before compaction and inject it once after |
+| `snapshotMaxChars` | character cap for that snapshot |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
@@ -355,6 +359,13 @@ The same server exposes three typed Jev primitives for the assistant itself:
 - `jev_score(state, question, levels)` returns the probability-weighted score across the ordered levels.
 
 They enforce a 120,000-character state limit, redact secrets before the request, validate every answer, use the configured model and timeout, and fail with a readable error instead of throwing. Reach for them when one calibrated judgement over a bounded piece of text is cheaper than a reasoning model, for example classifying a fixture, choosing between named options, or scoring noise. The `$codex-context-diet:jev` skill documents the cases.
+
+
+### After a compaction
+
+`PreCompact` writes a bounded snapshot of plugin-owned state: the recent goal, files written, outputs that were removed with the reason, the latest decisions, and any reruns of dropped output. `PostCompact` records that the compaction finished. The snapshot rides back to the model on the first prompt after the compaction, which is the point where Codex accepts model-visible hook context. It is sent once and then cleared.
+
+Nothing here reads the transcript, and the snapshot holds no raw results, only the shape of what happened. It is capped by `snapshotMaxChars` and can be switched off with `compactionResurrection: false`. If the state is empty, nothing is written.
 
 ## Development
 

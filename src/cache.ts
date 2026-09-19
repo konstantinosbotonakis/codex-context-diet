@@ -35,6 +35,8 @@ export interface RecoveryRecord {
   tool: string;
   afterMs: number;
   afterCalls: number;
+  /** The command or path that was re-run, bounded, for the snapshot. */
+  input?: string;
 }
 
 const UNSAFE = /[^A-Za-z0-9._-]+/g;

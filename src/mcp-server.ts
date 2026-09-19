@@ -21,6 +21,7 @@ import { createInterface } from 'node:readline';
 import { appendEvent } from './codex/log.js';
 import { main as adapterMain } from './codex/adapter.js';
 import { main as sessionMain } from './codex/session.js';
+import { handleCompaction } from './codex/compaction.js';
 import { createAsker } from './codex/transport.js';
 import { readRecoveries } from './cache.js';
 import { loadConfig, pluginDataDir } from './config.js';
@@ -80,6 +81,18 @@ const TOOLS = [
     'Record a session lifecycle event such as SessionStart or SessionEnd.',
     { session_id: { type: 'string' }, event: { type: 'string' } },
     ['session_id', 'event'],
+  ),
+  tool(
+    'pre_compact',
+    'Snapshot compact plugin-owned session state before Codex compacts the chat.',
+    { session_id: { type: 'string' }, trigger: { type: 'string' } },
+    ['session_id'],
+  ),
+  tool(
+    'post_compact',
+    'Record that compaction finished so the next prompt can carry the snapshot.',
+    { session_id: { type: 'string' }, trigger: { type: 'string' } },
+    ['session_id'],
   ),
   tool(
     'jev_boolean',
@@ -173,6 +186,17 @@ async function callTool(name: string, args: Args, env: NodeJS.ProcessEnv): Promi
     const config = loadConfig(env);
     appendEvent(env, config, { kind: 'session_event', event: text(args.event), session: text(args.session_id) });
     return ok('');
+  }
+  if (name === 'pre_compact' || name === 'post_compact') {
+    const output = await handleCompaction(
+      {
+        hook_event_name: name === 'pre_compact' ? 'PreCompact' : 'PostCompact',
+        session_id: text(args.session_id),
+        trigger: text(args.trigger),
+      },
+      env,
+    );
+    return ok(output);
   }
   if (name === 'jev_boolean' || name === 'jev_choice' || name === 'jev_score') {
     const setup = jevSetup(env);

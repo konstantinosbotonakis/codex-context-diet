@@ -63,6 +63,10 @@ export interface DietConfig {
     pressureCriticalTokens: number;
     /** Per-tool overrides; the last matching entry wins. */
     toolPolicies: ToolPolicy[];
+    /** Write a snapshot on PreCompact and inject it once after a compaction. */
+    compactionResurrection: boolean;
+    /** Character cap for that snapshot. */
+    snapshotMaxChars: number;
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;

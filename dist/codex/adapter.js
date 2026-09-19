@@ -113,6 +113,7 @@ export async function main(stdin, env) {
             appendRecovery(env, sessionId, {
                 of: recovery.entry.tool_use_id,
                 inputHash: inputKey(toolName, safeInput),
+                input: safeInput.slice(0, 200),
                 at: new Date().toISOString(),
                 tool: toolName,
                 afterMs: recovery.afterMs,
