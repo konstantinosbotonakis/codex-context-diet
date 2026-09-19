@@ -1,4 +1,5 @@
 import type { CacheEntry } from './cache.js';
+import { sampleResult } from './sample.js';
 import { estimateTokens } from './state.js';
 
 export const DIET_CONTEXT =
@@ -27,10 +28,6 @@ export interface FittedDietState {
   state: DietState;
   tokens: number;
   stage: string;
-}
-
-function clip(text: string, limit: number): string {
-  return text.length <= limit ? text : text.slice(0, limit);
 }
 
 function abridge(text: string, head: number, tail: number): string {
@@ -76,7 +73,12 @@ export function buildDietState(
   const olderHistory = history.slice(-half).map((entry, i) => line(entry, history.length - half + i, false));
 
   const candidates: (() => FittedDietState)[] = [
-    () => stateOf(history.map((entry, i) => line(entry, i, true)), clip(input.resultText, opts.resultCapChars), 'full'),
+    () =>
+      stateOf(
+        history.map((entry, i) => line(entry, i, true)),
+        sampleResult(input.resultText, { budgetChars: opts.resultCapChars }).text,
+        'full',
+      ),
     () => stateOf(history.map((entry, i) => line(entry, i, true)), abridge(input.resultText, 2000, 500), 'current abridged'),
     () => stateOf(history.map((entry, i) => line(entry, i, false)), abridge(input.resultText, 2000, 500), 'digests dropped'),
     () => stateOf(olderHistory, abridge(input.resultText, 2000, 500), 'oldest history dropped'),

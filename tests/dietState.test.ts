@@ -64,7 +64,9 @@ describe('diet state', () => {
         break;
       }
     }
-    expect(new Set(stages).size).toBeGreaterThanOrEqual(3);
+    // The signal sampler makes the first stage much smaller than the raw cap,
+    // so the deeper stages are reached sooner and the count shrinks with it.
+    expect(new Set(stages).size).toBeGreaterThanOrEqual(2);
   });
 
   it('throws rather than mangle a result it cannot fit', () => {

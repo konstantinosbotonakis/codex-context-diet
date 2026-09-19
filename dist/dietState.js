@@ -1,12 +1,10 @@
+import { sampleResult } from './sample.js';
 import { estimateTokens } from './state.js';
 export const DIET_CONTEXT = 'A coding assistant session is deciding whether to keep the full text of a tool result it has just received. ' +
     'history lists tool calls already seen in this session, oldest first, each as one line with a short digest of its ' +
     'result. current is the call and result being judged now. Each question asks whether the current result, or the ' +
     'fact that the call happened, still matters for the work ahead. Whatever is not kept is replaced by a bounded ' +
     'head and a note; the assistant can always re-run the tool.';
-function clip(text, limit) {
-    return text.length <= limit ? text : text.slice(0, limit);
-}
 function abridge(text, head, tail) {
     if (text.length <= head + tail + 40)
         return text;
@@ -39,7 +37,7 @@ export function buildDietState(input, opts) {
     const half = Math.max(1, Math.floor(history.length / 2));
     const olderHistory = history.slice(-half).map((entry, i) => line(entry, history.length - half + i, false));
     const candidates = [
-        () => stateOf(history.map((entry, i) => line(entry, i, true)), clip(input.resultText, opts.resultCapChars), 'full'),
+        () => stateOf(history.map((entry, i) => line(entry, i, true)), sampleResult(input.resultText, { budgetChars: opts.resultCapChars }).text, 'full'),
         () => stateOf(history.map((entry, i) => line(entry, i, true)), abridge(input.resultText, 2000, 500), 'current abridged'),
         () => stateOf(history.map((entry, i) => line(entry, i, false)), abridge(input.resultText, 2000, 500), 'digests dropped'),
         () => stateOf(olderHistory, abridge(input.resultText, 2000, 500), 'oldest history dropped'),
