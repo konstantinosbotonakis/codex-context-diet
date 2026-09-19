@@ -4,6 +4,8 @@ import { configPath, loadConfig, pluginDataDir } from './config.js';
 import { JEV_REASON_VALUES } from './codex/diet.js';
 import { keyFilePath, resolveApiKey } from './key.js';
 import { readUsageInput, renderUsage, summarizeUsage, WINDOWS } from './stats.js';
+import { PRESSURE_THRESHOLDS, type PressureStage } from './pressure.js';
+import { resolveEffectivePolicy } from './policy.js';
 import { fakeAsker, throwingAsker, verifyCompaction } from './verify.js';
 
 const USAGE = [
@@ -11,6 +13,7 @@ const USAGE = [
   '',
   '  status   show configuration, key source and data directory (offline)',
   '  stats    usage totals for today, 7 days and 30 days (offline)',
+  '  policy   the size gate, thresholds and pressure scaling per tool (offline)',
   '  verify   run the offline verification harness (no network)',
   '  test     send one real request to TypeSafe/Jev (needs a key)',
   '',
@@ -108,9 +111,62 @@ async function stats(): Promise<number> {
   return 0;
 }
 
+/** Shows which size gate and thresholds each tool would get, and why. */
+async function policyReport(): Promise<number> {
+  const config = loadConfig(process.env);
+  const floor = (value: number): number => (value > 0 ? value : config.minTokens);
+  const lines: string[] = [
+    'Context Diet policy',
+    '',
+    'base:            minTokens ' + config.minTokens + ', keep ' + config.keepThreshold + ', drop ' + config.dropThreshold,
+    'contextPressure: ' + (config.contextPressure ? 'on' : 'off'),
+    '  floors:        low ' + floor(config.pressureLowTokens) +
+      ', moderate ' + floor(config.pressureModerateTokens) +
+      ', high ' + floor(config.pressureHighTokens) +
+      ', critical ' + floor(config.pressureCriticalTokens),
+    '  stage marks:   moderate >= ' + PRESSURE_THRESHOLDS.moderate +
+      ', high >= ' + PRESSURE_THRESHOLDS.high +
+      ', critical >= ' + PRESSURE_THRESHOLDS.critical + ' retained tokens',
+    'toolPolicies:    ' + config.toolPolicies.length,
+  ];
+  for (const item of config.toolPolicies) {
+    const overrides = [
+      item.minTokens !== undefined ? 'minTokens ' + item.minTokens : null,
+      item.keepThreshold !== undefined ? 'keep ' + item.keepThreshold : null,
+      item.dropThreshold !== undefined ? 'drop ' + item.dropThreshold : null,
+    ].filter((value): value is string => value !== null);
+    lines.push('  ' + item.match + ' -> ' + (overrides.length > 0 ? overrides.join(', ') : 'no overrides'));
+  }
+  const examples = [
+    { toolName: 'Bash', inputLine: 'npm test' },
+    { toolName: 'Bash', inputLine: 'npm run build' },
+    { toolName: 'Bash', inputLine: 'git status' },
+    { toolName: 'Read', inputLine: '/repo/src/app.ts' },
+  ];
+  for (const stage of ['low', 'high', 'critical'] as PressureStage[]) {
+    lines.push('', 'resolution at ' + stage + ' pressure:');
+    for (const example of examples) {
+      const resolved = resolveEffectivePolicy(config, {
+        toolName: example.toolName,
+        inputLine: example.inputLine,
+        outputClass: '',
+        pressure: stage,
+      });
+      lines.push(
+        '  ' + example.toolName + ' ' + example.inputLine + ' -> minTokens ' + resolved.minTokens +
+          ', keep ' + resolved.keepThreshold + ', drop ' + resolved.dropThreshold + '  [' + resolved.source + ']',
+      );
+    }
+  }
+  process.stdout.write(lines.join('\n') + '\n');
+  return 0;
+}
+
 const command = process.argv[2] ?? '';
+
 if (command === 'status') process.exitCode = await status();
 else if (command === 'stats') process.exitCode = await stats();
+else if (command === 'policy') process.exitCode = await policyReport();
 else if (command === 'verify') process.exitCode = await verify();
 else if (command === 'test') process.exitCode = await live();
 else process.stdout.write(USAGE);

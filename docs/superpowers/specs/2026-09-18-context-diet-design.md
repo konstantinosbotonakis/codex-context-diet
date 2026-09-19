@@ -353,7 +353,13 @@ plugin reinstalls and is never committed.
   "chunkMaxChars": 24000,
   "chunkMaxChunks": 12,
   "chunkMaxInclude": 3,
-  "recoveryWindowMs": 600000
+  "recoveryWindowMs": 600000,
+  "contextPressure": true,
+  "pressureLowTokens": 0,
+  "pressureModerateTokens": 0,
+  "pressureHighTokens": 1000,
+  "pressureCriticalTokens": 750,
+  "toolPolicies": []
 }
 ```
 

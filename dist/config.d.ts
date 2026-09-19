@@ -1,4 +1,11 @@
 export type PrivacyMode = 'strict' | 'standard' | 'off';
+export interface ToolPolicy {
+    /** `*`, an exact tool, `Bash:test`, `family:bash` or `output:test-log`. */
+    match: string;
+    minTokens?: number;
+    keepThreshold?: number;
+    dropThreshold?: number;
+}
 export interface DietConfig {
     enabled: boolean;
     mode: 'diet' | 'observe';
@@ -47,6 +54,15 @@ export interface DietConfig {
     chunkMaxInclude: number;
     /** How long after a drop an identical call still counts as a recovery. */
     recoveryWindowMs: number;
+    /** Let approximate context pressure lower the size gate. It never raises it. */
+    contextPressure: boolean;
+    /** Pressure floors. 0 means keep the base minTokens for that stage. */
+    pressureLowTokens: number;
+    pressureModerateTokens: number;
+    pressureHighTokens: number;
+    pressureCriticalTokens: number;
+    /** Per-tool overrides; the last matching entry wins. */
+    toolPolicies: ToolPolicy[];
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;

@@ -24,6 +24,8 @@ export interface CacheEntry {
     };
     /** Ordinal of this call within the session, as the cache counted it. */
     callIndex?: number;
+    /** What the model actually kept for this call, when it differs from chars. */
+    keptChars?: number;
 }
 export interface TouchRecord {
     at: string;

@@ -25,6 +25,12 @@ export const DEFAULT_CONFIG = {
     chunkMaxChunks: 12,
     chunkMaxInclude: 3,
     recoveryWindowMs: 600_000,
+    contextPressure: true,
+    pressureLowTokens: 0,
+    pressureModerateTokens: 0,
+    pressureHighTokens: 1000,
+    pressureCriticalTokens: 750,
+    toolPolicies: [],
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -49,6 +55,26 @@ function strArray(raw, fallback) {
 }
 function privacyMode(raw, fallback) {
     return raw === 'strict' || raw === 'standard' || raw === 'off' ? raw : fallback;
+}
+function toolPolicies(raw) {
+    if (!Array.isArray(raw))
+        return [];
+    const out = [];
+    for (const item of raw) {
+        if (!item || typeof item !== 'object')
+            continue;
+        const record = item;
+        if (typeof record.match !== 'string' || record.match.trim().length === 0)
+            continue;
+        const policy = { match: record.match };
+        for (const key of ['minTokens', 'keepThreshold', 'dropThreshold']) {
+            const value = record[key];
+            if (typeof value === 'number' && Number.isFinite(value) && value >= 0)
+                policy[key] = value;
+        }
+        out.push(policy);
+    }
+    return out;
 }
 /** Total: never throws, and never returns a field of the wrong type. */
 export function resolveConfig(raw) {
@@ -92,6 +118,12 @@ export function resolveConfig(raw) {
         chunkMaxChunks: Math.floor(num(o.chunkMaxChunks, DEFAULT_CONFIG.chunkMaxChunks, 1)),
         chunkMaxInclude: Math.floor(num(o.chunkMaxInclude, DEFAULT_CONFIG.chunkMaxInclude)),
         recoveryWindowMs: num(o.recoveryWindowMs, DEFAULT_CONFIG.recoveryWindowMs),
+        contextPressure: bool(o.contextPressure, DEFAULT_CONFIG.contextPressure),
+        pressureLowTokens: num(o.pressureLowTokens, DEFAULT_CONFIG.pressureLowTokens),
+        pressureModerateTokens: num(o.pressureModerateTokens, DEFAULT_CONFIG.pressureModerateTokens),
+        pressureHighTokens: num(o.pressureHighTokens, DEFAULT_CONFIG.pressureHighTokens),
+        pressureCriticalTokens: num(o.pressureCriticalTokens, DEFAULT_CONFIG.pressureCriticalTokens),
+        toolPolicies: toolPolicies(o.toolPolicies),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;

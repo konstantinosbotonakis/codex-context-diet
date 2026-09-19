@@ -3,6 +3,14 @@ import { join } from 'node:path';
 
 export type PrivacyMode = 'strict' | 'standard' | 'off';
 
+export interface ToolPolicy {
+  /** `*`, an exact tool, `Bash:test`, `family:bash` or `output:test-log`. */
+  match: string;
+  minTokens?: number;
+  keepThreshold?: number;
+  dropThreshold?: number;
+}
+
 export interface DietConfig {
   enabled: boolean; mode: 'diet' | 'observe'; dryRun: boolean;
   /** 'cache' keeps a rolling per-session digest; 'off' is single-turn and writes nothing. */
@@ -37,6 +45,15 @@ export interface DietConfig {
   chunkMaxInclude: number;
   /** How long after a drop an identical call still counts as a recovery. */
   recoveryWindowMs: number;
+  /** Let approximate context pressure lower the size gate. It never raises it. */
+  contextPressure: boolean;
+  /** Pressure floors. 0 means keep the base minTokens for that stage. */
+  pressureLowTokens: number;
+  pressureModerateTokens: number;
+  pressureHighTokens: number;
+  pressureCriticalTokens: number;
+  /** Per-tool overrides; the last matching entry wins. */
+  toolPolicies: ToolPolicy[];
 }
 
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
@@ -65,6 +82,12 @@ export const DEFAULT_CONFIG: DietConfig = {
   chunkMaxChunks: 12,
   chunkMaxInclude: 3,
   recoveryWindowMs: 600_000,
+  contextPressure: true,
+  pressureLowTokens: 0,
+  pressureModerateTokens: 0,
+  pressureHighTokens: 1000,
+  pressureCriticalTokens: 750,
+  toolPolicies: [],
 };
 
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
@@ -95,6 +118,23 @@ function strArray(raw: unknown, fallback: string[]): string[] {
 
 function privacyMode(raw: unknown, fallback: PrivacyMode): PrivacyMode {
   return raw === 'strict' || raw === 'standard' || raw === 'off' ? raw : fallback;
+}
+
+function toolPolicies(raw: unknown): ToolPolicy[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ToolPolicy[] = [];
+  for (const item of raw) {
+    if (!item || typeof item !== 'object') continue;
+    const record = item as Record<string, unknown>;
+    if (typeof record.match !== 'string' || record.match.trim().length === 0) continue;
+    const policy: ToolPolicy = { match: record.match };
+    for (const key of ['minTokens', 'keepThreshold', 'dropThreshold'] as const) {
+      const value = record[key];
+      if (typeof value === 'number' && Number.isFinite(value) && value >= 0) policy[key] = value;
+    }
+    out.push(policy);
+  }
+  return out;
 }
 
 /** Total: never throws, and never returns a field of the wrong type. */
@@ -139,6 +179,12 @@ export function resolveConfig(raw: unknown): DietConfig {
     chunkMaxChunks: Math.floor(num(o.chunkMaxChunks, DEFAULT_CONFIG.chunkMaxChunks, 1)),
     chunkMaxInclude: Math.floor(num(o.chunkMaxInclude, DEFAULT_CONFIG.chunkMaxInclude)),
     recoveryWindowMs: num(o.recoveryWindowMs, DEFAULT_CONFIG.recoveryWindowMs),
+    contextPressure: bool(o.contextPressure, DEFAULT_CONFIG.contextPressure),
+    pressureLowTokens: num(o.pressureLowTokens, DEFAULT_CONFIG.pressureLowTokens),
+    pressureModerateTokens: num(o.pressureModerateTokens, DEFAULT_CONFIG.pressureModerateTokens),
+    pressureHighTokens: num(o.pressureHighTokens, DEFAULT_CONFIG.pressureHighTokens),
+    pressureCriticalTokens: num(o.pressureCriticalTokens, DEFAULT_CONFIG.pressureCriticalTokens),
+    toolPolicies: toolPolicies(o.toolPolicies),
   };
   if (typeof o.apiKey === 'string' && o.apiKey.length > 0) config.apiKey = o.apiKey;
   return config;

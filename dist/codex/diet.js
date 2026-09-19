@@ -72,7 +72,7 @@ export function buildNote(input, decision, config, extras = []) {
         (input.isError ? ' (error)' : '') + '.' + ran +
         ' Re-run the tool if you need the full output.');
 }
-export function cacheEntryOf(input, decision, at, callIndex) {
+export function cacheEntryOf(input, decision, at, callIndex, keptChars) {
     return {
         tool_use_id: input.toolUseId,
         tool_name: input.toolName,
@@ -93,6 +93,7 @@ export function cacheEntryOf(input, decision, at, callIndex) {
             injection: decision.injection,
         },
         callIndex,
+        keptChars,
     };
 }
 export async function runDiet(deps) {
@@ -120,7 +121,7 @@ export async function runDiet(deps) {
             warning,
             stdout,
             blocked: decision.action === 'drop_result' && emit,
-            entry: cacheEntryOf(input, decision, new Date().toISOString(), cache.length),
+            entry: cacheEntryOf(input, decision, new Date().toISOString(), cache.length, decision.action === 'drop_result' && note !== null ? note.length : undefined),
             inputTokens,
             chunkIds,
         };

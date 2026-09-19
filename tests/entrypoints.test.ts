@@ -50,6 +50,13 @@ const dietAnswers =
 const guardAnswers = '{"touches_production":0.95,"irreversible":0.2}';
 
 describe('built entry points', () => {
+  it('explains the policy resolution from the CLI', () => {
+    const out = execFileSync('node', [join(root, 'dist', 'cli.js'), 'policy'], { encoding: 'utf8' });
+    expect(out).toContain('Context Diet policy');
+    expect(out).toContain('toolPolicies:');
+    expect(out).toContain('resolution at critical pressure:');
+  });
+
   it('are built', () => {
     expect(existsSync(entry('session-main.js'))).toBe(true);
     expect(existsSync(entry('adapter-main.js'))).toBe(true);

@@ -214,7 +214,13 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "chunkMaxChars": 24000,
   "chunkMaxChunks": 12,
   "chunkMaxInclude": 3,
-  "recoveryWindowMs": 600000
+  "recoveryWindowMs": 600000,
+  "contextPressure": true,
+  "pressureLowTokens": 0,
+  "pressureModerateTokens": 0,
+  "pressureHighTokens": 1000,
+  "pressureCriticalTokens": 750,
+  "toolPolicies": []
 }
 ```
 
@@ -249,6 +255,12 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `chunkMaxChunks` | maximum chunks in one chunk request |
 | `chunkMaxInclude` | maximum chunks that can end up in the capsule |
 | `recoveryWindowMs` | how long after a drop an identical call still counts as a recovery |
+| `contextPressure` | let approximate retained-context pressure lower the size gate, never raise it |
+| `pressureLowTokens` | size floor at low pressure, and 0 keeps `minTokens` |
+| `pressureModerateTokens` | size floor at moderate pressure, and 0 keeps `minTokens` |
+| `pressureHighTokens` | size floor at high pressure |
+| `pressureCriticalTokens` | size floor at critical pressure |
+| `toolPolicies` | per-tool overrides, applied through `match` strings |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
@@ -294,6 +306,27 @@ Repeated commands are handled before Jev is asked: a result that is byte-identic
 For output above `chunkMinChars` that is already being dropped, one extra request splits a bounded sample into chunks and asks whether each one still matters. The chunks that matter ride along in the capsule, and only the clearly unnecessary ones are left out, so uncertainty keeps evidence. The request never changes the keep or drop decision.
 
 When a dropped result is re-run soon afterwards, the table counts one recovery, with rows for recovery reruns, recovery rate and net useful replacements. The match uses the tool and the normalised input, so an intentional rerun looks the same and is counted too. Recovery is the quality metric that matters: a drop that had to be undone was not a saving.
+
+### Policies and pressure
+
+Policies override the size gate and the thresholds per tool. `match` accepts `*`, an exact tool such as `Read`, a command category such as `Bash:test`, a family such as `family:bash`, or an output class such as `output:test-log`. The last matching entry wins as a whole, so the list reads top to bottom.
+
+```json
+{
+  "toolPolicies": [
+    { "match": "Bash:test", "minTokens": 1000, "dropThreshold": 0.3 },
+    { "match": "Read", "dropThreshold": 0.15 },
+    { "match": "Bash:git", "dropThreshold": 0.35 }
+  ]
+}
+```
+
+Context pressure is the plugin's own estimate of what the session is still carrying: every cached result counts whatever the model actually kept for it, characters over four as tokens. Stages run low below 40,000 retained tokens, moderate from 40,000, high from 90,000 and critical from 150,000. Pressure only lowers the size gate. It never lowers the keep threshold, so uncertainty and irreplaceable results stay protected exactly as before.
+
+`node dist/cli.js policy` prints the base values, the pressure floors, every configured policy, and the resolution it would apply to a few representative calls at low, high and critical pressure. Every diet decision in the debug log carries the policy name, the pressure stage, and the size gate it used.
+
+*** End Patch
+
 
 Every Jev response reports token usage, so the table also adds up input tokens and prices them at `pricePerMillionInputTokens`, 0.042 USD per million input tokens by default, which is the published Jev input price. Output tokens are free. Calls recorded before usage was kept make the cost a lower bound, and the table says so when that applies.
 

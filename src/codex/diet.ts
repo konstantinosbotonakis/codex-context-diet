@@ -158,6 +158,7 @@ export function cacheEntryOf(
   decision: DietDecision,
   at: string,
   callIndex?: number,
+  keptChars?: number,
 ): CacheEntry {
   return {
     tool_use_id: input.toolUseId,
@@ -179,6 +180,7 @@ export function cacheEntryOf(
       injection: decision.injection,
     },
     callIndex,
+    keptChars,
   };
 }
 
@@ -213,7 +215,13 @@ export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
       warning,
       stdout,
       blocked: decision.action === 'drop_result' && emit,
-      entry: cacheEntryOf(input, decision, new Date().toISOString(), cache.length),
+      entry: cacheEntryOf(
+        input,
+        decision,
+        new Date().toISOString(),
+        cache.length,
+        decision.action === 'drop_result' && note !== null ? note.length : undefined,
+      ),
       inputTokens,
       chunkIds,
     };

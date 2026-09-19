@@ -42,6 +42,11 @@ The settings worth tuning:
   asking which chunks of a bounded sample belong in the capsule.
 - `recoveryWindowMs` (default 10 minutes) bounds how late a rerun of a dropped result still
   counts as a recovery in the stats table.
+- `toolPolicies` overrides the size gate or the thresholds per tool. Matches read `Bash:test`,
+  `family:bash`, `output:test-log`, `Read` or `*`, and the last match wins. Run
+  `node dist/cli.js policy` to see the resolution.
+- `contextPressure` (default on) lowers the size gate once the session is estimated to carry
+  40k, 90k or 150k retained tokens. It never lowers the keep threshold.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 

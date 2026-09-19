@@ -69,5 +69,5 @@ export interface DietDeps {
  */
 export declare function decideDiet(answers: DietAnswers, config: DietConfig): DietDecision;
 export declare function buildNote(input: DietInput, decision: DietDecision, config: DietConfig, extras?: string[]): string | null;
-export declare function cacheEntryOf(input: DietInput, decision: DietDecision, at: string, callIndex?: number): CacheEntry;
+export declare function cacheEntryOf(input: DietInput, decision: DietDecision, at: string, callIndex?: number, keptChars?: number): CacheEntry;
 export declare function runDiet(deps: DietDeps): Promise<DietOutcome>;

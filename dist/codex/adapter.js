@@ -13,6 +13,8 @@ import { createAsker } from './transport.js';
 import { isNeverSendInput, redactText } from '../privacy.js';
 import { DUPLICATE_REASON, findDuplicate, touchedPaths } from '../dedupe.js';
 import { detectRecovery, inputKey } from '../recovery.js';
+import { pressureStage, retainedTokens } from '../pressure.js';
+import { outputClassOf, resolveEffectivePolicy } from '../policy.js';
 function text(value) {
     return typeof value === 'string' ? value : '';
 }
@@ -22,7 +24,7 @@ function isErrorResponse(toolResponse) {
     const record = toolResponse;
     return record.is_error === true || record.isError === true;
 }
-function logEvent(env, config, outcome) {
+function logEvent(env, config, outcome, policy) {
     appendEvent(env, config, {
         kind: 'diet',
         tool: outcome.entry.tool_name,
@@ -36,6 +38,9 @@ function logEvent(env, config, outcome) {
         blocked: outcome.blocked,
         inputTokens: outcome.inputTokens,
         chunks: outcome.chunkIds.length > 0 ? outcome.chunkIds : undefined,
+        policy: policy.source,
+        pressure: policy.pressure,
+        minTokens: policy.minTokens,
     });
 }
 /** Reads one hook payload and returns at most one stdout object. Never throws. */
@@ -79,12 +84,25 @@ export async function main(stdin, env) {
         }
         const safeResultText = redactText(resultText, config.privacyMode).text;
         const safeInput = redactText(rawInput, config.privacyMode).text;
-        if (estimateTokens(safeResultText) < config.minTokens)
-            return '';
         // stateSource 'off' is single-turn: no history is read and nothing is written.
         const singleTurn = config.stateSource === 'off';
         const cache = singleTurn ? [] : readCache(env, sessionId, config);
         const firstResult = !singleTurn && cache.length === 0;
+        // Approximate pressure comes from what the session is still carrying, and
+        // it can only lower the size gate. Tool policies then override the result.
+        const pressure = pressureStage(retainedTokens(cache));
+        const outputClass = config.toolPolicies.some((policy) => policy.match.startsWith('output:'))
+            ? outputClassOf(safeResultText, 20_000)
+            : '';
+        const policy = resolveEffectivePolicy(config, { toolName, inputLine: safeInput, outputClass, pressure });
+        if (estimateTokens(safeResultText) < policy.minTokens)
+            return '';
+        const effectiveConfig = {
+            ...config,
+            minTokens: policy.minTokens,
+            keepThreshold: policy.keepThreshold,
+            dropThreshold: policy.dropThreshold,
+        };
         const duplicate = config.dedupe &&
             !firstResult &&
             findDuplicate(toolName, safeInput, safeResultText, cache, readTouches(env, sessionId)) !== null;
@@ -125,7 +143,7 @@ export async function main(stdin, env) {
                 isError: isErrorResponse(payload.tool_response),
                 goalIndex,
             },
-            config,
+            config: effectiveConfig,
             cache,
             asker,
             goal,
@@ -134,7 +152,7 @@ export async function main(stdin, env) {
         });
         if (!singleTurn)
             appendCache(env, sessionId, outcome.entry, config);
-        logEvent(env, config, outcome);
+        logEvent(env, config, outcome, policy);
         // A missing or rejected key means Jev never ran. Say so once per session
         // rather than failing silently.
         // The first result of a session is never sent to Jev, so a missing key is
