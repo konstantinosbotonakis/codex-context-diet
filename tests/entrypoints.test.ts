@@ -59,7 +59,8 @@ describe('built entry points', () => {
 
   it('eval command runs the decision corpus offline', () => {
     const out = execFileSync('node', [join(root, 'dist', 'cli.js'), 'eval'], { encoding: 'utf8' });
-    expect(out).toContain('Context Diet decision evaluation (offline)');
+    expect(out).toContain('Context Diet decision evaluation');
+    expect(out).toContain('Mode: OFFLINE POLICY REGRESSION');
     expect(out).toContain('false drops:      0');
   });
 

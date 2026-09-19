@@ -1,0 +1,4 @@
+uploading part 1 ... failed (503)
+retrying part 1 ... ok
+uploading part 2 ... ok
+completed with 1 retry

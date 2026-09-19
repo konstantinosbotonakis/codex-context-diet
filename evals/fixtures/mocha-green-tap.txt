@@ -1,0 +1,7 @@
+TAP version 13
+ok 1 - parses a payload
+ok 2 - rejects a malformed payload
+ok 3 - prints one object
+1..3
+# tests 3
+# pass 3

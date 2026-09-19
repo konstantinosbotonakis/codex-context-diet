@@ -1,0 +1,7 @@
+export class Queue {
+  private readonly jobs: Job[] = [];
+
+  push(job: Job): void {
+    this.jobs.push(job);
+  }
+}

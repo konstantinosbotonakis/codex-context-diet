@@ -43,17 +43,32 @@ const REQUIRED_CATEGORIES = [
   'enormous-stack-trace', 'huge-successful-test-output', 'summary-only-at-tail',
 ];
 
+/** Categories the expanded corpus adds on top of the original requirement list. */
+const EXTRA_CATEGORIES = [
+  'test-success', 'test-failure', 'typescript', 'php', 'python', 'rust', 'go-test', 'go-build',
+  'database', 'git', 'file-read', 'duplicate-read', 'duplicate-command', 'same-command-changed',
+  'file-read-after-write', 'network', 'package-install', 'migrations', 'huge-noisy',
+  'legitimate-docs', 'secrets', 'contradictory', 'partial-failure', 'warnings-relevant',
+  'warnings-irrelevant', 'immediate-next-action', 'session-state', 'safely-reproducible',
+  'one-off-value', 'large-json', 'malformed-json', 'mcp', 'build-success', 'build-failure',
+];
+
 describe('decision evaluation corpus', () => {
   it('covers the required difficult categories with both actions', () => {
     const cases = loadCases();
-    expect(cases.length).toBeGreaterThanOrEqual(26);
+    expect(cases.length).toBeGreaterThanOrEqual(100);
     expect(new Set(cases.map((item) => item.id)).size).toBe(cases.length);
     const categories = cases.map((item) => item.category);
     for (const category of REQUIRED_CATEGORIES) expect(categories).toContain(category);
+    for (const category of EXTRA_CATEGORIES) expect(categories).toContain(category);
     expect(cases.filter((item) => item.expectedAction === 'keep').length).toBeGreaterThanOrEqual(12);
     expect(cases.filter((item) => item.expectedAction === 'drop').length).toBeGreaterThanOrEqual(6);
+    // Most fixtures carry real bulk, but a few categories are deliberately
+    // tiny (a count, a version) and those must stay small.
+    const sizes = cases.map((item) => readFixture(item.fixture).length);
+    expect(sizes.filter((size) => size > 500).length).toBeGreaterThanOrEqual(35);
     for (const item of cases) {
-      expect(readFixture(item.fixture).length).toBeGreaterThan(200);
+      expect(readFixture(item.fixture).length).toBeGreaterThan(0);
       for (const key of ['needs_contents', 'replaceable', 'keep_call']) {
         expect(typeof item.signals[key]).toBe('number');
       }
@@ -75,4 +90,3 @@ describe('decision evaluation corpus', () => {
     expect(renderEvalReport(report)).toContain('false drops:      0');
   });
 });
-

@@ -1,0 +1,8 @@
+   id   | attempts
+--------+----------
+ inv_1  |        3
+ inv_2  |        3
+ inv_7  |        3
+ inv_9  |        2
+ inv_12 |        3
+(5 rows)

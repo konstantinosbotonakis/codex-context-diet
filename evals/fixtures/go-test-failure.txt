@@ -1,0 +1,6 @@
+--- FAIL: TestDrain (0.02s)
+    queue_test.go:88: expected 3 attempts, got 2
+FAIL
+FAIL	github.com/acme/queue	0.412s
+ok  	github.com/acme/queue/internal/store	0.201s
+FAIL

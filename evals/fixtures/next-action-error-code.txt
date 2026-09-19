@@ -1,0 +1,3 @@
+imported 8400 of 12000 rows
+stopped at cursor eyJvZmZzZXQiOjg0MDB9
+resume with --cursor eyJvZmZzZXQiOjg0MDB9

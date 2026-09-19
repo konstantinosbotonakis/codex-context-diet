@@ -1,0 +1,5 @@
+{{FILL:120}}
+pool:
+  size: 8
+  queue_limit: 500
+  drain_timeout_ms: 30000

@@ -1,0 +1,5 @@
+gcc -O2 -c src/queue.c -o build/queue.o
+src/queue.c:88:21: error: job_t has no member named attempt
+   88 |     job->attempt += 1;
+      |         ^~~~~~~
+make: *** [Makefile:12: build/queue.o] Error 1

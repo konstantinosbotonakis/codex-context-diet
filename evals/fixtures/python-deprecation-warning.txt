@@ -1,0 +1,3 @@
+/repo/jobs/sync.py:31: DeprecationWarning: push() is deprecated, use push_batch()
+  client.push(payload)
+synced 42 records

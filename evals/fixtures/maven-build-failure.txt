@@ -1,0 +1,5 @@
+[ERROR] /repo/src/main/java/app/Payout.java:[88,21] cannot find symbol
+  symbol:   method send(java.lang.String)
+  location: class app.Payout
+[ERROR] 1 error
+[INFO] BUILD FAILURE

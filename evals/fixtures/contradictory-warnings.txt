@@ -1,0 +1,3 @@
+warning: resolve.alias is deprecated, use resolve.alias instead
+warning: resolve.alias is required for the legacy bundle
+build finished with 2 warnings

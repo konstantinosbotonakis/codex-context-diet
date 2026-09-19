@@ -1,0 +1,10 @@
+efc22d5 Release v0.6.0
+9f8bd8c Document the 1.0 surface
+44a6bb5 Add doctor and benchmark
+8ff80b7 Count what the diet saw
+c520d2b Add the decision evaluation framework
+0c87bd8 Score prompt hazards independently
+457176b Add an optional completion-quality guard
+7f8bfcd Manage subagent results with a contract
+75013ff Document the architecture
+f75f814 Resurrect session context after compaction

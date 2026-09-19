@@ -1,0 +1,9 @@
+export const MAX_ATTEMPTS = 3;
+
+export function nextAttempt(job: Job): number {
+  return Math.min(job.attempt + 1, MAX_ATTEMPTS);
+}
+
+export function shouldRetry(job: Job): boolean {
+  return job.attempt < MAX_ATTEMPTS;
+}

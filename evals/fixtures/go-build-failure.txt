@@ -1,0 +1,6 @@
+# github.com/acme/queue/cmd/worker
+./main.go:42:18: undefined: queue.NewDrainer
+./main.go:43:2: too many arguments in call to queue.NewDrainer
+	have (int)
+	want ()
+note: module requires Go 1.22

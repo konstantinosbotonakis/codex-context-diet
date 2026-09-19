@@ -442,6 +442,1468 @@
         "agent_directed": 0.02,
         "behaviour_change": 0.02
       }
+    },
+    {
+      "id": "vitest-green-full",
+      "category": "test-success",
+      "goal": "Ship the parser change",
+      "tool": "Bash",
+      "input": "npm test",
+      "fixture": "vitest-green-full.txt",
+      "expectedAction": "drop",
+      "reason": "a fully green suite is reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "jest-green-partial-run",
+      "category": "test-success",
+      "goal": "Confirm the payment tests still pass",
+      "tool": "Bash",
+      "input": "npx jest payments",
+      "fixture": "jest-green-partial-run.txt",
+      "expectedAction": "drop",
+      "reason": "a green focused suite comes back by re-running",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "pytest-green-with-warnings",
+      "category": "test-success",
+      "goal": "Check the sync job",
+      "tool": "Bash",
+      "input": "pytest -q jobs",
+      "fixture": "pytest-green-with-warnings.txt",
+      "expectedAction": "keep",
+      "reason": "warnings name the deprecations that still need work",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "mocha-green-tap",
+      "category": "test-success",
+      "goal": "Verify the CLI harness",
+      "tool": "Bash",
+      "input": "npm run test:cli",
+      "fixture": "mocha-green-tap.txt",
+      "expectedAction": "drop",
+      "reason": "a plain green TAP run is reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "vitest-one-failure-tail",
+      "category": "test-failure",
+      "goal": "Fix the failing suite",
+      "tool": "Bash",
+      "input": "npm test",
+      "fixture": "vitest-one-failure-tail.txt",
+      "expectedAction": "keep",
+      "reason": "the failure detail is needed to fix it",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "vitest-three-failures",
+      "category": "test-failure",
+      "goal": "Get the suite green again",
+      "tool": "Bash",
+      "input": "npm test",
+      "fixture": "vitest-three-failures.txt",
+      "expectedAction": "keep",
+      "reason": "three distinct failures need their assertions",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "go-test-failure",
+      "category": "go-test",
+      "goal": "Fix the Go package",
+      "tool": "Bash",
+      "input": "go test ./...",
+      "fixture": "go-test-failure.txt",
+      "expectedAction": "keep",
+      "reason": "the failing assertion and package are needed",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "go-build-failure",
+      "category": "go-build",
+      "goal": "Make the service compile",
+      "tool": "Bash",
+      "input": "go build ./...",
+      "fixture": "go-build-failure.txt",
+      "expectedAction": "keep",
+      "reason": "a compile error must be read to fix it",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "go-test-all-green",
+      "category": "go-test",
+      "goal": "Confirm the Go suite",
+      "tool": "Bash",
+      "input": "go test ./...",
+      "fixture": "go-test-all-green.txt",
+      "expectedAction": "drop",
+      "reason": "a green Go suite is reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "cargo-build-error",
+      "category": "rust",
+      "goal": "Fix the Rust build",
+      "tool": "Bash",
+      "input": "cargo build",
+      "fixture": "cargo-build-error.txt",
+      "expectedAction": "keep",
+      "reason": "the borrow checker message is the fix",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "cargo-test-failure",
+      "category": "rust",
+      "goal": "Fix the failing Rust test",
+      "tool": "Bash",
+      "input": "cargo test",
+      "fixture": "cargo-test-failure.txt",
+      "expectedAction": "keep",
+      "reason": "the panic and test name are needed",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "cargo-build-green",
+      "category": "rust",
+      "goal": "Check the release build",
+      "tool": "Bash",
+      "input": "cargo build --release",
+      "fixture": "cargo-build-green.txt",
+      "expectedAction": "drop",
+      "reason": "a green build is reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "tsc-multi-error",
+      "category": "typescript",
+      "goal": "Make the types check",
+      "tool": "Bash",
+      "input": "npm run typecheck",
+      "fixture": "tsc-multi-error.txt",
+      "expectedAction": "keep",
+      "reason": "each compiler diagnostic names a file and line",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "tsc-single-error-clean-elsewhere",
+      "category": "typescript",
+      "goal": "Fix the one type error",
+      "tool": "Bash",
+      "input": "npx tsc --noEmit",
+      "fixture": "tsc-single-error-clean-elsewhere.txt",
+      "expectedAction": "keep",
+      "reason": "the single diagnostic is the whole task",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "tsc-green",
+      "category": "typescript",
+      "goal": "Confirm types are clean",
+      "tool": "Bash",
+      "input": "npm run typecheck",
+      "fixture": "tsc-green.txt",
+      "expectedAction": "drop",
+      "reason": "a clean typecheck is reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "php-fatal",
+      "category": "php",
+      "goal": "Fix the PHP endpoint",
+      "tool": "Bash",
+      "input": "php bin/console app:payout",
+      "fixture": "php-fatal.txt",
+      "expectedAction": "keep",
+      "reason": "the fatal names the file and line",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "php-warning-only",
+      "category": "php",
+      "goal": "Clean up the deprecation",
+      "tool": "Bash",
+      "input": "php bin/console cache:warmup",
+      "fixture": "php-warning-only.txt",
+      "expectedAction": "keep",
+      "reason": "the deprecation names the exact call to change",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "eslint-many-warnings",
+      "category": "build-success",
+      "goal": "Get lint clean",
+      "tool": "Bash",
+      "input": "npm run lint",
+      "fixture": "eslint-many-warnings.txt",
+      "expectedAction": "keep",
+      "reason": "the file list is the work to do",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "webpack-build-green",
+      "category": "build-success",
+      "goal": "Ship the bundle",
+      "tool": "Bash",
+      "input": "npm run build",
+      "fixture": "webpack-build-green.txt",
+      "expectedAction": "drop",
+      "reason": "a green bundle is reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "webpack-build-failure",
+      "category": "build-failure",
+      "goal": "Fix the bundle",
+      "tool": "Bash",
+      "input": "npm run build",
+      "fixture": "webpack-build-failure.txt",
+      "expectedAction": "keep",
+      "reason": "the module and error are needed",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "maven-build-failure",
+      "category": "build-failure",
+      "goal": "Fix the Java build",
+      "tool": "Bash",
+      "input": "mvn -q package",
+      "fixture": "maven-build-failure.txt",
+      "expectedAction": "keep",
+      "reason": "the compiler error names class and line",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "maven-build-green",
+      "category": "build-success",
+      "goal": "Confirm the Java build",
+      "tool": "Bash",
+      "input": "mvn -q package",
+      "fixture": "maven-build-green.txt",
+      "expectedAction": "drop",
+      "reason": "a green build is reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "docker-build-green",
+      "category": "build-success",
+      "goal": "Publish the image",
+      "tool": "Bash",
+      "input": "docker build -t app .",
+      "fixture": "docker-build-green.txt",
+      "expectedAction": "drop",
+      "reason": "a green image build is reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "make-build-failure",
+      "category": "build-failure",
+      "goal": "Fix the native build",
+      "tool": "Bash",
+      "input": "make",
+      "fixture": "make-build-failure.txt",
+      "expectedAction": "keep",
+      "reason": "the compiler error is the fix",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "python-traceback-tail",
+      "category": "python",
+      "goal": "Fix the sync job",
+      "tool": "Bash",
+      "input": "python -m jobs.sync",
+      "fixture": "python-traceback-tail.txt",
+      "expectedAction": "keep",
+      "reason": "the exception and frame are needed",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "python-chained-exception",
+      "category": "python",
+      "goal": "Fix the retry wrapper",
+      "tool": "Bash",
+      "input": "python -m jobs.retry",
+      "fixture": "python-chained-exception.txt",
+      "expectedAction": "keep",
+      "reason": "the chain shows the real cause",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "pytest-one-failure",
+      "category": "python",
+      "goal": "Get pytest green",
+      "tool": "Bash",
+      "input": "pytest -q",
+      "fixture": "pytest-one-failure.txt",
+      "expectedAction": "keep",
+      "reason": "the failing assertion is the task",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "python-green-suite",
+      "category": "python",
+      "goal": "Confirm the Python suite",
+      "tool": "Bash",
+      "input": "pytest -q",
+      "fixture": "python-green-suite.txt",
+      "expectedAction": "drop",
+      "reason": "a green suite is reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "python-deprecation-warning",
+      "category": "python",
+      "goal": "Clean up the warning",
+      "tool": "Bash",
+      "input": "python -m jobs.sync",
+      "fixture": "python-deprecation-warning.txt",
+      "expectedAction": "keep",
+      "reason": "the warning names the line to change",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "json-large-api-response",
+      "category": "large-json",
+      "goal": "Extract the failing invoice ids",
+      "tool": "Bash",
+      "input": "curl -s https://api.example.com/invoices?status=failed",
+      "fixture": "json-large-api-response.txt",
+      "expectedAction": "keep",
+      "reason": "the ids are inside this payload",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "json-repeated-identical-records",
+      "category": "large-json",
+      "goal": "Confirm the export shape",
+      "tool": "Bash",
+      "input": "curl -s https://api.example.com/export?page=3",
+      "fixture": "json-repeated-identical-records.txt",
+      "expectedAction": "drop",
+      "reason": "a page of identical records repeats by re-running",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "json-malformed-response",
+      "category": "malformed-json",
+      "goal": "Find why the client fails",
+      "tool": "Bash",
+      "input": "curl -s https://api.example.com/orders",
+      "fixture": "json-malformed-response.txt",
+      "expectedAction": "keep",
+      "reason": "the truncation is the diagnosis",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "json-error-envelope",
+      "category": "malformed-json",
+      "goal": "Explain the API failure",
+      "tool": "Bash",
+      "input": "curl -s https://api.example.com/payouts",
+      "fixture": "json-error-envelope.txt",
+      "expectedAction": "keep",
+      "reason": "the error envelope names the cause",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "mcp-tool-error-result",
+      "category": "mcp",
+      "goal": "Fix the MCP call",
+      "tool": "Bash",
+      "input": "echo tool result",
+      "fixture": "mcp-tool-error-result.txt",
+      "expectedAction": "keep",
+      "reason": "the tool error names what to change",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "mcp-large-payload",
+      "category": "mcp",
+      "goal": "Confirm the tool works",
+      "tool": "Bash",
+      "input": "echo tool result",
+      "fixture": "mcp-large-payload.txt",
+      "expectedAction": "drop",
+      "reason": "a routine payload repeats by re-calling",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "mcp-truncated-payload",
+      "category": "mcp",
+      "goal": "Diagnose the truncated tool reply",
+      "tool": "Bash",
+      "input": "echo tool result",
+      "fixture": "mcp-truncated-payload.txt",
+      "expectedAction": "keep",
+      "reason": "the truncation is the problem to fix",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "db-migration-applied",
+      "category": "migrations",
+      "goal": "Verify the migration",
+      "tool": "Bash",
+      "input": "npx prisma migrate deploy",
+      "fixture": "db-migration-applied.txt",
+      "expectedAction": "keep",
+      "reason": "the applied migration names the schema change",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "db-migration-dry-run",
+      "category": "migrations",
+      "goal": "Review the pending change",
+      "tool": "Bash",
+      "input": "npx prisma migrate diff",
+      "fixture": "db-migration-dry-run.txt",
+      "expectedAction": "keep",
+      "reason": "the generated SQL is the review artifact",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "db-select-count",
+      "category": "database",
+      "goal": "Check the backlog",
+      "tool": "Bash",
+      "input": "psql -c \"select count(*) from jobs where status = failed\"",
+      "fixture": "db-select-count.txt",
+      "expectedAction": "drop",
+      "reason": "a single count comes back with one query",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "db-constraint-violation",
+      "category": "database",
+      "goal": "Fix the insert",
+      "tool": "Bash",
+      "input": "psql -f seed.sql",
+      "fixture": "db-constraint-violation.txt",
+      "expectedAction": "keep",
+      "reason": "the constraint names what the insert breaks",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "db-explain-plan",
+      "category": "database",
+      "goal": "Confirm the index is used",
+      "tool": "Bash",
+      "input": "psql -c \"explain analyze select * from jobs where status = failed\"",
+      "fixture": "db-explain-plan.txt",
+      "expectedAction": "keep",
+      "reason": "the plan is the evidence for the query change",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "db-rows-sample",
+      "category": "database",
+      "goal": "Inspect the stuck rows",
+      "tool": "Bash",
+      "input": "psql -c \"select id, attempts from jobs where status = failed limit 5\"",
+      "fixture": "db-rows-sample.txt",
+      "expectedAction": "keep",
+      "reason": "the row values are needed for the fix",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "git-diff-under-review",
+      "category": "git",
+      "goal": "Review the change before committing",
+      "tool": "Bash",
+      "input": "git diff",
+      "fixture": "git-diff-under-review.txt",
+      "expectedAction": "keep",
+      "reason": "the diff is the artifact under review",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "git-status-clean",
+      "category": "git",
+      "goal": "Confirm the tree is clean",
+      "tool": "Bash",
+      "input": "git status --short",
+      "fixture": "git-status-clean.txt",
+      "expectedAction": "drop",
+      "reason": "an empty status repeats exactly",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "git-log-recent",
+      "category": "git",
+      "goal": "Find the change that broke it",
+      "tool": "Bash",
+      "input": "git log --oneline -20",
+      "fixture": "git-log-recent.txt",
+      "expectedAction": "drop",
+      "reason": "the log comes back with one command",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "git-diff-after-commit",
+      "category": "git",
+      "goal": "Confirm everything is committed",
+      "tool": "Bash",
+      "input": "git diff --stat",
+      "fixture": "git-diff-after-commit.txt",
+      "expectedAction": "drop",
+      "reason": "an empty diff repeats exactly",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "git-blame-region",
+      "category": "git",
+      "goal": "Find who changed the retry limit",
+      "tool": "Bash",
+      "input": "git blame -L 40,50 src/retry.ts",
+      "fixture": "git-blame-region.txt",
+      "expectedAction": "keep",
+      "reason": "the commit hashes are the lead to follow",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "read-source-file-needed",
+      "category": "file-read",
+      "goal": "Change the retry policy",
+      "tool": "Read",
+      "input": "src/retry.ts",
+      "fixture": "read-source-file-needed.txt",
+      "expectedAction": "keep",
+      "reason": "the current source is needed to edit it",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "read-large-config",
+      "category": "file-read",
+      "goal": "Tune the worker pool",
+      "tool": "Read",
+      "input": "config/workers.yaml",
+      "fixture": "read-large-config.txt",
+      "expectedAction": "keep",
+      "reason": "the settings are needed for the change",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "read-after-write-same-file",
+      "category": "file-read-after-write",
+      "goal": "Confirm the edit landed",
+      "tool": "Read",
+      "input": "src/retry.ts",
+      "fixture": "read-after-write-same-file.txt",
+      "expectedAction": "keep",
+      "reason": "the file changed, so the re-read is required",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "duplicate-read-unchanged-file",
+      "category": "duplicate-read",
+      "goal": "Check the file again",
+      "tool": "Read",
+      "input": "src/queue.ts",
+      "fixture": "duplicate-read-unchanged-file.txt",
+      "expectedAction": "drop",
+      "reason": "the file has not changed since the last read",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "duplicate-command-identical-output",
+      "category": "duplicate-command",
+      "goal": "Re-check the queue depth",
+      "tool": "Bash",
+      "input": "node -e \"console.log(queue.depth())\"",
+      "fixture": "duplicate-command-identical-output.txt",
+      "expectedAction": "drop",
+      "reason": "the same command returns the same number",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "same-command-changed-output",
+      "category": "same-command-changed",
+      "goal": "Check the queue depth after the drain",
+      "tool": "Bash",
+      "input": "node -e \"console.log(queue.depth())\"",
+      "fixture": "same-command-changed-output.txt",
+      "expectedAction": "keep",
+      "reason": "the number changed, so the earlier result is stale",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "curl-json-response-needed",
+      "category": "network",
+      "goal": "Parse the rate limit headers",
+      "tool": "Bash",
+      "input": "curl -si https://api.example.com/ping",
+      "fixture": "curl-json-response-needed.txt",
+      "expectedAction": "keep",
+      "reason": "the headers carry the values to read",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "curl-connection-timeout",
+      "category": "network",
+      "goal": "Diagnose the failed call",
+      "tool": "Bash",
+      "input": "curl -sS https://api.example.com/payouts",
+      "fixture": "curl-connection-timeout.txt",
+      "expectedAction": "keep",
+      "reason": "the one-off failure must be read, it may not repeat",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "curl-dns-failure",
+      "category": "network",
+      "goal": "Fix the endpoint host",
+      "tool": "Bash",
+      "input": "curl -sS https://api.exmaple.com/ping",
+      "fixture": "curl-dns-failure.txt",
+      "expectedAction": "keep",
+      "reason": "the DNS error names the wrong host",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "uuid-generated",
+      "category": "one-off-value",
+      "goal": "Use the generated id",
+      "tool": "Bash",
+      "input": "node -e \"console.log(crypto.randomUUID())\"",
+      "fixture": "uuid-generated.txt",
+      "expectedAction": "keep",
+      "reason": "a generated id never comes back by re-running",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "random-token-generated",
+      "category": "one-off-value",
+      "goal": "Seed the fixture",
+      "tool": "Bash",
+      "input": "node -e \"console.log(crypto.randomBytes(16).toString(hex))\"",
+      "fixture": "random-token-generated.txt",
+      "expectedAction": "keep",
+      "reason": "the token is gone once it scrolls away",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "checksum-output",
+      "category": "safely-reproducible",
+      "goal": "Verify the artifact",
+      "tool": "Bash",
+      "input": "shasum -a 256 dist/app.js",
+      "fixture": "checksum-output.txt",
+      "expectedAction": "drop",
+      "reason": "a checksum repeats for the same artifact",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "version-command-output",
+      "category": "safely-reproducible",
+      "goal": "Confirm the runtime version",
+      "tool": "Bash",
+      "input": "node --version",
+      "fixture": "version-command-output.txt",
+      "expectedAction": "drop",
+      "reason": "the version is stable for the session",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "session-state-already-recorded",
+      "category": "session-state",
+      "goal": "Re-check what the tool returned",
+      "tool": "Bash",
+      "input": "npm test -- queue",
+      "fixture": "session-state-already-recorded.txt",
+      "expectedAction": "drop",
+      "reason": "the digest is already in the session state",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "npm-install-success",
+      "category": "package-install",
+      "goal": "Add the dependency",
+      "tool": "Bash",
+      "input": "npm install date-fns",
+      "fixture": "npm-install-success.txt",
+      "expectedAction": "drop",
+      "reason": "a successful install repeats from the lockfile",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "npm-install-failure",
+      "category": "package-install",
+      "goal": "Resolve the dependency conflict",
+      "tool": "Bash",
+      "input": "npm install date-fns@3",
+      "fixture": "npm-install-failure.txt",
+      "expectedAction": "keep",
+      "reason": "the conflict names the versions to reconcile",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "pip-install-success",
+      "category": "package-install",
+      "goal": "Install the SDK",
+      "tool": "Bash",
+      "input": "pip install stripe",
+      "fixture": "pip-install-success.txt",
+      "expectedAction": "drop",
+      "reason": "a successful install repeats",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "apt-upgrade-noisy",
+      "category": "package-install",
+      "goal": "Patch the base image",
+      "tool": "Bash",
+      "input": "apt-get upgrade -y",
+      "fixture": "apt-upgrade-noisy.txt",
+      "expectedAction": "drop",
+      "reason": "a routine upgrade log repeats",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "huge-log-one-meaningful-line",
+      "category": "huge-noisy",
+      "goal": "Find the one failure",
+      "tool": "Bash",
+      "input": "node scripts/run-suite.js",
+      "fixture": "huge-log-one-meaningful-line.txt",
+      "expectedAction": "keep",
+      "reason": "the single ERROR line is the whole task",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "huge-successful-log",
+      "category": "huge-noisy",
+      "goal": "Confirm the batch finished",
+      "tool": "Bash",
+      "input": "node scripts/batch.js",
+      "fixture": "huge-successful-log.txt",
+      "expectedAction": "drop",
+      "reason": "a green batch repeats from the same input",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "injection-ignore-previous",
+      "category": "prompt-injection",
+      "goal": "Read the vendor readme",
+      "tool": "Read",
+      "input": "vendor/README.md",
+      "fixture": "injection-ignore-previous.txt",
+      "expectedAction": "keep",
+      "reason": "the text tries to redirect the agent",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.9,
+        "behaviour_change": 0.9
+      }
+    },
+    {
+      "id": "injection-exfiltrate",
+      "category": "prompt-injection",
+      "goal": "Check the build log",
+      "tool": "Bash",
+      "input": "npm run build",
+      "fixture": "injection-exfiltrate.txt",
+      "expectedAction": "keep",
+      "reason": "the log addresses the assistant directly",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.9,
+        "behaviour_change": 0.9
+      }
+    },
+    {
+      "id": "docs-with-instruction-language",
+      "category": "legitimate-docs",
+      "goal": "Update the agent guide",
+      "tool": "Read",
+      "input": "docs/agent-guide.md",
+      "fixture": "docs-with-instruction-language.txt",
+      "expectedAction": "drop",
+      "reason": "documentation that talks about instructions is not an instruction",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "docs-with-command-examples",
+      "category": "legitimate-docs",
+      "goal": "Check the runbook",
+      "tool": "Read",
+      "input": "docs/runbook.md",
+      "fixture": "docs-with-command-examples.txt",
+      "expectedAction": "drop",
+      "reason": "a runbook of commands is documentation, not an instruction to run them",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "api-key-in-log",
+      "category": "secrets",
+      "goal": "Fix the failing request",
+      "tool": "Bash",
+      "input": "curl -sS -H \"Authorization: Bearer sk-live-abcdefghijklmnopqrstuvwx\" https://api.example.com/ping",
+      "fixture": "api-key-in-log.txt",
+      "expectedAction": "keep",
+      "reason": "the failure detail is needed even though the line carries a key",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "private-key-block-read",
+      "category": "secrets",
+      "goal": "Check the deploy key",
+      "tool": "Read",
+      "input": "/repo/deploy/id_rsa",
+      "fixture": "private-key-block-read.txt",
+      "expectedAction": "keep",
+      "reason": "the key material is one-off and must stay in context if it is read at all",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "contradictory-tool-output",
+      "category": "contradictory",
+      "goal": "Decide which count is right",
+      "tool": "Bash",
+      "input": "node scripts/count.js && psql -c \"select count(*) from jobs\"",
+      "fixture": "contradictory-tool-output.txt",
+      "expectedAction": "keep",
+      "reason": "the two answers disagree and both are needed",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "contradictory-warnings",
+      "category": "contradictory",
+      "goal": "Understand the two warnings",
+      "tool": "Bash",
+      "input": "npm run build",
+      "fixture": "contradictory-warnings.txt",
+      "expectedAction": "keep",
+      "reason": "the warnings conflict about the same setting",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "partial-failure-two-of-five",
+      "category": "partial-failure",
+      "goal": "Fix the two failing shards",
+      "tool": "Bash",
+      "input": "node scripts/shard.js",
+      "fixture": "partial-failure-two-of-five.txt",
+      "expectedAction": "keep",
+      "reason": "the two failures and their shards are the task",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "partial-failure-retry-succeeded",
+      "category": "partial-failure",
+      "goal": "Confirm the upload completed",
+      "tool": "Bash",
+      "input": "node scripts/upload.js",
+      "fixture": "partial-failure-retry-succeeded.txt",
+      "expectedAction": "keep",
+      "reason": "the retry outcome is what decides success",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "warning-relevant",
+      "category": "warnings-relevant",
+      "goal": "Change the tenant field",
+      "tool": "Bash",
+      "input": "npx tsc --noEmit",
+      "fixture": "warning-relevant.txt",
+      "expectedAction": "keep",
+      "reason": "the warning names the field being changed",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "warning-irrelevant",
+      "category": "warnings-irrelevant",
+      "goal": "Confirm the tests pass",
+      "tool": "Bash",
+      "input": "npm test",
+      "fixture": "warning-irrelevant.txt",
+      "expectedAction": "drop",
+      "reason": "the deprecation is unrelated and reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "next-action-input-in-output",
+      "category": "immediate-next-action",
+      "goal": "Continue the deploy",
+      "tool": "Bash",
+      "input": "node scripts/deploy.js",
+      "fixture": "next-action-input-in-output.txt",
+      "expectedAction": "keep",
+      "reason": "the output carries the token the next command needs",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "next-action-error-code",
+      "category": "immediate-next-action",
+      "goal": "Resume the failed step",
+      "tool": "Bash",
+      "input": "node scripts/import.js",
+      "fixture": "next-action-error-code.txt",
+      "expectedAction": "keep",
+      "reason": "the resume cursor is in the output",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "npm-audit-findings",
+      "category": "warnings-relevant",
+      "goal": "Fix the vulnerable dependency",
+      "tool": "Bash",
+      "input": "npm audit",
+      "fixture": "npm-audit-findings.txt",
+      "expectedAction": "keep",
+      "reason": "the advisory names the package and the fix",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "package-lock-churn",
+      "category": "safely-reproducible",
+      "goal": "Commit the lockfile change",
+      "tool": "Bash",
+      "input": "git diff package-lock.json --stat",
+      "fixture": "package-lock-churn.txt",
+      "expectedAction": "drop",
+      "reason": "a stat line repeats and the file is on disk",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "enormous-json-array",
+      "category": "large-json",
+      "goal": "Count the distinct kinds",
+      "tool": "Bash",
+      "input": "node scripts/export.js",
+      "fixture": "enormous-json-array.txt",
+      "expectedAction": "keep",
+      "reason": "the array is the data to reduce",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "generated-file-diff",
+      "category": "git",
+      "goal": "Review the generated change",
+      "tool": "Bash",
+      "input": "git diff -- src/generated/api.ts",
+      "fixture": "generated-file-diff.txt",
+      "expectedAction": "drop",
+      "reason": "a generated diff repeats from the generator",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "env-file-read",
+      "category": "secrets",
+      "goal": "Check which variables exist",
+      "tool": "Read",
+      "input": "/repo/.env",
+      "fixture": "env-file-read.txt",
+      "expectedAction": "keep",
+      "reason": "the environment file is one-off and excluded from sending",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
     }
   ]
 }

@@ -193,6 +193,7 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
         inputLine: safeInput,
         resultText: safeResultText,
         isError: isErrorResponse(payload.tool_response),
+        redacted: findings > 0,
         goalIndex,
       },
       config: effectiveConfig,

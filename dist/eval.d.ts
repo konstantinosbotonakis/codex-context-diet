@@ -46,9 +46,13 @@ export interface EvalMetrics {
     estimatedCostUsd: number;
     p50Ms: number;
     p95Ms: number;
+    /** Exact one-sided 95% upper bound on the false-drop rate for this sample. */
+    falseDropUpper95: number;
 }
 export interface EvalReport {
     mode: 'offline' | 'live';
+    /** The model asked in live mode, or null when the signals were simulated. */
+    model: string | null;
     cases: EvalCaseResult[];
     metrics: EvalMetrics;
 }
@@ -62,4 +66,10 @@ export interface EvalOptions {
     root?: string;
 }
 export declare function runEvaluation(options?: EvalOptions): Promise<EvalReport>;
+/**
+ * Exact one-sided upper bound for the failure rate: the p where
+ * P(X <= failures) equals 1 - confidence. Bisection over the binomial CDF,
+ * so a zero-failure sample reports 1 - 0.05^(1/n) rather than zero risk.
+ */
+export declare function falseDropUpperBound(failures: number, cases: number, confidence?: number): number;
 export declare function renderEvalReport(report: EvalReport): string;

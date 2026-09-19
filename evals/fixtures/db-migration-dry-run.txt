@@ -1,0 +1,3 @@
+ALTER TABLE "jobs" ADD COLUMN "attempts" INTEGER NOT NULL DEFAULT 0;
+CREATE INDEX "jobs_status_attempts_idx" ON "jobs"("status", "attempts");
+-- This is a diff of the current database and the schema.

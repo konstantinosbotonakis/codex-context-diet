@@ -1,0 +1,2 @@
+   Compiling queue v0.4.0 (/repo)
+    Finished release profile [optimized] target(s) in 12.4s

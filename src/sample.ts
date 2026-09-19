@@ -75,6 +75,15 @@ function classify(line: Line): SignalPattern | null {
   return best;
 }
 
+/**
+ * Does this output look like a failure? Bounded to the first 64 KB, because
+ * the answer only has to be good enough to raise the bar for a drop.
+ */
+export function looksLikeFailure(text: string): boolean {
+  const head = text.length > 64_000 ? text.slice(0, 64_000) : text;
+  return /\b(?:err|error|exception|assertionerror|panic|fatal|fail|failed|failure|traceback)\b/i.test(head);
+}
+
 export function sampleResult(text: string, options: SampleOptions): SampleResult {
   const budget = Math.max(MIN_BUDGET, Math.floor(options.budgetChars));
   if (text.length <= budget) return { text, signalLines: 0, omitted: 0 };
@@ -127,4 +136,3 @@ export function sampleResult(text: string, options: SampleOptions): SampleResult
   const retained = Math.min(text.length, headEnd + tailChars + selected.reduce((sum, item) => sum + item.line.text.length, 0));
   return { text: out, signalLines: selected.length, omitted: Math.max(0, text.length - retained) };
 }
-

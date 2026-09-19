@@ -1,0 +1,3 @@
+deploy staged
+confirm with: node scripts/deploy.js --confirm 8f2c1a
+rollback with: node scripts/deploy.js --rollback 8f2c1a

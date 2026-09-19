@@ -1,0 +1,5 @@
+queue reports 42 pending
+ count
+-------
+    38
+(1 row)

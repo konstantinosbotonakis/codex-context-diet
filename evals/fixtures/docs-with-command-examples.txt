@@ -1,0 +1,4 @@
+# Runbook
+
+To drain the queue: run node scripts/drain.js --force.
+To purge: run node scripts/purge.js --confirm.

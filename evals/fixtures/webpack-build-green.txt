@@ -1,0 +1,5 @@
+webpack 5.91.0 compiled successfully in 8421 ms
+
+asset main.js 412 KiB [emitted] [minimized]
+asset vendor.js 1.2 MiB [emitted] [minimized]
+runtime modules 2.4 KiB 8 modules

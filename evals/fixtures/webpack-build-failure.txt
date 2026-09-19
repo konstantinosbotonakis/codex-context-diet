@@ -1,0 +1,5 @@
+ERROR in ./src/index.ts 4:22-45
+Module not found: Error: Can not resolve ./missing-module in /repo/src
+ @ ./src/index.ts 4:0-46
+
+webpack 5.91.0 compiled with 1 error in 6112 ms

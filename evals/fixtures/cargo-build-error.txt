@@ -1,0 +1,8 @@
+   Compiling queue v0.4.0 (/repo)
+error[E0502]: cannot borrow self.jobs as mutable because it is also borrowed as immutable
+  --> src/queue.rs:88:9
+   |
+88 |         self.jobs.push(job);
+   |         ^^^^^^^^^^^^^^^^^^^ mutable borrow occurs here
+   |
+error: could not compile queue (bin queue) due to 1 previous error

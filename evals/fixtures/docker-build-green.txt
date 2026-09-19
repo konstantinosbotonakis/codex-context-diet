@@ -1,0 +1,5 @@
+{{FILL:80}}
+ => => exporting layers
+ => => writing image sha256:9f2c1a
+ => => naming to docker.io/library/app
+Successfully built 9f2c1a

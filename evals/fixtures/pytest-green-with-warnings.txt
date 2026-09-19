@@ -1,0 +1,7 @@
+jobs/tests/test_sync.py ......................                       [ 88%]
+jobs/tests/test_retry.py ....                                        [100%]
+
+============ 26 passed, 3 warnings in 4.10s ============
+warnings:
+  DeprecationWarning: use push_batch instead of push
+  DeprecationWarning: tenant_id will become required

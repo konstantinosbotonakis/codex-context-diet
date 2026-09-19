@@ -1,0 +1,4 @@
+Collecting stripe
+  Downloading stripe-11.2.0-py3-none-any.whl (1.2 MB)
+Installing collected packages: stripe
+Successfully installed stripe-11.2.0

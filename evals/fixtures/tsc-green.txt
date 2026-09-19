@@ -1,0 +1,4 @@
+> tsc --noEmit
+
+(no output)
+exit code 0

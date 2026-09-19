@@ -1,0 +1,11 @@
+Traceback (most recent call last):
+  File "/repo/jobs/retry.py", line 41, in send
+    client.push(payload)
+ConnectionResetError: [Errno 54] Connection reset by peer
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/repo/jobs/retry.py", line 55, in send
+    raise RetryExhausted(attempts) from error
+jobs.retry.RetryExhausted: 3 attempts exhausted

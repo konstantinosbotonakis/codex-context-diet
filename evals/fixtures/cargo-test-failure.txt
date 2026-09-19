@@ -1,0 +1,10 @@
+running 42 tests
+test queue::tests::drain_retries ... FAILED
+
+failures:
+
+---- queue::tests::drain_retries stdout ----
+thread panic: expected 3 attempts, got 2
+note: run with RUST_BACKTRACE=1
+
+test result: FAILED. 41 passed; 1 failed

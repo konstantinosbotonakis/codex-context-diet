@@ -1,0 +1,8 @@
+diff --git a/src/retry.ts b/src/retry.ts
+index 3f2c1a..9d4b77 100644
+--- a/src/retry.ts
++++ b/src/retry.ts
+@@ -40,7 +40,7 @@ export function nextAttempt(job: Job): number {
+-  return job.attempt + 1;
++  return Math.min(job.attempt + 1, MAX_ATTEMPTS);
+ }

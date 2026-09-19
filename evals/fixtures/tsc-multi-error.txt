@@ -1,0 +1,5 @@
+src/queue.ts(88,9): error TS2322: Type string is not assignable to type number.
+src/queue.ts(102,15): error TS2345: Argument of type Job | undefined is not assignable to parameter of type Job.
+src/http.ts(31,7): error TS7006: Parameter req implicitly has an any type.
+
+Found 3 errors in 2 files.

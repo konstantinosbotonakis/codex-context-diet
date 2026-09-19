@@ -1,0 +1,6 @@
+                                     QUERY PLAN
+------------------------------------------------------------------------------
+ Index Scan using jobs_status_attempts_idx on jobs  (cost=0.42..8.44 rows=1 width=120)
+   Index Cond: (status = failed::text)
+ Planning Time: 0.180 ms
+ Execution Time: 0.052 ms

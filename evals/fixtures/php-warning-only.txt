@@ -1,0 +1,2 @@
+Deprecated: strlen(): Passing null to parameter #1 ($string) of type string is deprecated in /repo/src/Cache.php on line 31
+Cache warmed in 120ms

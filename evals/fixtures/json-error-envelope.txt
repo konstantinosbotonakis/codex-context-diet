@@ -1,0 +1,1 @@
+{"error":{"code":"card_declined","message":"Your card was declined.","decline_code":"insufficient_funds","request_id":"req_8f2"}}

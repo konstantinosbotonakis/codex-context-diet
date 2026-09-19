@@ -172,6 +172,7 @@ export async function main(stdin, env) {
                 inputLine: safeInput,
                 resultText: safeResultText,
                 isError: isErrorResponse(payload.tool_response),
+                redacted: findings > 0,
                 goalIndex,
             },
             config: effectiveConfig,

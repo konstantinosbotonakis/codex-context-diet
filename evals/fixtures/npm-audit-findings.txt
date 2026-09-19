@@ -1,0 +1,6 @@
+1 high severity vulnerability
+
+Package         lodash
+Patched in      >=4.17.21
+Path            app > lodash
+More info       https://github.com/advisories/GHSA-35jh-r3h4-6jhm

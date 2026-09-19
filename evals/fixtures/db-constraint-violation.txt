@@ -1,0 +1,4 @@
+INSERT 0 1
+psql:seed.sql:12: ERROR:  duplicate key value violates unique constraint "jobs_input_hash_key"
+DETAIL:  Key (input_hash)=(8f2c1a) already exists.
+psql:seed.sql:14: ERROR:  current transaction is aborted, commands ignored until end of transaction block

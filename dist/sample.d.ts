@@ -25,4 +25,9 @@ export interface SampleResult {
     /** Characters of the original text that the sample does not contain. */
     omitted: number;
 }
+/**
+ * Does this output look like a failure? Bounded to the first 64 KB, because
+ * the answer only has to be good enough to raise the bar for a drop.
+ */
+export declare function looksLikeFailure(text: string): boolean;
 export declare function sampleResult(text: string, options: SampleOptions): SampleResult;

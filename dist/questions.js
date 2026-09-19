@@ -15,7 +15,7 @@ export function dietQuestions(current, injectionGuard) {
             type: 'noul',
             instructions: 'The exact contents of the current tool result (' + current.tool + ', ' + current.resultChars +
                 ' chars) are still needed for the work ahead.',
-            criteria: criteria('The next steps depend on these exact contents.', 'The next steps do not depend on these contents.'),
+            criteria: criteria('The next steps depend on these exact contents. That includes a failure, an error, a stack trace, a diff, a migration, a file the work is about to change, a value the next command needs, or anything not already captured elsewhere in the session.', 'The next steps do not depend on these contents. The run was clean, the output repeats by re-running, or the session already holds the same information.'),
         },
         [Q_REPLACEABLE]: {
             type: 'noul',

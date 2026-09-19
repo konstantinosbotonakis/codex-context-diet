@@ -1,0 +1,5 @@
+{{FILL:40}}
+Traceback (most recent call last):
+  File "/repo/jobs/sync.py", line 88, in run
+    client.push(payload)
+ValueError: payload is missing tenant_id

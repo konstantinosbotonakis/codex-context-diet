@@ -1,0 +1,4 @@
+ok  	github.com/acme/queue	0.412s
+ok  	github.com/acme/queue/internal/store	0.201s
+ok  	github.com/acme/queue/internal/http	0.118s
+?   	github.com/acme/queue/cmd/worker	[no test files]

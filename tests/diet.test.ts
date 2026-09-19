@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CacheEntry } from '../src/cache.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
 import { buildNote, decideDiet, runDiet, type DietAnswers, type DietInput } from '../src/codex/diet.js';
+import { looksLikeFailure } from '../src/sample.js';
 import { fakeAsker, throwingAsker } from '../src/verify.js';
 
 const config = { ...DEFAULT_CONFIG, minTokens: 10 };
@@ -157,5 +158,40 @@ describe('runDiet', () => {
     expect(outcome.decision.action).toBe('drop_result');
     expect(outcome.stdout).toBeNull();
     expect(outcome.blocked).toBe(false);
+  });
+});
+
+describe('the failure and redaction bars', () => {
+  const answers = (needsContents: number): DietAnswers => ({
+    keepCall: 0.9, needsContents, replaceable: 0.9, injection: null,
+  });
+
+  it('drops a clean stale result at the normal bar', () => {
+    expect(decideDiet(answers(0.2), config).action).toBe('drop_result');
+  });
+
+  it('raises the bar when the output looks like a failure', () => {
+    expect(decideDiet(answers(0.2), config, { failureBar: true }).action).toBe('keep');
+    expect(decideDiet(answers(0.05), config, { failureBar: true }).action).toBe('drop_result');
+  });
+
+  it('recognises failure-shaped output', () => {
+    expect(looksLikeFailure('AssertionError: expected 2 to be 3')).toBe(true);
+    expect(looksLikeFailure('Traceback (most recent call last):')).toBe(true);
+    expect(looksLikeFailure('all good, 12 files written')).toBe(false);
+  });
+
+  it('raises the bar for a result that redaction rewrote', async () => {
+    const outcome = await runDiet({
+      input: { ...input, redacted: true },
+      config,
+      cache: [seed],
+      asker: fakeAsker({
+        needs_contents: 0.2, replaceable: 0.9, keep_call: 0.9, agent_directed: 0.02, behaviour_change: 0.02,
+      }),
+      goal: 'fix it',
+      firstResult: false,
+    } as never);
+    expect(outcome.decision.action).toBe('keep');
   });
 });

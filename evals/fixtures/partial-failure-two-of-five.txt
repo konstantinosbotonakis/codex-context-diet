@@ -1,0 +1,6 @@
+shard 1 ok
+shard 2 FAILED: timeout after 30s
+shard 3 ok
+shard 4 FAILED: assertion at tests/shard4.test.ts:88
+shard 5 ok
+3 of 5 shards passed

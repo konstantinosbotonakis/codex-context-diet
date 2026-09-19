@@ -1,0 +1,14 @@
+ FAIL  tests/auth.test.ts > refresh rotates the token
+AssertionError: expected 401 to be 200
+  at tests/auth.test.ts:64:9
+
+ FAIL  tests/auth.test.ts > refresh keeps the old token valid
+AssertionError: expected 200 to be 401
+  at tests/auth.test.ts:88:9
+
+ FAIL  tests/session.test.ts > expires after the window
+AssertionError: expected false to be true
+  at tests/session.test.ts:41:5
+
+ Test Files  2 failed | 28 passed (30)
+      Tests  3 failed | 282 passed (285)

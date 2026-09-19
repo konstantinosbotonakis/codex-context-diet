@@ -1,0 +1,12 @@
+............................................................F........
+=================================== FAILURES ===================================
+______________________________ test_drain_retries ______________________________
+
+    def test_drain_retries():
+>       assert attempts == 3
+E       assert 2 == 3
+
+jobs/tests/test_queue.py:88: AssertionError
+=========================== short test summary info ===========================
+FAILED jobs/tests/test_queue.py::test_drain_retries - assert 2 == 3
+1 failed, 68 passed in 3.20s

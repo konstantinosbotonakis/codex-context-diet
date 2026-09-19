@@ -1,0 +1,9 @@
+> vitest run
+
+ RUN  v5.0.1
+
+ Test Files  30 passed (30)
+      Tests  285 passed (285)
+   Duration  942ms
+
+All suites passed.

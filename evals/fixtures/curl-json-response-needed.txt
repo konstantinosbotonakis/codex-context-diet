@@ -1,0 +1,8 @@
+HTTP/2 200
+date: Sat, 19 Sep 2026 20:14:02 GMT
+content-type: application/json
+x-ratelimit-limit: 120
+x-ratelimit-remaining: 7
+x-ratelimit-reset: 1789852800
+
+{"ok":true}

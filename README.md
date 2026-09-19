@@ -363,7 +363,7 @@ Other commands, all offline except the last:
 ```bash
 node dist/cli.js status       # config path, key source, data directory
 node dist/cli.js policy       # the size gate and thresholds each tool would get
-node dist/cli.js eval         # the decision corpus, 26 cases, one false drop fails the run
+node dist/cli.js eval         # the 112-case decision corpus, offline; one false drop fails the run
 node dist/cli.js benchmark    # local pipeline, command-hook and MCP latency
 node dist/cli.js doctor       # install, key, storage, hooks and MCP health
 node dist/cli.js verify       # eight checks over the decision path
@@ -509,13 +509,13 @@ The labelled corpus in `evals/guards/quality-cases.json` covers the shapes that 
 
 Two evaluation surfaces ship with the plugin.
 
-`node dist/cli.js eval` runs the decision corpus in `evals/`: 26 fixtures covering errors at the head, middle and tail, huge green and red builds, one failure among thousands, generated code, large JSON, identical repeats, timestamps, UUIDs, random tokens, changing network answers, file reads before and after an edit, injections, secret material, malformed MCP payloads, enormous stack traces and tail-only summaries. Offline mode feeds each case the signals a correct Jev answer would give, so the deterministic pipeline is what is under test, and one false drop fails the run. Add `--live` to ask the real model and get tokens and cost instead.
+`node dist/cli.js eval` runs the decision corpus in `evals/`: 112 fixtures covering test and build outcomes, TypeScript, PHP, Python, Rust and Go diagnostics, JSON and MCP payloads, database and migration output, git diffs, file reads before and after a write, duplicates, one-off values, network calls, package installs, injections, secrets, contradictions, partial failures, relevant and irrelevant warnings, and outputs the next step depends on. Offline mode prints `Mode: OFFLINE POLICY REGRESSION` and feeds each case the signals a correct Jev answer would give, so the deterministic policy is what is under test; one false drop fails the run. `--live` prints `Mode: LIVE JEV EVALUATION`, names the model, asks the real model once per case, and reports tokens, cost and latency. The two modes answer different questions and the output says which one ran.
 
 `node scripts/eval-prompts.mjs [--live]` does the same for the prompt guard's labelled prompt set.
 
 `node scripts/eval-guards.mjs [--live]` runs the labelled corpora for the subagent guard (6 cases) and the quality guard (8 cases). Offline it proves the decision logic turns correct signals into the right action; live it asks the model the same cases. The quality corpus is built around the false positives that matter most: a question that needed no test, a documentation-only change, a trivial edit, and a task blocked by an external dependency.
 
-The report covers cases, correct decisions, false keeps, false drops and the wrong-drop rate, drop precision, keep recall, replacement rate, mean and median compression, Jev calls, tokens, estimated cost, and p50 and p95 latency. The target is a wrong-drop rate under 1 percent; the offline corpus currently reports zero across all 26 cases. Add a regression fixture whenever a real incorrect decision is found.
+The report covers cases, correct decisions, false keeps, false drops, the drop rate for the mode that ran, an exact one-sided 95% upper bound on the false-drop rate, drop precision, keep recall, replacement rate, mean and median compression, Jev calls, tokens, estimated cost, and p50 and p95 latency. A zero-failure sample is reported with its bound rather than as zero risk: 112 clean cases bound the rate at 10.3%, and a bound near 1% needs roughly 300 zero-failure cases. The measured live run, its two fixes and its known misses are recorded in [docs/evals/jev-1.13-2026-09-19.md](docs/evals/jev-1.13-2026-09-19.md). Add a regression fixture whenever a real incorrect decision is found.
 
 ### Upgrading from 0.x
 
@@ -533,7 +533,7 @@ Context Diet is an optimisation and semantic policy layer. It is not a sandbox, 
 - Recovery detection is inference. A deliberate re-run looks like a recovery, so the recovery rate is an upper bound.
 - The plugin sees the tool results the host routes to `PostToolUse`. Hosted tools and specialised paths that bypass hooks are invisible to it.
 - The transcript is never read, by design: the format is documented as unstable for hooks, so plugin state is its own.
-- Jev answers are probabilistic. The offline corpus proves the deterministic pipeline, and `--live` shows model behaviour on 26 cases, not on a large private workload.
+- Jev answers are probabilistic, and the live corpus is 112 cases against one model version. The measured live run matched 91 of the 112 labels, and the exact 95% upper bound on the false-drop rate is 10.3%, not zero.
 - The cost line is a lower bound for calls recorded before usage was kept.
 - The MCP hook path is measured offline and works in real sessions, but a Codex build that cannot use `mcp_tool` handlers needs the command fallback in `hooks/hooks.command.json`.
 

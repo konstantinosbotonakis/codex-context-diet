@@ -36,6 +36,8 @@ export interface DietInput {
     resultText: string;
     isError: boolean;
     goalIndex: number;
+    /** True when redaction rewrote the result before it was judged. */
+    redacted?: boolean;
 }
 export interface DietOutcome {
     decision: DietDecision;
@@ -67,7 +69,15 @@ export interface DietDeps {
  * reproducible, so an uncertain answer can only ever cost tokens, never
  * information. A hazard verdict always keeps and annotates.
  */
-export declare function decideDiet(answers: DietAnswers, config: DietConfig): DietDecision;
+/**
+ * A failure-looking result drops only on a much lower score, because a wrong
+ * drop of an error is the expensive direction. The live evaluation measured
+ * this rule halving the false-drop count.
+ */
+export declare const FAILURE_DROP_BAR = 0.1;
+export declare function decideDiet(answers: DietAnswers, config: DietConfig, options?: {
+    failureBar?: boolean;
+}): DietDecision;
 export declare function buildNote(input: DietInput, decision: DietDecision, config: DietConfig, extras?: string[]): string | null;
 export declare function cacheEntryOf(input: DietInput, decision: DietDecision, at: string, callIndex?: number, keptChars?: number): CacheEntry;
 export declare function runDiet(deps: DietDeps): Promise<DietOutcome>;

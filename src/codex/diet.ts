@@ -14,6 +14,7 @@ import { redactValue } from '../privacy.js';
 import { renderCapsule } from '../compressors/index.js';
 import { DUPLICATE_REASON, fingerprint, resourceOf } from '../dedupe.js';
 import { selectChunks } from '../chunks.js';
+import { looksLikeFailure } from '../sample.js';
 import type { JevAnswer, JevAsker } from '../types.js';
 
 export type DietAction = 'keep' | 'drop_result';
@@ -56,6 +57,8 @@ export interface DietInput {
   resultText: string;
   isError: boolean;
   goalIndex: number;
+  /** True when redaction rewrote the result before it was judged. */
+  redacted?: boolean;
 }
 
 export interface DietOutcome {
@@ -102,14 +105,26 @@ function optionalNoul(answers: Record<string, JevAnswer>, name: string): number 
  * reproducible, so an uncertain answer can only ever cost tokens, never
  * information. A hazard verdict always keeps and annotates.
  */
-export function decideDiet(answers: DietAnswers, config: DietConfig): DietDecision {
+/**
+ * A failure-looking result drops only on a much lower score, because a wrong
+ * drop of an error is the expensive direction. The live evaluation measured
+ * this rule halving the false-drop count.
+ */
+export const FAILURE_DROP_BAR = 0.1;
+
+export function decideDiet(
+  answers: DietAnswers,
+  config: DietConfig,
+  options: { failureBar?: boolean } = {},
+): DietDecision {
   if (answers.injection !== null && answers.injection >= config.keepThreshold) {
     return { ...answers, action: 'keep', reason: JEV_REASONS.hazard };
   }
   if (answers.needsContents >= config.keepThreshold) {
     return { ...answers, action: 'keep', reason: JEV_REASONS.needed };
   }
-  if (answers.needsContents <= config.dropThreshold && answers.replaceable >= config.keepThreshold) {
+  const bar = options.failureBar === true ? Math.min(config.dropThreshold, FAILURE_DROP_BAR) : config.dropThreshold;
+  if (answers.needsContents <= bar && answers.replaceable >= config.keepThreshold) {
     return { ...answers, action: 'drop_result', reason: JEV_REASONS.stale };
   }
   if (answers.replaceable < config.keepThreshold) {
@@ -276,7 +291,10 @@ export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
     );
   }
 
-  const decision = decideDiet(answers, config);
+  // A failure-looking result needs a much lower score before it can be dropped.
+  const decision = decideDiet(answers, config, {
+    failureBar: input.isError || input.redacted === true || looksLikeFailure(input.resultText),
+  });
   // Chunk relevance only runs for a result that is already being dropped and
   // only for exceptionally large output. It enriches the capsule; it never
   // changes the decision.

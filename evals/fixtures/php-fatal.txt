@@ -1,0 +1,6 @@
+PHP Fatal error:  Uncaught TypeError: App\Payout::send(): Argument #1 ($amount) must be of type int, string given, called in /repo/bin/console on line 42
+Stack trace:
+#0 /repo/src/Payout.php(88): App\Payout->send(12.50)
+#1 /repo/bin/console(42): App\Payout->send(12.50)
+#2 {main}
+  thrown in /repo/src/Payout.php on line 88

@@ -1,0 +1,5 @@
+> vitest run queue
+
+ Test Files  1 passed (1)
+      Tests  18 passed (18)
+   Duration  240ms

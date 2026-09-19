@@ -1,0 +1,6 @@
+PASS tests/payments/refund.test.ts
+PASS tests/payments/capture.test.ts
+
+Test Suites: 2 passed, 2 total
+Tests:       18 passed, 18 total
+Time:        2.4 s

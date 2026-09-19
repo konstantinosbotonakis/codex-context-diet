@@ -1,0 +1,2 @@
+{"content":[{"type":"text","text":"{\"rows\": [1, 2, 3"}],"isError":false}
+connection closed before the JSON object completed

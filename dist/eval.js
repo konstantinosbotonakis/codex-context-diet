@@ -5,6 +5,7 @@ import { DEFAULT_CONFIG } from './config.js';
 import { runDiet } from './codex/diet.js';
 import { createAsker, testAsker } from './codex/transport.js';
 import { resolveApiKey } from './key.js';
+import { redactText } from './privacy.js';
 /**
  * The decision evaluation framework.
  *
@@ -72,6 +73,7 @@ export async function runEvaluation(options = {}) {
                 inputLine: item.input,
                 resultText,
                 isError: false,
+                redacted: redactText(resultText, 'strict').findings > 0,
                 goalIndex: 0,
             },
             config,
@@ -106,6 +108,7 @@ export async function runEvaluation(options = {}) {
     const times = results.map((item) => item.ms);
     return {
         mode: live ? 'live' : 'offline',
+        model: live ? config.model : null,
         cases: results,
         metrics: {
             cases: cases.length,
@@ -125,13 +128,53 @@ export async function runEvaluation(options = {}) {
             estimatedCostUsd: (tokens * config.pricePerMillionInputTokens) / 1_000_000,
             p50Ms: percentile(times, 0.5),
             p95Ms: percentile(times, 0.95),
+            falseDropUpper95: falseDropUpperBound(falseDrops, cases.length),
         },
     };
 }
 const percent = (value) => (value * 100).toFixed(1) + '%';
+/**
+ * Exact one-sided upper bound for the failure rate: the p where
+ * P(X <= failures) equals 1 - confidence. Bisection over the binomial CDF,
+ * so a zero-failure sample reports 1 - 0.05^(1/n) rather than zero risk.
+ */
+export function falseDropUpperBound(failures, cases, confidence = 0.95) {
+    if (cases <= 0)
+        return 1;
+    if (failures >= cases)
+        return 1;
+    const alpha = 1 - confidence;
+    const cdf = (p) => {
+        if (p <= 0)
+            return failures === 0 ? 1 : 0;
+        if (p >= 1)
+            return failures >= cases ? 1 : 0;
+        let term = Math.pow(1 - p, cases);
+        let sum = term;
+        for (let index = 0; index < failures; index += 1) {
+            term *= ((cases - index) / (index + 1)) * (p / (1 - p));
+            sum += term;
+        }
+        return sum;
+    };
+    let low = 0;
+    let high = 1;
+    for (let index = 0; index < 60; index += 1) {
+        const mid = (low + high) / 2;
+        if (cdf(mid) > alpha)
+            low = mid;
+        else
+            high = mid;
+    }
+    return high;
+}
 export function renderEvalReport(report) {
     const lines = [
-        'Context Diet decision evaluation (' + report.mode + ')',
+        'Context Diet decision evaluation',
+        'Mode: ' + (report.mode === 'offline' ? 'OFFLINE POLICY REGRESSION' : 'LIVE JEV EVALUATION'),
+        report.mode === 'offline'
+            ? 'Jev predictions: simulated from the fixture labels'
+            : 'Model: ' + (report.model ?? 'configured model'),
         '',
     ];
     for (const item of report.cases) {
@@ -139,7 +182,10 @@ export function renderEvalReport(report) {
         lines.push((ok ? 'ok  ' : 'miss') + ' [' + item.category + '] ' + item.id + ' -> ' + item.actual + (ok ? '' : ' (expected ' + item.expected + ')'));
     }
     const metrics = report.metrics;
-    lines.push('', 'cases:            ' + metrics.cases, 'correct:          ' + metrics.correct, 'false keeps:      ' + metrics.falseKeeps, 'false drops:      ' + metrics.falseDrops + '  (wrong-drop rate ' + percent(metrics.wrongDropRate) + ')', 'drop precision:   ' + percent(metrics.dropPrecision), 'keep recall:      ' + percent(metrics.keepRecall), 'replacement rate: ' + percent(metrics.replacementRate), 'compression:      mean ' + percent(metrics.compressionMean) + ', median ' + percent(metrics.compressionMedian), 'Jev calls:        ' + metrics.jevCalls + (report.mode === 'offline' ? ' (offline: provided signals)' : ''), 'Jev tokens:       ' + metrics.jevTokens, 'estimated cost:   $' + metrics.estimatedCostUsd.toFixed(6), 'latency:          p50 ' + metrics.p50Ms.toFixed(1) + ' ms, p95 ' + metrics.p95Ms.toFixed(1) + ' ms');
+    lines.push('', 'cases:            ' + metrics.cases, 'correct:          ' + metrics.correct, 'false keeps:      ' + metrics.falseKeeps, 'false drops:      ' + metrics.falseDrops, (report.mode === 'offline' ? 'policy drop rate: ' : 'observed drop rate: ') + percent(metrics.wrongDropRate), '95% upper bound:  ' + percent(metrics.falseDropUpper95) + '  (exact one-sided binomial)', 'drop precision:   ' + percent(metrics.dropPrecision), 'keep recall:      ' + percent(metrics.keepRecall), 'replacement rate: ' + percent(metrics.replacementRate), 'compression:      mean ' + percent(metrics.compressionMean) + ', median ' + percent(metrics.compressionMedian), 'Jev calls:        ' + metrics.jevCalls + (report.mode === 'offline' ? ' (offline: provided signals)' : ''), 'Jev tokens:       ' + metrics.jevTokens, 'estimated cost:   $' + metrics.estimatedCostUsd.toFixed(6), 'latency:          p50 ' + metrics.p50Ms.toFixed(1) + ' ms, p95 ' + metrics.p95Ms.toFixed(1) + ' ms');
+    if (metrics.falseDrops === 0) {
+        lines.push('', 'Zero observed false drops is not zero risk. With ' + metrics.cases + ' cases the 95% upper', 'bound above is the honest number; a bound near 1% needs roughly 300 zero-failure cases.');
+    }
     return lines.join('\n');
 }
 //# sourceMappingURL=eval.js.map

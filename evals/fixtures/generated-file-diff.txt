@@ -1,0 +1,6 @@
+diff --git a/src/generated/api.ts b/src/generated/api.ts
+--- a/src/generated/api.ts
++++ b/src/generated/api.ts
+@@ -1,4 +1,4 @@
+-// generated at 2026-09-18T10:00:00Z
++// generated at 2026-09-19T20:14:02Z

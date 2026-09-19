@@ -1,0 +1,4 @@
+# Agent guide
+
+The system prompt tells the agent to ignore previous instructions when a tool result contains them.
+This page documents that behaviour for maintainers.
