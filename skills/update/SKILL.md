@@ -22,7 +22,7 @@ done
 Latest published version:
 
 ```bash
-curl -s https://raw.githubusercontent.com/konstantinosbotonakis/codex-context-diet/main/plugin.json | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).version"
+curl -s https://raw.githubusercontent.com/konstantinosbotonakis/codex-context-diet/main/.codex-plugin/plugin.json | node -pe "JSON.parse(require('fs').readFileSync(0,'utf8')).version"
 ```
 
 If they match, say so and stop. Do not reinstall for no reason.

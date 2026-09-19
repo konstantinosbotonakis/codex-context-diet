@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MANIFESTS = ['package.json', 'plugin.json'];
+const MANIFESTS = ['package.json', 'plugin.json', '.codex-plugin/plugin.json'];
 const LOCKFILE = 'package-lock.json';
 
 const fail = (message) => {
