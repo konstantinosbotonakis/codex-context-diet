@@ -1,20 +1,26 @@
 #!/usr/bin/env node
 /**
- * Validate the plugin manifest the way Codex ingestion does.
+ * Validate the plugin against the contracts the host actually applies.
  *
- * The rules mirror the workspace plugin schema enforced by the installed
- * `plugin-creator/scripts/validate_plugin.py`, which is the same contract the
- * ingestion path applies to `.codex-plugin/plugin.json`. CI runs this so a
- * manifest that would be rejected at install time never reaches main.
+ * Two contracts are in play and this repository ships both:
+ *
+ * 1. Portable Agent Plugins: root plugin.json validated against the vendored
+ *    official schema, and root mcp.json against the official MCP schema.
+ *    These files are authoritative.
+ * 2. Legacy Codex overlay: .codex-plugin/plugin.json and .mcp.json, kept for
+ *    Codex builds that predate the portable manifest. Those rules mirror the
+ *    ingestion contract enforced by the installed plugin-creator validator.
+ *
+ * It also checks that the legacy mirrors are generated from the portable
+ * source, that every version carrier agrees, and that package.json lists the
+ * files the plugin needs at runtime.
  *
  *   node scripts/validate-plugin.mjs [plugin-root]
- *
- * This repo also keeps the legacy root `plugin.json` for older Codex builds,
- * so the validator requires the two files to stay identical.
  */
 import { existsSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { mirrorFiles } from './sync-manifest.mjs';
 
 const SEMVER = /^\d+\.\d+\.\d+$/;
 const IDENTIFIER = /^[A-Za-z0-9_-]+(\.[A-Za-z0-9_-]+)*$/;
@@ -31,12 +37,18 @@ const INTERFACE_KEYS = new Set([
   'composerIcon', 'logo', 'logoDark', 'screenshots', 'defaultPrompt', 'default_prompt',
 ]);
 const REQUIRED_INTERFACE_KEYS = ['displayName', 'shortDescription', 'longDescription', 'developerName', 'category'];
+const HOOK_TYPES = new Set(['command', 'mcp_tool']);
+const SCHEMA_DIR = join('schemas', 'agent-plugins', '1.0.0');
+// The schema is the validator's reference document, so it always comes from
+// this repository rather than from the plugin root being validated.
+const scriptRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const isObject = (value) => value !== null && typeof value === 'object' && !Array.isArray(value);
 const nonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
 const isHttps = (value) => typeof value === 'string' && /^https:\/\//.test(value);
+const typeOf = (value) => (Array.isArray(value) ? 'array' : value === null ? 'null' : typeof value);
+const same = (left, right) => JSON.stringify(left) === JSON.stringify(right);
 
-/** Key order is irrelevant for equality, so compare a sorted deep copy. */
 const canonical = (value) => {
   if (Array.isArray(value)) return value.map(canonical);
   if (!isObject(value)) return value;
@@ -48,6 +60,104 @@ function loadJson(path) {
     return JSON.parse(readFileSync(path, 'utf8'));
   } catch {
     return null;
+  }
+}
+
+/** Resolve a local `#/$defs/name` pointer. The vendored schemas use nothing else. */
+function resolveRef(schema, document) {
+  if (!schema || typeof schema.$ref !== 'string') return schema;
+  let node = document;
+  for (const part of schema.$ref.replace(/^#\//, '').split('/')) node = node?.[part];
+  return node ?? {};
+}
+
+/**
+ * A JSON Schema validator for the subset the two official schemas use:
+ * type, const, enum, pattern, minLength, maxLength, properties, required,
+ * additionalProperties, items, propertyNames, not, oneOf and local $ref.
+ */
+function validateSchema(value, rawSchema, path, errors, document) {
+  const schema = resolveRef(rawSchema, document);
+  if (!isObject(schema)) return;
+  if (schema.const !== undefined && !same(value, schema.const)) {
+    errors.push(path + ' must be ' + JSON.stringify(schema.const));
+    return;
+  }
+  if (Array.isArray(schema.enum) && !schema.enum.some((item) => same(item, value))) {
+    errors.push(path + ' must be one of ' + schema.enum.map((item) => JSON.stringify(item)).join(', '));
+  }
+  if (schema.type !== undefined) {
+    const allowed = Array.isArray(schema.type) ? schema.type : [schema.type];
+    if (!allowed.includes(typeOf(value))) {
+      errors.push(path + ' must be ' + allowed.join(' or ') + ', found ' + typeOf(value));
+      return;
+    }
+  }
+  if (typeof value === 'string') {
+    if (schema.minLength !== undefined && value.length < schema.minLength) errors.push(path + ' is shorter than ' + schema.minLength);
+    if (schema.maxLength !== undefined && value.length > schema.maxLength) errors.push(path + ' is longer than ' + schema.maxLength);
+    if (schema.pattern !== undefined && !new RegExp(schema.pattern).test(value)) errors.push(path + ' does not match ' + schema.pattern);
+  }
+  if (isObject(schema.not) && Array.isArray(schema.not.enum) && schema.not.enum.some((item) => same(item, value))) {
+    errors.push(path + ' must not be ' + JSON.stringify(value));
+  }
+  if (Array.isArray(schema.oneOf)) {
+    const results = schema.oneOf.map((branch) => {
+      const local = [];
+      validateSchema(value, branch, path, local, document);
+      return local;
+    });
+    const matches = results.filter((local) => local.length === 0);
+    if (matches.length !== 1) {
+      errors.push(path + ' must match exactly one of the allowed shapes, matched ' + matches.length);
+      // Report the closest branch too: otherwise a one-field mistake inside a
+      // transport shape reads as a vague oneOf failure.
+      const closest = results.filter((local) => local.length > 0).sort((left, right) => left.length - right.length)[0];
+      if (closest) errors.push(...closest);
+    }
+  }
+  if (typeOf(value) === 'object') {
+    const properties = isObject(schema.properties) ? schema.properties : {};
+    for (const key of Array.isArray(schema.required) ? schema.required : []) {
+      if (!(key in value)) errors.push(path + ' is missing required field `' + key + '`');
+    }
+    if (isObject(schema.propertyNames?.not) && Array.isArray(schema.propertyNames.not.enum)) {
+      for (const key of Object.keys(value)) {
+        if (schema.propertyNames.not.enum.includes(key)) errors.push(path + '.' + key + ' is a reserved name');
+      }
+    }
+    const extra = Object.keys(value).filter((key) => !(key in properties));
+    if (schema.additionalProperties === false) {
+      for (const key of extra) errors.push(path + ' field `' + key + '` is not accepted by the schema');
+    } else if (isObject(schema.additionalProperties)) {
+      for (const key of extra) validateSchema(value[key], schema.additionalProperties, path + '.' + key, errors, document);
+    }
+    for (const [key, sub] of Object.entries(properties)) {
+      if (key in value) validateSchema(value[key], sub, path + '.' + key, errors, document);
+    }
+  }
+  if (typeOf(value) === 'array' && schema.items) {
+    value.forEach((item, index) => validateSchema(item, schema.items, path + '[' + index + ']', errors, document));
+  }
+}
+
+function validateAgainstSchema(root, relative, schemaName, errors) {
+  const document = loadJson(join(scriptRoot, SCHEMA_DIR, schemaName));
+  if (!isObject(document)) {
+    errors.push(SCHEMA_DIR + '/' + schemaName + ' is missing');
+    return;
+  }
+  const value = loadJson(join(root, relative));
+  if (value === null) {
+    errors.push(relative + ' is missing or not valid JSON');
+    return;
+  }
+  validateSchema(value, document, relative, errors, document);
+}
+
+function rejectUnknown(object, allowed, label, errors) {
+  for (const key of Object.keys(object).sort()) {
+    if (!allowed.has(key)) errors.push(label + ' field `' + key + '` is not accepted by plugin validation');
   }
 }
 
@@ -65,113 +175,116 @@ function checkArchivePath(root, rawPath, field, errors, { png = false } = {}) {
   if (!existsSync(join(root, ...parts))) errors.push(field + ' points to a missing file');
 }
 
-function rejectUnknown(object, allowed, label, errors) {
-  for (const key of Object.keys(object).sort()) {
-    if (!allowed.has(key)) errors.push(label + ' field `' + key + '` is not accepted by plugin validation');
-  }
-}
-
-function validateInterface(root, manifest, errors) {
+function validateInterface(manifest, label, errors) {
   const ui = manifest.interface;
   if (!isObject(ui)) {
-    errors.push('plugin.json field `interface` must be an object');
+    errors.push(label + ' field `interface` must be an object');
     return;
   }
-  rejectUnknown(ui, INTERFACE_KEYS, 'plugin.json field `interface`', errors);
+  rejectUnknown(ui, INTERFACE_KEYS, label + ' field `interface`', errors);
   for (const key of REQUIRED_INTERFACE_KEYS) {
-    if (!nonEmptyString(ui[key])) errors.push('plugin.json field `interface.' + key + '` must be a non-empty string');
+    if (!nonEmptyString(ui[key])) errors.push(label + ' field `interface.' + key + '` must be a non-empty string');
   }
   if (ui.defaultPrompt === undefined && ui.default_prompt === undefined) {
-    errors.push('plugin.json field `interface.defaultPrompt` or `interface.default_prompt` is required');
+    errors.push(label + ' field `interface.defaultPrompt` or `interface.default_prompt` is required');
   }
   if (!Array.isArray(ui.capabilities) || !ui.capabilities.every((value) => nonEmptyString(value))) {
-    errors.push('plugin.json field `interface.capabilities` must be an array of strings');
+    errors.push(label + ' field `interface.capabilities` must be an array of strings');
   }
   for (const key of ['websiteURL', 'privacyPolicyURL', 'termsOfServiceURL']) {
-    if (ui[key] !== undefined && !isHttps(ui[key])) errors.push('plugin.json field `interface.' + key + '` must be an https:// URL');
+    if (ui[key] !== undefined && !isHttps(ui[key])) errors.push(label + ' field `interface.' + key + '` must be an https:// URL');
   }
   if (ui.brandColor !== undefined && !(typeof ui.brandColor === 'string' && HEX_COLOR.test(ui.brandColor))) {
-    errors.push('plugin.json field `interface.brandColor` must use #RRGGBB');
+    errors.push(label + ' field `interface.brandColor` must use #RRGGBB');
   }
   for (const key of ['composerIcon', 'logo', 'logoDark']) {
-    if (ui[key] !== undefined) checkArchivePath(root, ui[key], 'plugin.json field `interface.' + key + '`', errors);
+    if (ui[key] !== undefined) checkArchivePath(root, ui[key], label + ' field `interface.' + key + '`', errors);
   }
   const screenshots = ui.screenshots ?? [];
   if (!Array.isArray(screenshots)) {
-    errors.push('plugin.json field `interface.screenshots` must be an array');
+    errors.push(label + ' field `interface.screenshots` must be an array');
   } else {
-    screenshots.forEach((shot, index) => checkArchivePath(root, shot, 'plugin.json field `interface.screenshots[' + index + ']`', errors, { png: true }));
+    screenshots.forEach((shot, index) => checkArchivePath(root, shot, label + ' field `interface.screenshots[' + index + ']`', errors, { png: true }));
   }
 }
 
-function validateCompanion(root, manifest, errors) {
-  if (manifest.skills !== undefined) checkArchivePath(root, manifest.skills, 'plugin.json field `skills`', errors);
-  if (manifest.apps !== undefined) {
-    const app = loadJson(join(root, '.app.json'));
-    if (!isObject(app)) errors.push('`.app.json` is required and must be valid JSON when `apps` is present');
-    else if (!isObject(app.apps)) errors.push('`.app.json` must carry an `apps` object');
-  }
-  const servers = manifest.mcpServers;
-  if (servers === undefined) return;
-  if (typeof servers === 'string') {
-    if (servers !== './.mcp.json') errors.push('plugin.json field `mcpServers` must point to `./.mcp.json`');
-    const companion = loadJson(join(root, '.mcp.json'));
-    if (!isObject(companion)) errors.push('`.mcp.json` is required and must be valid JSON when `mcpServers` is present');
-    else if (!isObject(companion.mcpServers)) errors.push('`.mcp.json` must carry an `mcpServers` object');
+function validatePortable(root, errors) {
+  validateAgainstSchema(root, 'plugin.json', 'plugin.schema.json', errors);
+  validateAgainstSchema(root, 'mcp.json', 'mcp.schema.json', errors);
+  const manifest = loadJson(join(root, 'plugin.json'));
+  if (!isObject(manifest)) return;
+  const openai = manifest.extensions?.['com.openai'];
+  if (!isObject(openai)) {
+    errors.push('plugin.json field `extensions.com.openai` is required for the Codex overlay');
     return;
   }
-  if (!isObject(servers)) {
-    errors.push('plugin.json field `mcpServers` must be a string path or object');
+  if (openai.hooks !== undefined) {
+    if (!nonEmptyString(openai.hooks)) errors.push('plugin.json field `extensions.com.openai.hooks` must be a non-empty path');
+    else checkArchivePath(root, openai.hooks, 'plugin.json field `extensions.com.openai.hooks`', errors);
+  }
+  if (isObject(openai.interface)) validateInterface({ interface: openai.interface }, 'plugin.json', errors);
+}
+
+function validateLegacy(root, errors) {
+  const label = '.codex-plugin/plugin.json';
+  const manifest = loadJson(join(root, '.codex-plugin', 'plugin.json'));
+  if (!isObject(manifest)) {
+    errors.push(label + ' is missing or not valid JSON');
     return;
   }
-  for (const [name, server] of Object.entries(servers)) {
-    if (!isObject(server)) errors.push('plugin.json field `mcpServers.' + name + '` must be an object');
+  if (JSON.stringify(manifest).includes('[TODO:')) errors.push(label + ' contains a [TODO: ...] placeholder');
+  rejectUnknown(manifest, TOP_LEVEL_KEYS, label, errors);
+  if (!nonEmptyString(manifest.name)) errors.push(label + ' field `name` must be a non-empty string');
+  else if (!IDENTIFIER.test(manifest.name)) errors.push(label + ' field `name` is invalid');
+  if (!nonEmptyString(manifest.version)) errors.push(label + ' field `version` must be a non-empty string');
+  else if (!SEMVER.test(manifest.version)) errors.push(label + ' field `version` must be strict semver');
+  if (!nonEmptyString(manifest.description)) errors.push(label + ' field `description` must be a non-empty string');
+  if (!isObject(manifest.author)) errors.push(label + ' field `author` must be an object');
+  else {
+    rejectUnknown(manifest.author, AUTHOR_KEYS, label + ' field `author`', errors);
+    if (!nonEmptyString(manifest.author.name)) errors.push(label + ' field `author.name` must be a non-empty string');
+    if (manifest.author.email !== undefined && !nonEmptyString(manifest.author.email)) errors.push(label + ' field `author.email` must be a non-empty string');
+    if (manifest.author.url !== undefined && !isHttps(manifest.author.url)) errors.push(label + ' field `author.url` must be an https:// URL');
   }
-}
-
-/** The three version carriers, the MCP manifest, the hook wiring and the corpus. */
-function validateVersions(root, manifest, errors) {
-  const pkg = loadJson(join(root, 'package.json'));
-  if (!isObject(pkg)) errors.push('package.json must exist and be valid JSON');
-  else if (pkg.version !== manifest.version) {
-    errors.push('package.json version (' + pkg.version + ') must match plugin.json version (' + manifest.version + ')');
+  if (manifest.mcpServers !== undefined && manifest.mcpServers !== './.mcp.json') {
+    errors.push(label + ' field `mcpServers` must point to `./.mcp.json`');
   }
-}
-
-function validateMcp(root, manifest, errors) {
   const companion = loadJson(join(root, '.mcp.json'));
-  if (!isObject(companion) || !isObject(companion.mcpServers)) return;
-  for (const [name, server] of Object.entries(companion.mcpServers)) {
-    if (!isObject(server)) { errors.push('.mcp.json server `' + name + '` must be an object'); continue; }
-    if (!nonEmptyString(server.command)) errors.push('.mcp.json server `' + name + '` needs a command');
-    if (!Array.isArray(server.args) || !server.args.every((value) => typeof value === 'string')) {
-      errors.push('.mcp.json server `' + name + '` needs a string args array');
-    } else if (!server.args.join(' ').includes('$PLUGIN_ROOT')) {
-      errors.push('.mcp.json server `' + name + '` must resolve through $PLUGIN_ROOT so any install path works');
-    }
+  if (!isObject(companion) || !isObject(companion.mcpServers)) {
+    errors.push('.mcp.json is required and must carry an `mcpServers` object');
+  } else {
+    rejectUnknown(companion, new Set(['mcpServers']), '.mcp.json', errors);
   }
-  // Every server the MCP hooks call must exist in the manifest. The local
-  // alias is the plugin's choice, so this checks the link, not the name.
-  const hooks = loadJson(join(root, 'hooks', 'hooks.json'));
-  const referenced = new Set();
-  const walk = (value) => {
-    if (Array.isArray(value)) {
-      for (const item of value) walk(item);
-      return;
-    }
-    if (!isObject(value)) return;
-    if (value.type === 'mcp_tool' && nonEmptyString(value.server)) referenced.add(value.server);
-    for (const item of Object.values(value)) walk(item);
-  };
-  walk(hooks);
-  for (const name of referenced) {
-    if (!(name in companion.mcpServers)) {
-      errors.push('hooks/hooks.json calls MCP server `' + name + '` which .mcp.json does not define');
-    }
+  validateInterface(manifest, label, errors);
+  if (manifest.skills !== undefined) checkArchivePath(root, manifest.skills, label + ' field `skills`', errors);
+}
+
+function validateMirrors(root, errors) {
+  for (const [file, content] of mirrorFiles(root)) {
+    const current = (() => {
+      try {
+        return readFileSync(join(root, file), 'utf8');
+      } catch {
+        return null;
+      }
+    })();
+    if (current !== content) errors.push(file + ' is not generated from the portable source (run npm run sync:manifest)');
   }
 }
 
-const HOOK_TYPES = new Set(['command', 'mcp_tool']);
+function validateVersions(root, errors) {
+  const pkg = loadJson(join(root, 'package.json'));
+  const portable = loadJson(join(root, 'plugin.json'));
+  const legacy = loadJson(join(root, '.codex-plugin', 'plugin.json'));
+  if (!isObject(pkg)) {
+    errors.push('package.json must exist and be valid JSON');
+    return;
+  }
+  const versions = [pkg.version, portable?.version, legacy?.version];
+  if (!versions.every((value) => value === versions[0])) {
+    errors.push('package.json, plugin.json and .codex-plugin/plugin.json versions must agree, found ' + versions.join(', '));
+  }
+}
 
 function validateHooks(root, errors) {
   for (const relative of ['hooks/hooks.json', 'hooks/hooks.command.json']) {
@@ -208,67 +321,99 @@ function validateHooks(root, errors) {
       }
     }
   }
+  const mcpManifest = loadJson(join(root, 'mcp.json'));
+  const hooks = loadJson(join(root, 'hooks', 'hooks.json'));
+  const referenced = new Set();
+  const walk = (value) => {
+    if (Array.isArray(value)) {
+      for (const item of value) walk(item);
+      return;
+    }
+    if (!isObject(value)) return;
+    if (value.type === 'mcp_tool' && nonEmptyString(value.server)) referenced.add(value.server);
+    for (const item of Object.values(value)) walk(item);
+  };
+  walk(hooks);
+  for (const name of referenced) {
+    if (!(name in (mcpManifest?.mcpServers ?? {}))) {
+      errors.push('hooks/hooks.json calls MCP server `' + name + '` which mcp.json does not define');
+    }
+  }
 }
 
 function validateEvalCorpus(root, errors) {
   const corpus = loadJson(join(root, 'evals', 'cases.json'));
   if (!isObject(corpus) || !Array.isArray(corpus.cases)) {
     errors.push('evals/cases.json must exist and carry a cases array');
+  } else {
+    const ids = new Set();
+    for (const [index, item] of corpus.cases.entries()) {
+      const label = 'evals/cases.json case ' + index;
+      if (!isObject(item)) {
+        errors.push(label + ' must be an object');
+        continue;
+      }
+      for (const key of ['id', 'category', 'goal', 'tool', 'input', 'fixture', 'expectedAction', 'reason']) {
+        if (!nonEmptyString(item[key])) errors.push(label + ' needs a string `' + key + '`');
+      }
+      if (item.expectedAction !== 'keep' && item.expectedAction !== 'drop') {
+        errors.push(label + ' expectedAction must be keep or drop');
+      }
+      if (typeof item.id === 'string') {
+        if (ids.has(item.id)) errors.push(label + ' repeats id ' + item.id);
+        ids.add(item.id);
+      }
+      if (nonEmptyString(item.fixture) && !existsSync(join(root, 'evals', 'fixtures', item.fixture))) {
+        errors.push(label + ' fixture ' + item.fixture + ' is missing');
+      }
+    }
+  }
+  const prompts = loadJson(join(root, 'examples', 'eval-prompts.json'));
+  if (!isObject(prompts) || !Array.isArray(prompts.prompts)) {
+    errors.push('examples/eval-prompts.json must exist and carry a prompts array');
+  } else {
+    for (const [index, item] of prompts.prompts.entries()) {
+      if (!isObject(item) || !nonEmptyString(item.prompt) || !['flag', 'quiet'].includes(item.expect)) {
+        errors.push('examples/eval-prompts.json prompt ' + index + ' needs a prompt and expect flag|quiet');
+      }
+    }
+  }
+}
+
+function validatePackageFiles(root, errors) {
+  const pkg = loadJson(join(root, 'package.json'));
+  if (!isObject(pkg) || !Array.isArray(pkg.files)) {
+    errors.push('package.json needs a files array');
     return;
   }
-  const ids = new Set();
-  for (const [index, item] of corpus.cases.entries()) {
-    const label = 'evals/cases.json case ' + index;
-    if (!isObject(item)) { errors.push(label + ' must be an object'); continue; }
-    for (const key of ['id', 'category', 'goal', 'tool', 'input', 'fixture', 'expectedAction', 'reason']) {
-      if (!nonEmptyString(item[key])) errors.push(label + ' needs a string `' + key + '`');
+  for (const entry of pkg.files) {
+    if (!nonEmptyString(entry)) {
+      errors.push('package.json files entries must be non-empty strings');
+      continue;
     }
-    if (item.expectedAction !== 'keep' && item.expectedAction !== 'drop') {
-      errors.push(label + ' expectedAction must be keep or drop');
-    }
-    if (typeof item.id === 'string') {
-      if (ids.has(item.id)) errors.push(label + ' repeats id ' + item.id);
-      ids.add(item.id);
-    }
-    if (nonEmptyString(item.fixture) && !existsSync(join(root, 'evals', 'fixtures', item.fixture))) {
-      errors.push(label + ' fixture ' + item.fixture + ' is missing');
-    }
+    if (!existsSync(join(root, entry))) errors.push('package.json files entry `' + entry + '` does not exist');
+  }
+  const required = [
+    'plugin.json', 'mcp.json', '.codex-plugin/plugin.json', '.mcp.json',
+    'hooks/hooks.json', 'hooks/hooks.command.json', 'dist/cli.js', 'dist/mcp-server.js',
+  ];
+  for (const relative of required) {
+    if (!existsSync(join(root, relative))) errors.push('required file ' + relative + ' is missing');
+  }
+  for (const relative of ['dist', 'hooks', 'skills', 'schemas', 'evals', 'assets']) {
+    if (!pkg.files.includes(relative)) errors.push('package.json files must include `' + relative + '`');
   }
 }
 
 export function validatePlugin(root) {
   const errors = [];
-  const manifest = loadJson(join(root, '.codex-plugin', 'plugin.json'));
-  if (!isObject(manifest)) {
-    errors.push('.codex-plugin/plugin.json is missing or not valid JSON');
-    return errors;
-  }
-  if (JSON.stringify(manifest).includes('[TODO:')) errors.push('manifest contains a [TODO: ...] placeholder');
-  rejectUnknown(manifest, TOP_LEVEL_KEYS, 'plugin.json', errors);
-  if (!nonEmptyString(manifest.name)) errors.push('plugin.json field `name` must be a non-empty string');
-  else if (!IDENTIFIER.test(manifest.name)) errors.push('plugin.json field `name` is invalid');
-  if (!nonEmptyString(manifest.version)) errors.push('plugin.json field `version` must be a non-empty string');
-  else if (!SEMVER.test(manifest.version)) errors.push('plugin.json field `version` must be strict semver');
-  if (!nonEmptyString(manifest.description)) errors.push('plugin.json field `description` must be a non-empty string');
-  if (!isObject(manifest.author)) errors.push('plugin.json field `author` must be an object');
-  else {
-    rejectUnknown(manifest.author, AUTHOR_KEYS, 'plugin.json field `author`', errors);
-    if (!nonEmptyString(manifest.author.name)) errors.push('plugin.json field `author.name` must be a non-empty string');
-    if (manifest.author.email !== undefined && !nonEmptyString(manifest.author.email)) errors.push('plugin.json field `author.email` must be a non-empty string');
-    if (manifest.author.url !== undefined && !isHttps(manifest.author.url)) errors.push('plugin.json field `author.url` must be an https:// URL');
-  }
-  validateCompanion(root, manifest, errors);
-  validateInterface(root, manifest, errors);
-
-  const legacy = loadJson(join(root, 'plugin.json'));
-  if (!isObject(legacy)) errors.push('plugin.json at the plugin root must exist and be valid JSON');
-  else if (JSON.stringify(canonical(legacy)) !== JSON.stringify(canonical(manifest))) {
-    errors.push('plugin.json and .codex-plugin/plugin.json must stay identical');
-  }
-  validateVersions(root, manifest, errors);
-  validateMcp(root, manifest, errors);
+  validatePortable(root, errors);
+  validateLegacy(root, errors);
+  validateMirrors(root, errors);
+  validateVersions(root, errors);
   validateHooks(root, errors);
   validateEvalCorpus(root, errors);
+  validatePackageFiles(root, errors);
   return errors;
 }
 
@@ -277,9 +422,9 @@ if (invokedDirectly) {
   const root = resolve(process.argv[2] ?? join(fileURLToPath(import.meta.url), '..', '..'));
   const errors = validatePlugin(root);
   if (errors.length > 0) {
-    console.error('plugin manifest validation failed:');
+    console.error('plugin validation failed:');
     for (const error of errors) console.error('- ' + error);
     process.exit(1);
   }
-  console.log('plugin manifest validation passed: ' + root);
+  console.log('plugin validation passed: ' + root);
 }

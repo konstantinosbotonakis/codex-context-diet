@@ -1,4 +1,5 @@
 {
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "codex-context-diet",
   "version": "0.6.0",
   "description": "Asks TypeSafe's Jev which bulky tool results the session still needs, and replaces the rest with a bounded head plus a note.",
@@ -16,21 +17,25 @@
     "jev",
     "hooks"
   ],
-  "mcpServers": "./.mcp.json",
-  "interface": {
-    "displayName": "Context Diet",
-    "shortDescription": "Jev-guided tool-result dieting",
-    "longDescription": "Every bulky tool result is judged by Jev the moment it is produced. Results the session no longer needs are replaced by a bounded head and a one-line note, so context is spent on work rather than on logs.",
-    "developerName": "Konstantinos Botonakis",
-    "category": "Productivity",
-    "capabilities": [
-      "Read",
-      "Write"
-    ],
-    "defaultPrompt": [
-      "Show my Context Diet usage stats",
-      "Why is my context filling up?",
-      "Tune the Jev keep threshold"
-    ]
+  "extensions": {
+    "com.openai": {
+      "interface": {
+        "displayName": "Context Diet",
+        "shortDescription": "Jev-guided tool-result dieting",
+        "longDescription": "Every bulky tool result is judged by Jev the moment it is produced. Results the session no longer needs are replaced by a bounded head and a one-line note, so context is spent on work rather than on logs.",
+        "developerName": "Konstantinos Botonakis",
+        "category": "Productivity",
+        "capabilities": [
+          "Read",
+          "Write"
+        ],
+        "defaultPrompt": [
+          "Show my Context Diet usage stats",
+          "Why is my context filling up?",
+          "Tune the Jev keep threshold"
+        ]
+      },
+      "hooks": "./hooks/hooks.json"
+    }
   }
 }

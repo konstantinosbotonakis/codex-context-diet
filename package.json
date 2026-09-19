@@ -14,9 +14,17 @@
   "files": [
     "dist",
     "hooks",
+    "skills",
+    "schemas",
+    "assets",
+    "evals",
+    "examples",
+    "docs",
+    "scripts",
     "plugin.json",
     "mcp.json",
-    "skills",
+    ".codex-plugin",
+    ".mcp.json",
     "README.md",
     "LICENSE"
   ],
@@ -32,7 +40,9 @@
     "doctor": "node dist/cli.js doctor",
     "release": "node scripts/release.mjs",
     "verify": "node dist/cli.js verify",
-    "demo:live": "node examples/live-demo.mjs"
+    "demo:live": "node examples/live-demo.mjs",
+    "sync:manifest": "node scripts/sync-manifest.mjs",
+    "install:check": "node scripts/install-check.mjs"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
