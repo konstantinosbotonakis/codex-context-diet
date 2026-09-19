@@ -71,7 +71,7 @@ describe('buildNote', () => {
     const note = buildNote(input, decideDiet(scores(), config), config);
     expect(note).not.toBeNull();
     expect(note as string).toContain('Replaced ' + (input.resultText.length - 300) + ' chars');
-    expect((note as string).startsWith(input.resultText.slice(0, 300))).toBe(true);
+    expect(note as string).toContain(input.resultText.slice(0, 300));
   });
 
   it('stands alone when the head is switched off', () => {

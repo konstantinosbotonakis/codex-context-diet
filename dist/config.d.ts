@@ -32,6 +32,11 @@ export interface DietConfig {
     neverSendPaths: string[];
     /** Tools whose results must never leave the machine. */
     neverSendTools: string[];
+    /** Character cap for the evidence capsule that replaces a dropped result. */
+    capsuleMaxChars: number;
+    capsuleMaxErrorLines: number;
+    capsuleMaxStackFrames: number;
+    capsuleMaxSummaryLines: number;
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;

@@ -67,7 +67,7 @@ describe('PostToolUse adapter', () => {
     const parsed = JSON.parse(await dietMain(payload(), env)) as Record<string, unknown>;
     expect(Object.keys(parsed).sort()).toEqual(['decision', 'hookSpecificOutput', 'reason']);
     expect(parsed.decision).toBe('block');
-    expect(String(parsed.reason).startsWith(bigText().slice(0, 50))).toBe(true);
+    expect(String(parsed.reason)).toContain(bigText().slice(0, 50));
     expect(String(parsed.reason)).toContain('Re-run the tool if you need the full output.');
     const hook = parsed.hookSpecificOutput as Record<string, unknown>;
     expect(hook.hookEventName).toBe('PostToolUse');

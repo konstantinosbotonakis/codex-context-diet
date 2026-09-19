@@ -203,7 +203,11 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "pricePerMillionInputTokens": 0.042,
   "privacyMode": "strict",
   "neverSendPaths": ["**/.env", "**/.env.*", "**/*.pem", "**/*.key"],
-  "neverSendTools": []
+  "neverSendTools": [],
+  "capsuleMaxChars": 1200,
+  "capsuleMaxErrorLines": 20,
+  "capsuleMaxStackFrames": 10,
+  "capsuleMaxSummaryLines": 8
 }
 ```
 
@@ -227,6 +231,10 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `privacyMode` | `strict` redacts secrets and honours path exclusions, `standard` only redacts, `off` disables both |
 | `neverSendPaths` | path globs that never reach Jev or the cache, enforced in strict mode |
 | `neverSendTools` | tool names whose results never leave the machine |
+| `capsuleMaxChars` | character cap for the evidence capsule that replaces a dropped result |
+| `capsuleMaxErrorLines` | maximum error or failure lines kept in a capsule |
+| `capsuleMaxStackFrames` | maximum stack frames kept in a capsule |
+| `capsuleMaxSummaryLines` | maximum summary lines kept in a capsule |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 

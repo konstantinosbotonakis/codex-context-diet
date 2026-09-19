@@ -34,6 +34,8 @@ The settings worth tuning:
   redacts but ignores path exclusions, and `off` disables both.
 - `neverSendPaths` are globs that stay on the machine in strict mode, and `neverSendTools` names
   tools whose results are never sent at all.
+- `capsuleMaxChars` and its sibling budgets bound the evidence capsule that replaces a dropped
+  result: failures, stack frames and summaries survive, the rest is an omission count.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 

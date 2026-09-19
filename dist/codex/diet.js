@@ -2,6 +2,7 @@ import { buildDietState } from '../dietState.js';
 import { dietQuestions, Q_AGENT_DIRECTED, Q_BEHAVIOUR_CHANGE, Q_KEEP_CALL, Q_NEEDS_CONTENTS, Q_REPLACEABLE, } from '../questions.js';
 import { inputTokensOf, noulAnswer } from '../request.js';
 import { redactValue } from '../privacy.js';
+import { renderCapsule } from '../compressors/index.js';
 /**
  * The only reasons decideDiet produces, which means a Jev answer arrived. The
  * stats command counts these as Jev calls: every other reason is a path that
@@ -51,14 +52,17 @@ export function decideDiet(answers, config) {
 export function buildNote(input, decision, config) {
     if (decision.action !== 'drop_result')
         return null;
-    const headChars = config.truncateHeadChars;
-    const head = headChars > 0 ? input.resultText.slice(0, headChars) + '\n\n' : '';
-    const omitted = Math.max(0, input.resultText.length - headChars);
+    const capsule = renderCapsule({ toolName: input.toolName, inputLine: input.inputLine, resultText: input.resultText, isError: input.isError }, {
+        maxChars: config.capsuleMaxChars,
+        maxErrorLines: config.capsuleMaxErrorLines,
+        maxStackFrames: config.capsuleMaxStackFrames,
+        maxSummaryLines: config.capsuleMaxSummaryLines,
+        headChars: config.truncateHeadChars,
+    });
     const ran = decision.keepCall >= config.keepThreshold ? ' Ran: ' + input.toolName + ' ' + input.inputLine + '.' : '';
-    const kept = headChars > 0 ? ' with this ' + headChars + '-char head' : '';
-    return (head +
-        '[codex-context-diet] Replaced ' + omitted + ' chars of ' + input.toolName + ' output' +
-        (input.isError ? ' (error)' : '') + kept + '.' + ran +
+    return (capsule.text + '\n\n' +
+        '[codex-context-diet] Replaced ' + capsule.omittedChars + ' chars of ' + input.toolName + ' output' +
+        (input.isError ? ' (error)' : '') + '.' + ran +
         ' Re-run the tool if you need the full output.');
 }
 export function cacheEntryOf(input, decision, at) {

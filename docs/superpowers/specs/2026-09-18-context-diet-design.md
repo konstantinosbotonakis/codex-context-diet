@@ -342,7 +342,11 @@ plugin reinstalls and is never committed.
   "pricePerMillionInputTokens": 0.042,
   "privacyMode": "strict",
   "neverSendPaths": ["**/.env", "**/.env.*", "**/*.pem", "**/*.key"],
-  "neverSendTools": []
+  "neverSendTools": [],
+  "capsuleMaxChars": 1200,
+  "capsuleMaxErrorLines": 20,
+  "capsuleMaxStackFrames": 10,
+  "capsuleMaxSummaryLines": 8
 }
 ```
 

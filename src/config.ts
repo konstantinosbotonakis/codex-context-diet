@@ -22,6 +22,11 @@ export interface DietConfig {
   neverSendPaths: string[];
   /** Tools whose results must never leave the machine. */
   neverSendTools: string[];
+  /** Character cap for the evidence capsule that replaces a dropped result. */
+  capsuleMaxChars: number;
+  capsuleMaxErrorLines: number;
+  capsuleMaxStackFrames: number;
+  capsuleMaxSummaryLines: number;
 }
 
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
@@ -39,6 +44,10 @@ export const DEFAULT_CONFIG: DietConfig = {
   privacyMode: 'strict',
   neverSendPaths: ['**/.env', '**/.env.*', '**/*.pem', '**/*.key'],
   neverSendTools: [],
+  capsuleMaxChars: 1200,
+  capsuleMaxErrorLines: 20,
+  capsuleMaxStackFrames: 10,
+  capsuleMaxSummaryLines: 8,
 };
 
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
@@ -102,6 +111,10 @@ export function resolveConfig(raw: unknown): DietConfig {
     privacyMode: privacyMode(o.privacyMode, DEFAULT_CONFIG.privacyMode),
     neverSendPaths: strArray(o.neverSendPaths, DEFAULT_CONFIG.neverSendPaths),
     neverSendTools: strArray(o.neverSendTools, DEFAULT_CONFIG.neverSendTools),
+    capsuleMaxChars: num(o.capsuleMaxChars, DEFAULT_CONFIG.capsuleMaxChars, 1),
+    capsuleMaxErrorLines: num(o.capsuleMaxErrorLines, DEFAULT_CONFIG.capsuleMaxErrorLines),
+    capsuleMaxStackFrames: num(o.capsuleMaxStackFrames, DEFAULT_CONFIG.capsuleMaxStackFrames),
+    capsuleMaxSummaryLines: num(o.capsuleMaxSummaryLines, DEFAULT_CONFIG.capsuleMaxSummaryLines),
   };
   if (typeof o.apiKey === 'string' && o.apiKey.length > 0) config.apiKey = o.apiKey;
   return config;
