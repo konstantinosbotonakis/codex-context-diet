@@ -1,0 +1,100 @@
+# Architecture
+
+Context Diet is a semantic context-management layer for Codex. It decides what a session keeps from each
+bulky tool result, preserves the evidence that still matters, measures whether a decision had to be
+undone, and adapts its size gate to the pressure the session is under.
+
+Two rules hold everywhere:
+
+1. Models provide signals. Deterministic code owns policy and side effects.
+2. Every failure path keeps the original result. The plugin can lose an optimisation, never a session.
+
+## The decision path
+
+```text
+PostToolUse
+  |
+  +-- adapter.ts
+        |  skipped tool or never-send path?  keep, record the touch, stop
+        |  redact secrets
+        |  size gate = base minTokens, lowered by contextPressure, overridden by toolPolicies
+        |  read the session cache, score duplicate and recovery
+        |
+        +-- duplicate?  deterministic_duplicate_drop, no model call
+        +-- first result?  keep
+        +-- no key or transport failure?  keep
+        +-- otherwise  runDiet
+              |  sample the result (head, signal lines, tail)
+              |  one Jev request over the sampled state
+              |  decideDiet applies the thresholds
+              +-- drop  buildCapsule, optionally ask for chunk relevance
+              +-- keep  annotate only when a hazard fired
+```
+
+`UserPromptSubmit` runs the optional prompt guard, carries the post-compaction snapshot, and records the
+goal. `PreCompact` snapshots plugin-owned state, `PostCompact` records the event, and the next prompt
+injects the snapshot once. `Stop` reports repeated recoveries once per session.
+
+## Module map
+
+| module | role |
+|---|---|
+| `src/codex/adapter.ts` | the PostToolUse entry point and the order of every check |
+| `src/codex/diet.ts` | decision, note, cache entry, and the Jev call |
+| `src/codex/dietState.ts` | the state Jev sees, with staged shrinking |
+| `src/codex/promptGuard.ts` | the opt-in prompt guard questions and decision |
+| `src/codex/session.ts` | SessionStart and UserPromptSubmit, goal capture, resurrection injection |
+| `src/codex/compaction.ts` | snapshot building, PreCompact and PostCompact handling |
+| `src/codex/transport.ts` | the real asker plus the deterministic test asker |
+| `src/privacy.ts` | deterministic secret redaction and never-send paths |
+| `src/sample.ts` | representative sampling of long results |
+| `src/compressors/` | evidence capsules per output class, generic fallback |
+| `src/dedupe.ts` | fingerprints, duplicate detection, write invalidation |
+| `src/chunks.ts` | chunk splitting and relevance questions for very large results |
+| `src/recovery.ts` | recovery inference from repeated calls |
+| `src/policy.ts` | policy matching and effective thresholds |
+| `src/pressure.ts` | the retained-context estimate and its stages |
+| `src/stats.ts` | the usage table over caches and the event log |
+| `src/mcp-server.ts` | the stdio MCP server: hook ops plus the Jev primitives |
+
+Command entry points (`adapter-main.ts`, `session-main.ts`, `compaction-main.ts`) exist so the plugin
+works on Codex builds that cannot use MCP tool hooks. `hooks/hooks.json` uses the MCP server;
+`hooks/hooks.command.json` is the fallback.
+
+## Storage
+
+Everything lives under `$PLUGIN_DATA` and survives reinstalls:
+
+```text
+config.json                     the only file a user edits
+sessions/<key>.results.jsonl    one line per judged result, bounded, newest last
+sessions/<key>.touches.jsonl    paths a call may have written
+sessions/<key>.recoveries.jsonl drops that were re-run
+sessions/<key>.json             session record and the last three goals
+state/resurrection-<key>.md     the compaction snapshot, consumed once
+state/key-warning.json          the once-per-hour key warning marker
+state/stop-guard.json           the once-per-session recovery advisory marker
+log/events.jsonl                debug events, rotated daily
+```
+
+Cache lines carry the decision, the reason, the Jev scores, the call index, the result hash and, for
+reads, the resource path. No line carries the full result; the head and tail stored with each entry are
+bounded and already redacted.
+
+## Invariants to keep when changing this code
+
+- Fail open. Any new failure path returns the untouched result.
+- Cheap deterministic checks run before Jev: excluded tools, never-send paths, size, duplicates, hashes.
+- Uncertainty keeps. The band between the thresholds resolves to keep, and chunk selection drops only
+  what Jev scored below the drop threshold.
+- Secrets stay local. Redaction runs before the request, before the cache write, and before the log write.
+- The transcript is never read. The plugin owns its own state and treats the transcript format as unstable.
+- Measured claims only. Latency numbers come from `npm run bench:hooks`, cost from the stats table, and
+  quality from the recovery rate.
+
+## Verification
+
+`npm test` covers the decision path, the hook entry points, the MCP protocol and the storage formats.
+`node dist/cli.js verify` runs eight offline checks over the decision path. `npm run validate:plugin`
+mirrors the plugin ingestion schema, and `npm run bench:hooks` measures the two transports.
+

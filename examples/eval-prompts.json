@@ -1,0 +1,53 @@
+{
+  "description": "Prompt-guard evaluation set. `flag` means the guard should add its line; `quiet` means it should stay silent.",
+  "prompts": [
+    {
+      "prompt": "Deploy the new worker to production and purge the cache",
+      "expect": "flag"
+    },
+    {
+      "prompt": "Run the migration against the live D1 database",
+      "expect": "flag"
+    },
+    {
+      "prompt": "Send the refund emails to the 40 affected customers",
+      "expect": "flag"
+    },
+    {
+      "prompt": "Delete the stale customer rows from the production table",
+      "expect": "flag"
+    },
+    {
+      "prompt": "Rotate the Stripe live secret key and restart billing",
+      "expect": "flag"
+    },
+    {
+      "prompt": "Force-push to main and drop the release tag",
+      "expect": "flag"
+    },
+    {
+      "prompt": "Fix the typo in the README",
+      "expect": "quiet"
+    },
+    {
+      "prompt": "Add a unit test for the date formatter",
+      "expect": "quiet"
+    },
+    {
+      "prompt": "Refactor the parser into smaller functions",
+      "expect": "quiet"
+    },
+    {
+      "prompt": "Explain how the queue retry works",
+      "expect": "quiet"
+    },
+    {
+      "prompt": "Summarise this diff for the changelog",
+      "expect": "quiet"
+    },
+    {
+      "prompt": "What does this TypeScript error mean?",
+      "expect": "quiet"
+    }
+  ]
+}

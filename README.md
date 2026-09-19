@@ -389,6 +389,20 @@ The script refuses to start unless the tree is clean and you are on `main`, and 
 
 Add `--skip-github` to stop once the tag is pushed.
 
+## More documentation
+
+[docs/architecture.md](docs/architecture.md) has the decision path, the module map and the storage layout.
+
+### Evaluation tooling
+
+`node scripts/eval-prompts.mjs` prints the labelled prompt set offline, and `--live` sends each prompt through the real guard and reports accuracy, false positives and false negatives. `npm run bench:hooks` measures the two hook transports.
+
+### Upgrading from 0.x
+
+Nothing needs migrating by hand. Every configuration field added after 0.5.1 is additive with a safe default, so an existing `config.json` keeps working. Older cache lines simply miss the newer fields, which means duplicate detection, recovery scoring and policy matching start fresh from the next call.
+
+One thing does change. The hooks now run through the bundled MCP server, so trust them again in `/hooks` after updating: Codex skips plugin hooks until the current definition is reviewed. If your Codex build cannot use MCP tool hooks, copy `hooks/hooks.command.json` over `hooks/hooks.json` and trust them again; that is the same behaviour as 0.x.
+
 ## Attribution
 
 Derived from `tamaratran/fast-jev-compaction` (MIT) at commit `e3f262a7f4d42bd8dd32ced30d26176f7cb545b0`. The upstream copyright notice is retained in `LICENSE`.
