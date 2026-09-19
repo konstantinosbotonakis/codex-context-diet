@@ -15,7 +15,10 @@ export function classifyRecovery(entry, current, touches) {
     const at = Date.parse(entry.at);
     const after = touches.filter((touch) => {
         const touchedAt = Date.parse(touch.at);
-        return Number.isFinite(touchedAt) && (!Number.isFinite(at) || touchedAt > at);
+        // A write in the same millisecond as the drop counts as later, the same
+        // way duplicate invalidation reads it: the conservative direction is the
+        // softer verdict, never a claim that the drop was needed again.
+        return Number.isFinite(touchedAt) && (!Number.isFinite(at) || touchedAt >= at);
     });
     const resource = resourceOf(current.toolName, current.inputLine);
     if (resource !== null && after.some((touch) => touch.paths.includes('*') || touch.paths.includes(resource))) {

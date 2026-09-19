@@ -124,6 +124,12 @@ describe('recovery classification', () => {
     expect(verdict.classification).toBe('likely_recovery');
   });
 
+  it('treats a write in the same millisecond as later, like duplicate invalidation does', () => {
+    const same = { at: dropAt, tool: 'Write', paths: ['/repo/src/app.ts'] };
+    const verdict = classifyRecovery(entry({ at: dropAt }), { toolName: 'Bash', inputLine: 'npm test' }, [same]);
+    expect(verdict.classification).toBe('possible_rerun');
+  });
+
   it('records the classification with the rerun', async () => {
     const env = tempEnv({ debug: true, minTokens: 10 });
     env.CONTEXT_DIET_TEST_ANSWERS = JSON.stringify({
