@@ -69,6 +69,7 @@ Code owns the decision, using two thresholds in the shape of TypeSafe's guardrai
 
 - Keep when `needs_contents` reaches `keepThreshold` (0.5).
 - Replace the body with the note when `needs_contents` is at or below `dropThreshold` (0.25) and `replaceable` is at or above 0.5.
+- Replace only on a much lower score when the result looks like a failure: a tool error, an error-shaped line, or text that redaction rewrote needs `needs_contents` at or below 0.1 before it can be dropped. The live evaluation measured this rule cutting the false-drop count.
 - Keep when the answer falls between the two thresholds. Uncertainty resolves to the side that costs tokens rather than the side that loses information.
 - Keep when `replaceable` is below 0.5, whatever `needs_contents` says. A one-off value does not come back by re-running the command.
 - Keep and annotate when either hazard reaches `keepThreshold`.

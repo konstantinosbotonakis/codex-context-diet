@@ -14,9 +14,11 @@ set and the commit history rather than five separate releases.
 | 1.0 | Context Resurrection, subagent integration, optional Stop quality guard, evaluation corpus, documentation | shipped in 0.6.0 |
 
 Version 0.5.1 already carried the statistics table, log rotation and the key warning. The
-next release number after this work is therefore 0.6.0, and the version appears in three
-places that must agree: `package.json`, `plugin.json` and `.codex-plugin/plugin.json`.
-`npm run validate:plugin` fails when they disagree.
+version appears in three places that must agree: `package.json`, `plugin.json` and the
+generated `.codex-plugin/plugin.json`. `npm run validate:plugin` fails when they disagree.
+The 0.6.0 release shipped the 1.0 capability set; 0.6.1 closed the packaging, privacy, parity
+and evaluation gaps against the design document, and its live evaluation is published under
+`docs/evals/`.
 
 ## Cutting a release
 
@@ -43,4 +45,3 @@ matches the current `src/`.
   plugin keeps its own state instead
 - released evaluation numbers against a large private workload: the corpus and the harness
   ship, the numbers in the README come from the runs described there
-
