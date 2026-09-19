@@ -6,6 +6,7 @@ import { keyFilePath, resolveApiKey } from './key.js';
 import { readUsageInput, renderUsage, summarizeUsage, WINDOWS } from './stats.js';
 import { PRESSURE_THRESHOLDS, type PressureStage } from './pressure.js';
 import { resolveEffectivePolicy } from './policy.js';
+import { renderEvalReport, runEvaluation } from './eval.js';
 import { fakeAsker, throwingAsker, verifyCompaction } from './verify.js';
 
 const USAGE = [
@@ -14,6 +15,7 @@ const USAGE = [
   '  status   show configuration, key source and data directory (offline)',
   '  stats    usage totals for today, 7 days and 30 days (offline)',
   '  policy   the size gate, thresholds and pressure scaling per tool (offline)',
+  '  eval     run the offline decision corpus, and --live to ask real Jev',
   '  verify   run the offline verification harness (no network)',
   '  test     send one real request to TypeSafe/Jev (needs a key)',
   '',
@@ -162,11 +164,26 @@ async function policyReport(): Promise<number> {
   return 0;
 }
 
+/** The decision corpus. Offline by default; `--live` asks the real model. */
+async function evalCommand(): Promise<number> {
+  const live = process.argv.includes('--live');
+  try {
+    const report = await runEvaluation({ live });
+    process.stdout.write(renderEvalReport(report) + '\n');
+    if (live) return 0;
+    return report.metrics.falseDrops > 0 ? 1 : 0;
+  } catch (error) {
+    process.stderr.write('eval failed: ' + (error instanceof Error ? error.message : String(error)) + '\n');
+    return 1;
+  }
+}
+
 const command = process.argv[2] ?? '';
 
 if (command === 'status') process.exitCode = await status();
 else if (command === 'stats') process.exitCode = await stats();
 else if (command === 'policy') process.exitCode = await policyReport();
+else if (command === 'eval') process.exitCode = await evalCommand();
 else if (command === 'verify') process.exitCode = await verify();
 else if (command === 'test') process.exitCode = await live();
 else process.stdout.write(USAGE);

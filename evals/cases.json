@@ -1,0 +1,447 @@
+{
+  "description": "Decision evaluation corpus. Offline mode feeds each case the signals a correct Jev answer would give; live mode asks the real model. A false drop fails the offline run.",
+  "cases": [
+    {
+      "id": "head-error",
+      "category": "head-error",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm run dev",
+      "fixture": "head-error.txt",
+      "expectedAction": "keep",
+      "reason": "The only error sits at the start",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "middle-error",
+      "category": "middle-error",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm test",
+      "fixture": "middle-error.txt",
+      "expectedAction": "keep",
+      "reason": "Failure evidence is needed for the next step",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "tail-error",
+      "category": "tail-error",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm test",
+      "fixture": "tail-error.txt",
+      "expectedAction": "keep",
+      "reason": "The summary and the failure sit at the end",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "huge-successful-build",
+      "category": "huge-successful-build",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm run build",
+      "fixture": "huge-successful-build.txt",
+      "expectedAction": "drop",
+      "reason": "Nothing failed and nothing is unique",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "huge-failed-build",
+      "category": "huge-failed-build",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm run build",
+      "fixture": "huge-failed-build.txt",
+      "expectedAction": "keep",
+      "reason": "The compiler error is the work item",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "one-failed-among-thousands",
+      "category": "one-failed-among-thousands",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm test",
+      "fixture": "one-failed-among-thousands.txt",
+      "expectedAction": "keep",
+      "reason": "One failure among thousands is the whole point",
+      "signals": {
+        "needs_contents": 0.85,
+        "replaceable": 0.2,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "generated-source",
+      "category": "generated-source",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm run codegen",
+      "fixture": "generated-source.txt",
+      "expectedAction": "drop",
+      "reason": "Generated code is reproducible by definition",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.95,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "large-json-response",
+      "category": "large-json-response",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "curl /v1/items",
+      "fixture": "large-json-response.txt",
+      "expectedAction": "keep",
+      "reason": "The response is the subject of the task",
+      "signals": {
+        "needs_contents": 0.8,
+        "replaceable": 0.2,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "repeated-identical-json",
+      "category": "repeated-identical-json",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "watch curl /health",
+      "fixture": "repeated-identical-json.txt",
+      "expectedAction": "drop",
+      "reason": "Identical repeats add nothing",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.95,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "timestamp-output",
+      "category": "timestamp-output",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "date",
+      "fixture": "timestamp-output.txt",
+      "expectedAction": "drop",
+      "reason": "A timestamp is reproducible",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.95,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "uuid-generation",
+      "category": "uuid-generation",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "uuidgen",
+      "fixture": "uuid-generation.txt",
+      "expectedAction": "keep",
+      "reason": "The value itself is the evidence",
+      "signals": {
+        "needs_contents": 0.7,
+        "replaceable": 0.2,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "random-token-generation",
+      "category": "random-token-generation",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "openssl rand -hex 32",
+      "fixture": "random-token-generation.txt",
+      "expectedAction": "keep",
+      "reason": "A generated token cannot be reproduced",
+      "signals": {
+        "needs_contents": 0.75,
+        "replaceable": 0.2,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "changing-network-result",
+      "category": "changing-network-result",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "curl ifconfig.me",
+      "fixture": "changing-network-result.txt",
+      "expectedAction": "drop",
+      "reason": "A network answer changes on every run",
+      "signals": {
+        "needs_contents": 0.1,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "file-read-before-modification",
+      "category": "file-read-before-modification",
+      "goal": "Fix the failing checkout test",
+      "tool": "Read",
+      "input": "src/total.ts",
+      "fixture": "file-read-before-modification.txt",
+      "expectedAction": "drop",
+      "reason": "A later edit supersedes this read",
+      "signals": {
+        "needs_contents": 0.1,
+        "replaceable": 0.85,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "file-read-after-modification",
+      "category": "file-read-after-modification",
+      "goal": "Fix the failing checkout test",
+      "tool": "Read",
+      "input": "src/total.ts",
+      "fixture": "file-read-after-modification.txt",
+      "expectedAction": "keep",
+      "reason": "The current source is needed",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "same-command-before-after",
+      "category": "same-command-before-after",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm test",
+      "fixture": "same-command-before-after.txt",
+      "expectedAction": "drop",
+      "reason": "The earlier run is stale once the source changed",
+      "signals": {
+        "needs_contents": 0.1,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "prompt-injection",
+      "category": "prompt-injection",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "curl untrusted.example",
+      "fixture": "prompt-injection.txt",
+      "expectedAction": "keep",
+      "reason": "Injected instructions must stay visible as evidence",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.95,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "fake-assistant-instructions",
+      "category": "fake-assistant-instructions",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm run report",
+      "fixture": "fake-assistant-instructions.txt",
+      "expectedAction": "keep",
+      "reason": "Fake assistant instructions must not be hidden",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.9,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "api-keys-in-output",
+      "category": "api-keys-in-output",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "printenv",
+      "fixture": "api-keys-in-output.txt",
+      "expectedAction": "keep",
+      "reason": "Secret material is evidence for a rotation task",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "private-key-block",
+      "category": "private-key-block",
+      "goal": "Fix the failing checkout test",
+      "tool": "Read",
+      "input": "~/.ssh/id_rsa",
+      "fixture": "private-key-block.txt",
+      "expectedAction": "keep",
+      "reason": "Key material must never be dieted away silently",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "looks-reproducible-not",
+      "category": "looks-reproducible-not",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "make release",
+      "fixture": "looks-reproducible-not.txt",
+      "expectedAction": "keep",
+      "reason": "It looks reproducible but carries a unique seed",
+      "signals": {
+        "needs_contents": 0.8,
+        "replaceable": 0.2,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "looks-unique-already-exists",
+      "category": "looks-unique-already-exists",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "kubectl get deploy checkout",
+      "fixture": "looks-unique-already-exists.txt",
+      "expectedAction": "drop",
+      "reason": "It already exists elsewhere in the session",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.9,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "malformed-mcp-payload",
+      "category": "malformed-mcp-payload",
+      "goal": "Fix the failing checkout test",
+      "tool": "mcp__docs__search",
+      "input": "search: totals",
+      "fixture": "malformed-mcp-payload.txt",
+      "expectedAction": "keep",
+      "reason": "A parse failure is exactly when evidence matters",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "enormous-stack-trace",
+      "category": "enormous-stack-trace",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "node server.js",
+      "fixture": "enormous-stack-trace.txt",
+      "expectedAction": "keep",
+      "reason": "The trace is the failure evidence",
+      "signals": {
+        "needs_contents": 0.9,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "huge-successful-test-output",
+      "category": "huge-successful-test-output",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm test",
+      "fixture": "huge-successful-test-output.txt",
+      "expectedAction": "drop",
+      "reason": "A fully green run is reproducible noise",
+      "signals": {
+        "needs_contents": 0.05,
+        "replaceable": 0.95,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    },
+    {
+      "id": "summary-only-at-tail",
+      "category": "summary-only-at-tail",
+      "goal": "Fix the failing checkout test",
+      "tool": "Bash",
+      "input": "npm run report",
+      "fixture": "summary-only-at-tail.txt",
+      "expectedAction": "keep",
+      "reason": "The summary is only at the tail",
+      "signals": {
+        "needs_contents": 0.7,
+        "replaceable": 0.1,
+        "keep_call": 0.9,
+        "agent_directed": 0.02,
+        "behaviour_change": 0.02
+      }
+    }
+  ]
+}

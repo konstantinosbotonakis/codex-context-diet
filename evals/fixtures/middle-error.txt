@@ -1,0 +1,5 @@
+{{FILL:2500}}
+FAIL tests/checkout.test.ts
+AssertionError: expected 200, received 500
+  at tests/checkout.test.ts:182:11
+{{FILL:2500}}

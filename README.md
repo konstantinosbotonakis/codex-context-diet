@@ -422,9 +422,16 @@ It cannot loop: `stop_hook_active` is respected, each turn has an intervention c
 
 [docs/architecture.md](docs/architecture.md) has the decision path, the module map and the storage layout.
 
+
 ### Evaluation tooling
 
-`node scripts/eval-prompts.mjs` prints the labelled prompt set offline, and `--live` sends each prompt through the real guard and reports accuracy, false positives and false negatives. `npm run bench:hooks` measures the two hook transports.
+Two evaluation surfaces ship with the plugin.
+
+`node dist/cli.js eval` runs the decision corpus in `evals/`: 26 fixtures covering errors at the head, middle and tail, huge green and red builds, one failure among thousands, generated code, large JSON, identical repeats, timestamps, UUIDs, random tokens, changing network answers, file reads before and after an edit, injections, secret material, malformed MCP payloads, enormous stack traces and tail-only summaries. Offline mode feeds each case the signals a correct Jev answer would give, so the deterministic pipeline is what is under test, and one false drop fails the run. Add `--live` to ask the real model and get tokens and cost instead.
+
+`node scripts/eval-prompts.mjs [--live]` does the same for the prompt guard's labelled prompt set.
+
+The report covers cases, correct decisions, false keeps, false drops and the wrong-drop rate, drop precision, keep recall, replacement rate, mean and median compression, Jev calls, tokens, estimated cost, and p50 and p95 latency. The target is a wrong-drop rate under 1 percent; the offline corpus currently reports zero across all 26 cases. Add a regression fixture whenever a real incorrect decision is found.
 
 ### Upgrading from 0.x
 

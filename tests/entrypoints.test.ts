@@ -57,6 +57,12 @@ describe('built entry points', () => {
     expect(out).toContain('resolution at critical pressure:');
   });
 
+  it('eval command runs the decision corpus offline', () => {
+    const out = execFileSync('node', [join(root, 'dist', 'cli.js'), 'eval'], { encoding: 'utf8' });
+    expect(out).toContain('Context Diet decision evaluation (offline)');
+    expect(out).toContain('false drops:      0');
+  });
+
   it('subagent hook returns the result contract as JSON', () => {
     const out = run(
       'subagent-main.js',

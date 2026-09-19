@@ -1,0 +1,2 @@
+{"service": "checkout", "replicas": 3, "region": "eu-west-1"}
+{{FILL:700}}
