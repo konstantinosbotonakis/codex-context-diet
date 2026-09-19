@@ -55,6 +55,8 @@ The settings worth tuning:
   injects it on the first prompt after, once. `snapshotMaxChars` bounds that snapshot.
 - `subagentGuard` (default on) gives subagents a result contract and judges their finished result
   before it returns to the parent, asking for one revision at most.
+- `qualityGuard` (default off) checks the final message on Stop for an unfinished request, missing
+  verification, a known failure or an unsupported claim, and asks for one continuation at most.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 

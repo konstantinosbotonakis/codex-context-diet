@@ -225,7 +225,10 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "snapshotMaxChars": 1500,
   "subagentGuard": true,
   "subagentGuardThreshold": 0.8,
-  "subagentGuardMaxInterventions": 1
+  "subagentGuardMaxInterventions": 1,
+  "qualityGuard": false,
+  "qualityGuardThreshold": 0.8,
+  "qualityGuardMaxInterventions": 1
 }
 ```
 
@@ -271,6 +274,9 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `subagentGuard` | hand subagents a result contract and judge their result before it returns |
 | `subagentGuardThreshold` | Jev score at or above which the subagent result passes each check |
 | `subagentGuardMaxInterventions` | how many times one subagent can be asked to revise |
+| `qualityGuard` | optional completion-quality check on Stop, off until the evaluation corpus supports it |
+| `qualityGuardThreshold` | Jev score at or above which a quality problem blocks completion |
+| `qualityGuardMaxInterventions` | how many continuations one turn can be asked for |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
@@ -402,6 +408,12 @@ Add `--skip-github` to stop once the tag is pushed.
 `SubagentStart` hands every subagent a short result contract: conclusion, relevant files, important evidence, what was tested, unresolved questions, and no raw logs unless they support a conclusion. `SubagentStop` asks Jev four separate questions about the finished message, then deterministic policy decides. A padded result is asked to condense, and a result that is not actionable or missing evidence is asked to finish and summarise.
 
 Loop safety is layered: a subagent that Codex already continued is never asked again, each agent has a revision cap, short messages are ignored, and any failure means the result passes through untouched. Revisions are counted separately from diet decisions.
+
+### Optional completion guard
+
+`qualityGuard` is off by default. When it is on, `Stop` runs four independent Jev checks over the final message: was the request satisfied, was the result verified, is a known failure still unresolved, and is a claim unsupported. Deterministic policy decides, and a failing check returns a continuation reason such as `Verification is incomplete. Run the relevant test suite before completing.`.
+
+It cannot loop: `stop_hook_active` is respected, each turn has an intervention cap, and any failure lets the turn finish. Enable it only after running the evaluation corpus against your own workload.
 
 [docs/architecture.md](docs/architecture.md) has the decision path, the module map and the storage layout.
 

@@ -62,6 +62,10 @@ export interface DietConfig {
   subagentGuard: boolean;
   subagentGuardThreshold: number;
   subagentGuardMaxInterventions: number;
+  /** Opt-in completion-quality guard on Stop. Off until the corpus supports it. */
+  qualityGuard: boolean;
+  qualityGuardThreshold: number;
+  qualityGuardMaxInterventions: number;
 }
 
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
@@ -101,6 +105,9 @@ export const DEFAULT_CONFIG: DietConfig = {
   subagentGuard: true,
   subagentGuardThreshold: 0.8,
   subagentGuardMaxInterventions: 1,
+  qualityGuard: false,
+  qualityGuardThreshold: 0.8,
+  qualityGuardMaxInterventions: 1,
 };
 
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
@@ -204,6 +211,11 @@ export function resolveConfig(raw: unknown): DietConfig {
     subagentGuardThreshold: num(o.subagentGuardThreshold, DEFAULT_CONFIG.subagentGuardThreshold),
     subagentGuardMaxInterventions: Math.floor(
       num(o.subagentGuardMaxInterventions, DEFAULT_CONFIG.subagentGuardMaxInterventions),
+    ),
+    qualityGuard: bool(o.qualityGuard, DEFAULT_CONFIG.qualityGuard),
+    qualityGuardThreshold: num(o.qualityGuardThreshold, DEFAULT_CONFIG.qualityGuardThreshold),
+    qualityGuardMaxInterventions: Math.floor(
+      num(o.qualityGuardMaxInterventions, DEFAULT_CONFIG.qualityGuardMaxInterventions),
     ),
   };
   if (typeof o.apiKey === 'string' && o.apiKey.length > 0) config.apiKey = o.apiKey;

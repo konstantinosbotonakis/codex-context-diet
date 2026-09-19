@@ -71,6 +71,10 @@ export interface DietConfig {
     subagentGuard: boolean;
     subagentGuardThreshold: number;
     subagentGuardMaxInterventions: number;
+    /** Opt-in completion-quality guard on Stop. Off until the corpus supports it. */
+    qualityGuard: boolean;
+    qualityGuardThreshold: number;
+    qualityGuardMaxInterventions: number;
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;

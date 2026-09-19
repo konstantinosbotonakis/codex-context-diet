@@ -364,7 +364,10 @@ plugin reinstalls and is never committed.
   "snapshotMaxChars": 1500,
   "subagentGuard": true,
   "subagentGuardThreshold": 0.8,
-  "subagentGuardMaxInterventions": 1
+  "subagentGuardMaxInterventions": 1,
+  "qualityGuard": false,
+  "qualityGuardThreshold": 0.8,
+  "qualityGuardMaxInterventions": 1
 }
 ```
 

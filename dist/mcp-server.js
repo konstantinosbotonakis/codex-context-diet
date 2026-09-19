@@ -23,6 +23,7 @@ import { main as adapterMain } from './codex/adapter.js';
 import { main as sessionMain } from './codex/session.js';
 import { handleCompaction } from './codex/compaction.js';
 import { handleSubagent } from './codex/subagent.js';
+import { handleStop } from './codex/qualityGuard.js';
 import { createAsker } from './codex/transport.js';
 import { readRecoveries } from './cache.js';
 import { loadConfig, pluginDataDir } from './config.js';
@@ -57,6 +58,11 @@ const TOOLS = [
     tool('subagent_stop', 'Judge whether a finished subagent result is ready for the parent, and ask for one revision when it is not.', {
         agent_id: { type: 'string' },
         agent_type: { type: 'string' },
+        last_assistant_message: { type: 'string' },
+        stop_hook_active: { type: 'boolean' },
+    }, []),
+    tool('quality_guard', 'Optional completion-quality check for the Stop event. Off unless qualityGuard is enabled; returns a continuation reason when the turn should not finish yet.', {
+        turn_id: { type: 'string' },
         last_assistant_message: { type: 'string' },
         stop_hook_active: { type: 'boolean' },
     }, []),
@@ -137,6 +143,14 @@ async function callTool(name, args, env) {
         const config = loadConfig(env);
         appendEvent(env, config, { kind: 'session_event', event: text(args.event), session: text(args.session_id) });
         return ok('');
+    }
+    if (name === 'quality_guard') {
+        const output = await handleStop({
+            turn_id: text(args.turn_id),
+            last_assistant_message: text(args.last_assistant_message),
+            stop_hook_active: args.stop_hook_active === true,
+        }, env);
+        return ok(output);
     }
     if (name === 'subagent_start' || name === 'subagent_stop') {
         const output = await handleSubagent({

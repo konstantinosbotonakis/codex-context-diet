@@ -36,6 +36,9 @@ export const DEFAULT_CONFIG = {
     subagentGuard: true,
     subagentGuardThreshold: 0.8,
     subagentGuardMaxInterventions: 1,
+    qualityGuard: false,
+    qualityGuardThreshold: 0.8,
+    qualityGuardMaxInterventions: 1,
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -134,6 +137,9 @@ export function resolveConfig(raw) {
         subagentGuard: bool(o.subagentGuard, DEFAULT_CONFIG.subagentGuard),
         subagentGuardThreshold: num(o.subagentGuardThreshold, DEFAULT_CONFIG.subagentGuardThreshold),
         subagentGuardMaxInterventions: Math.floor(num(o.subagentGuardMaxInterventions, DEFAULT_CONFIG.subagentGuardMaxInterventions)),
+        qualityGuard: bool(o.qualityGuard, DEFAULT_CONFIG.qualityGuard),
+        qualityGuardThreshold: num(o.qualityGuardThreshold, DEFAULT_CONFIG.qualityGuardThreshold),
+        qualityGuardMaxInterventions: Math.floor(num(o.qualityGuardMaxInterventions, DEFAULT_CONFIG.qualityGuardMaxInterventions)),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;

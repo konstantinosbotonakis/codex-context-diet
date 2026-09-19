@@ -139,6 +139,21 @@
             "timeout": 5
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "mcp_tool",
+            "server": "context-diet",
+            "tool": "quality_guard",
+            "input": {
+              "turn_id": "${turn_id}",
+              "last_assistant_message": "${last_assistant_message}",
+              "stop_hook_active": "${stop_hook_active}"
+            },
+            "timeout": 10
+          }
+        ]
       }
     ]
   }

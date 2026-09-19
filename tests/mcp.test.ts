@@ -88,6 +88,7 @@ describe('the Context Diet MCP server', () => {
     expect(tools).toEqual([
       'post_tool_use', 'prompt_guard', 'stop_guard', 'session_event',
       'subagent_start', 'subagent_stop',
+      'quality_guard',
       'pre_compact', 'post_compact',
       'jev_boolean', 'jev_choice', 'jev_score',
     ]);
