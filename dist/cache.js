@@ -60,6 +60,52 @@ export function readTouches(env, sessionId) {
         return [];
     }
 }
+export function recoveryPath(env, sessionId) {
+    return join(sessionsDir(env), sessionKey(sessionId) + '.recoveries.jsonl');
+}
+export function appendRecovery(env, sessionId, recovery, limit = 500) {
+    let path;
+    try {
+        mkdirSync(sessionsDir(env), { recursive: true });
+        path = recoveryPath(env, sessionId);
+        appendFileSync(path, JSON.stringify(recovery) + '\n');
+    }
+    catch {
+        return;
+    }
+    try {
+        const lines = readFileSync(path, 'utf8').split('\n').filter((line) => line.trim().length > 0);
+        if (lines.length <= limit)
+            return;
+        const tmp = path + '.' + process.pid + '.tmp';
+        writeFileSync(tmp, lines.slice(-limit).join('\n') + '\n');
+        renameSync(tmp, path);
+    }
+    catch {
+        // Trimming is best effort, like the touch log.
+    }
+}
+export function readRecoveries(env, sessionId) {
+    try {
+        const records = [];
+        for (const line of readFileSync(recoveryPath(env, sessionId), 'utf8').split('\n')) {
+            if (line.trim().length === 0)
+                continue;
+            try {
+                const parsed = JSON.parse(line);
+                if (parsed && typeof parsed === 'object' && typeof parsed.of === 'string')
+                    records.push(parsed);
+            }
+            catch {
+                // skip
+            }
+        }
+        return records;
+    }
+    catch {
+        return [];
+    }
+}
 function isEntry(value) {
     if (!value || typeof value !== 'object')
         return false;

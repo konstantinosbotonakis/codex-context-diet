@@ -45,6 +45,8 @@ export interface DietConfig {
     chunkMaxChars: number;
     chunkMaxChunks: number;
     chunkMaxInclude: number;
+    /** How long after a drop an identical call still counts as a recovery. */
+    recoveryWindowMs: number;
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;

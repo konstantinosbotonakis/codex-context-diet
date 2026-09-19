@@ -24,6 +24,7 @@ export const DEFAULT_CONFIG = {
     chunkMaxChars: 24_000,
     chunkMaxChunks: 12,
     chunkMaxInclude: 3,
+    recoveryWindowMs: 600_000,
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -90,6 +91,7 @@ export function resolveConfig(raw) {
         chunkMaxChars: num(o.chunkMaxChars, DEFAULT_CONFIG.chunkMaxChars, 1),
         chunkMaxChunks: Math.floor(num(o.chunkMaxChunks, DEFAULT_CONFIG.chunkMaxChunks, 1)),
         chunkMaxInclude: Math.floor(num(o.chunkMaxInclude, DEFAULT_CONFIG.chunkMaxInclude)),
+        recoveryWindowMs: num(o.recoveryWindowMs, DEFAULT_CONFIG.recoveryWindowMs),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;

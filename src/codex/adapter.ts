@@ -1,4 +1,5 @@
 import { appendCache, appendTouch, readCache, readTouches } from '../cache.js';
+import { appendRecovery, readRecoveries } from '../cache.js';
 import { loadConfig, type DietConfig } from '../config.js';
 import { resolveApiKey } from '../key.js';
 import { estimateTokens } from '../state.js';
@@ -11,6 +12,7 @@ import { readGoal } from './session.js';
 import { createAsker } from './transport.js';
 import { isNeverSendInput, redactText } from '../privacy.js';
 import { DUPLICATE_REASON, findDuplicate, touchedPaths } from '../dedupe.js';
+import { detectRecovery, inputKey } from '../recovery.js';
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -88,6 +90,34 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
       config.dedupe &&
       !firstResult &&
       findDuplicate(toolName, safeInput, safeResultText, cache, readTouches(env, sessionId)) !== null;
+
+    // A later call with the same tool and input, soon after a dropped result,
+    // is scored as a recovery. It is an inference, not a certainty.
+    const recovery = detectRecovery(
+      cache,
+      readRecoveries(env, sessionId).map((record) => record.inputHash),
+      { toolName, inputLine: safeInput },
+      Date.now(),
+      config.recoveryWindowMs,
+    );
+    if (recovery !== null) {
+      appendRecovery(env, sessionId, {
+        of: recovery.entry.tool_use_id,
+        inputHash: inputKey(toolName, safeInput),
+        at: new Date().toISOString(),
+        tool: toolName,
+        afterMs: recovery.afterMs,
+        afterCalls: recovery.afterCalls,
+      });
+      appendEvent(env, config, {
+        kind: 'recovery',
+        tool: toolName,
+        of: recovery.entry.tool_use_id,
+        reason: recovery.entry.reason ?? recovery.entry.decision,
+        afterMs: recovery.afterMs,
+        afterCalls: recovery.afterCalls,
+      });
+    }
     const { goal, goalIndex } = readGoal(env, sessionId);
     const { key } = resolveApiKey(config, env);
     // CONTEXT_DIET_TEST_ANSWERS is a tests-only transport: it never reaches the

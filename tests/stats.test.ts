@@ -61,6 +61,7 @@ describe('usage windows', () => {
           { at: at(0), kind: 'prompt_guard', flagged: false },
           { at: at(0), kind: 'key_missing' },
           { at: at(0), kind: 'diet', reason: DUPLICATE_REASON },
+          { at: at(0), kind: 'recovery', tool: 'Bash', of: 't1', afterMs: 1000, afterCalls: 3 },
           { at: new Date(NOW.getTime() + 60_000).toISOString(), kind: 'diet', reason: JEV_REASONS.stale },
         ],
       }),
@@ -68,8 +69,9 @@ describe('usage windows', () => {
     );
     expect(report.windows[0]).toMatchObject({
       jevCalls: 2, guardRuns: 2, guardFlags: 1, keyWarnings: 1, deterministicDrops: 1,
+      recoveryReruns: 1, recoveryCalls: 3,
     });
-    expect(report.logLines).toBe(10);
+    expect(report.logLines).toBe(11);
   });
 
   it('adds up input tokens and cost from the usage the API reported', () => {
@@ -138,6 +140,27 @@ describe('usage table', () => {
     expect(table).toContain('2,000');
     expect(table).toContain('0.042 USD per million input tokens');
     expect(table).toContain('Cost is a lower bound: 1 call recorded no usage.');
+  });
+
+  it('reports recovery reruns and the net useful replacements', () => {
+    const table = renderUsage(
+      summarizeUsage(
+        usage({
+          sessions: [
+            { sessionId: 's1', entries: [cacheEntry(0, 'drop_result', 1000), cacheEntry(0, 'keep', 500)] },
+          ],
+          events: [
+            { at: at(0), kind: 'diet', reason: JEV_REASONS.stale },
+            { at: at(0), kind: 'recovery', tool: 'Bash', of: 't1', afterMs: 1000, afterCalls: 4 },
+          ],
+        }),
+        JEV_REASON_VALUES,
+      ),
+      { timeZone: 'UTC', now: NOW },
+    );
+    expect(table).toContain('recovery reruns');
+    expect(table).toContain('net useful replacements');
+    expect(table).toContain('Recoveries were re-run 4.0 tool calls after the drop on average.');
   });
 });
 

@@ -36,6 +36,8 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
         guardFlags: 0,
         keyWarnings: 0,
         deterministicDrops: 0,
+        recoveryReruns: 0,
+        recoveryCalls: 0,
     }));
     const seen = windows.map(() => new Set());
     let earliest = null;
@@ -72,6 +74,13 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
         bump(when, (window) => {
             if (tokens !== null)
                 window.jevTokens += tokens;
+            if (kind === 'recovery') {
+                window.recoveryReruns += 1;
+                if (typeof event.afterCalls === 'number' && Number.isFinite(event.afterCalls)) {
+                    window.recoveryCalls += event.afterCalls;
+                }
+                return;
+            }
             if (kind === 'prompt_guard') {
                 window.guardRuns += 1;
                 if (event.flagged === true)
@@ -144,7 +153,7 @@ export function renderUsage(report, options) {
         ['  roughly tokens', (w) => '~' + formatNumber(Math.round(w.charsDropped / 4))],
     ];
     if (report.logLines > 0) {
-        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['  deterministic drops', (w) => formatNumber(w.deterministicDrops)], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)]);
+        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['  deterministic drops', (w) => formatNumber(w.deterministicDrops)], ['  recovery reruns', (w) => formatNumber(w.recoveryReruns)], ['  recovery rate', (w) => (w.replaced === 0 ? '0%' : Math.round((w.recoveryReruns / w.replaced) * 100) + '%')], ['  net useful replacements', (w) => formatNumber(Math.max(0, w.replaced - w.recoveryReruns))], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)]);
     }
     const labelWidth = Math.max(...rows.map(([label]) => label.length));
     const cells = rows.map(([, value]) => report.windows.map(value));
@@ -167,6 +176,11 @@ export function renderUsage(report, options) {
         if (missing > 0) {
             lines.push('Cost is a lower bound: ' + missing + ' call' + (missing === 1 ? '' : 's') + ' recorded no usage.');
         }
+    }
+    if (widest !== undefined && widest.recoveryReruns > 0) {
+        const average = (widest.recoveryCalls / widest.recoveryReruns).toFixed(1);
+        lines.push('');
+        lines.push('Recoveries were re-run ' + average + ' tool calls after the drop on average. This is inferred from repeated commands and re-reads, so an intentional rerun counts too.');
     }
     return lines.join('\n');
 }

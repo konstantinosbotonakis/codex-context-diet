@@ -213,7 +213,8 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "chunkMinChars": 20000,
   "chunkMaxChars": 24000,
   "chunkMaxChunks": 12,
-  "chunkMaxInclude": 3
+  "chunkMaxInclude": 3,
+  "recoveryWindowMs": 600000
 }
 ```
 
@@ -247,6 +248,7 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `chunkMaxChars` | sampled characters sent to the chunk request |
 | `chunkMaxChunks` | maximum chunks in one chunk request |
 | `chunkMaxInclude` | maximum chunks that can end up in the capsule |
+| `recoveryWindowMs` | how long after a drop an identical call still counts as a recovery |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
@@ -290,6 +292,8 @@ The table counts sessions, results judged, results replaced, the replaced share,
 Repeated commands are handled before Jev is asked: a result that is byte-identical to one the session already holds is replaced with a short note, counted as a deterministic drop rather than a Jev call. A file read stops counting as a duplicate once something writes to that file.
 
 For output above `chunkMinChars` that is already being dropped, one extra request splits a bounded sample into chunks and asks whether each one still matters. The chunks that matter ride along in the capsule, and only the clearly unnecessary ones are left out, so uncertainty keeps evidence. The request never changes the keep or drop decision.
+
+When a dropped result is re-run soon afterwards, the table counts one recovery, with rows for recovery reruns, recovery rate and net useful replacements. The match uses the tool and the normalised input, so an intentional rerun looks the same and is counted too. Recovery is the quality metric that matters: a drop that had to be undone was not a saving.
 
 Every Jev response reports token usage, so the table also adds up input tokens and prices them at `pricePerMillionInputTokens`, 0.042 USD per million input tokens by default, which is the published Jev input price. Output tokens are free. Calls recorded before usage was kept make the cost a lower bound, and the table says so when that applies.
 

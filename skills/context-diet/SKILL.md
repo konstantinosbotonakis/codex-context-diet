@@ -40,6 +40,8 @@ The settings worth tuning:
   a file read stops counting as a duplicate once something writes to that file.
 - `chunkRelevance` (default on) adds one extra request for exceptionally large dropped results,
   asking which chunks of a bounded sample belong in the capsule.
+- `recoveryWindowMs` (default 10 minutes) bounds how late a rerun of a dropped result still
+  counts as a recovery in the stats table.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 

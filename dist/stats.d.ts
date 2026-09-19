@@ -31,6 +31,10 @@ export interface UsageWindow {
     keyWarnings: number;
     /** Results removed because the session already held an identical one. */
     deterministicDrops: number;
+    /** Later calls that look like they re-ran a dropped result. */
+    recoveryReruns: number;
+    /** Sum of the tool calls between those drops and their reruns. */
+    recoveryCalls: number;
 }
 export interface UsageReport {
     windows: UsageWindow[];

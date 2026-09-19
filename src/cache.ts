@@ -9,6 +9,12 @@ export interface CacheEntry {
   hash?: string;
   /** File path for read-class results, so a later write can invalidate them. */
   resource?: string;
+  /** Why the decision went the way it did, so a later rerun can be scored. */
+  reason?: string;
+  /** The Jev scores that produced the decision, bounded to four numbers. */
+  scores?: { keepCall: number; needsContents: number; replaceable: number; injection: number | null };
+  /** Ordinal of this call within the session, as the cache counted it. */
+  callIndex?: number;
 }
 
 export interface TouchRecord {
@@ -16,6 +22,17 @@ export interface TouchRecord {
   tool: string;
   /** Paths this call could have written; `*` means unknown, treat everything as dirty. */
   paths: string[];
+}
+
+export interface RecoveryRecord {
+  /** tool_use_id of the dropped result this call appears to be re-running. */
+  of: string;
+  /** Key for the tool and input, so one input scores a recovery once. */
+  inputHash: string;
+  at: string;
+  tool: string;
+  afterMs: number;
+  afterCalls: number;
 }
 
 const UNSAFE = /[^A-Za-z0-9._-]+/g;
@@ -78,6 +95,53 @@ export function readTouches(env: NodeJS.ProcessEnv, sessionId: string): TouchRec
       }
     }
     return touches;
+  } catch {
+    return [];
+  }
+}
+
+export function recoveryPath(env: NodeJS.ProcessEnv, sessionId: string): string {
+  return join(sessionsDir(env), sessionKey(sessionId) + '.recoveries.jsonl');
+}
+
+export function appendRecovery(
+  env: NodeJS.ProcessEnv,
+  sessionId: string,
+  recovery: RecoveryRecord,
+  limit = 500,
+): void {
+  let path: string;
+  try {
+    mkdirSync(sessionsDir(env), { recursive: true });
+    path = recoveryPath(env, sessionId);
+    appendFileSync(path, JSON.stringify(recovery) + '\n');
+  } catch {
+    return;
+  }
+  try {
+    const lines = readFileSync(path, 'utf8').split('\n').filter((line) => line.trim().length > 0);
+    if (lines.length <= limit) return;
+    const tmp = path + '.' + process.pid + '.tmp';
+    writeFileSync(tmp, lines.slice(-limit).join('\n') + '\n');
+    renameSync(tmp, path);
+  } catch {
+    // Trimming is best effort, like the touch log.
+  }
+}
+
+export function readRecoveries(env: NodeJS.ProcessEnv, sessionId: string): RecoveryRecord[] {
+  try {
+    const records: RecoveryRecord[] = [];
+    for (const line of readFileSync(recoveryPath(env, sessionId), 'utf8').split('\n')) {
+      if (line.trim().length === 0) continue;
+      try {
+        const parsed = JSON.parse(line) as RecoveryRecord;
+        if (parsed && typeof parsed === 'object' && typeof parsed.of === 'string') records.push(parsed);
+      } catch {
+        // skip
+      }
+    }
+    return records;
   } catch {
     return [];
   }

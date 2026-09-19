@@ -39,6 +39,10 @@ export interface UsageWindow {
   keyWarnings: number;
   /** Results removed because the session already held an identical one. */
   deterministicDrops: number;
+  /** Later calls that look like they re-ran a dropped result. */
+  recoveryReruns: number;
+  /** Sum of the tool calls between those drops and their reruns. */
+  recoveryCalls: number;
 }
 
 export interface UsageReport {
@@ -90,6 +94,8 @@ export function summarizeUsage(
     guardFlags: 0,
     keyWarnings: 0,
     deterministicDrops: 0,
+    recoveryReruns: 0,
+    recoveryCalls: 0,
   }));
   const seen = windows.map(() => new Set<string>());
   let earliest: number | null = null;
@@ -125,6 +131,13 @@ export function summarizeUsage(
       typeof event.inputTokens === 'number' && Number.isFinite(event.inputTokens) ? event.inputTokens : null;
     bump(when, (window) => {
       if (tokens !== null) window.jevTokens += tokens;
+      if (kind === 'recovery') {
+        window.recoveryReruns += 1;
+        if (typeof event.afterCalls === 'number' && Number.isFinite(event.afterCalls)) {
+          window.recoveryCalls += event.afterCalls;
+        }
+        return;
+      }
       if (kind === 'prompt_guard') {
         window.guardRuns += 1;
         if (event.flagged === true) window.guardFlags += 1;
@@ -213,6 +226,9 @@ export function renderUsage(report: UsageReport, options: RenderOptions): string
       ['  prompts flagged', (w) => formatNumber(w.guardFlags)],
       ['key warnings', (w) => formatNumber(w.keyWarnings)],
       ['  deterministic drops', (w) => formatNumber(w.deterministicDrops)],
+      ['  recovery reruns', (w) => formatNumber(w.recoveryReruns)],
+      ['  recovery rate', (w) => (w.replaced === 0 ? '0%' : Math.round((w.recoveryReruns / w.replaced) * 100) + '%')],
+      ['  net useful replacements', (w) => formatNumber(Math.max(0, w.replaced - w.recoveryReruns))],
       ['Jev input tokens', (w) => formatNumber(w.jevTokens)],
       ['  estimated cost', (w) => formatCost(w.costUsd)],
     );
@@ -248,6 +264,11 @@ export function renderUsage(report: UsageReport, options: RenderOptions): string
     if (missing > 0) {
       lines.push('Cost is a lower bound: ' + missing + ' call' + (missing === 1 ? '' : 's') + ' recorded no usage.');
     }
+  }
+  if (widest !== undefined && widest.recoveryReruns > 0) {
+    const average = (widest.recoveryCalls / widest.recoveryReruns).toFixed(1);
+    lines.push('');
+    lines.push('Recoveries were re-run ' + average + ' tool calls after the drop on average. This is inferred from repeated commands and re-reads, so an intentional rerun counts too.');
   }
   return lines.join('\n');
 }

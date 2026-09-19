@@ -352,7 +352,8 @@ plugin reinstalls and is never committed.
   "chunkMinChars": 20000,
   "chunkMaxChars": 24000,
   "chunkMaxChunks": 12,
-  "chunkMaxInclude": 3
+  "chunkMaxInclude": 3,
+  "recoveryWindowMs": 600000
 }
 ```
 
