@@ -7,6 +7,8 @@ import { readUsageInput, renderUsage, summarizeUsage, WINDOWS } from './stats.js
 import { PRESSURE_THRESHOLDS, type PressureStage } from './pressure.js';
 import { resolveEffectivePolicy } from './policy.js';
 import { renderEvalReport, runEvaluation } from './eval.js';
+import { doctorExitCode, renderDoctor, runDoctor } from './doctor.js';
+import { renderBenchmark, runBenchmark } from './bench.js';
 import { fakeAsker, throwingAsker, verifyCompaction } from './verify.js';
 
 const USAGE = [
@@ -16,6 +18,8 @@ const USAGE = [
   '  stats    usage totals for today, 7 days and 30 days (offline)',
   '  policy   the size gate, thresholds and pressure scaling per tool (offline)',
   '  eval     run the offline decision corpus, and --live to ask real Jev',
+  '  benchmark measure local pipeline, command-hook and MCP latency (offline)',
+  '  doctor   check the install, key, storage, hooks and MCP runtime (offline)',
   '  verify   run the offline verification harness (no network)',
   '  test     send one real request to TypeSafe/Jev (needs a key)',
   '',
@@ -180,10 +184,27 @@ async function evalCommand(): Promise<number> {
 
 const command = process.argv[2] ?? '';
 
+/** Local latency measurement. `--live` is the only part that touches the network. */
+async function benchmark(): Promise<number> {
+  const iterations = Number(process.argv.find((value) => /^[0-9]+$/.test(value)) ?? 20);
+  const report = await runBenchmark({ iterations, live: process.argv.includes('--live') });
+  process.stdout.write(renderBenchmark(report) + '\n');
+  return 0;
+}
+
+/** Local health check. Exit 1 when a probe reports a hard failure. */
+async function doctor(): Promise<number> {
+  const checks = runDoctor(process.env);
+  process.stdout.write(renderDoctor(checks) + '\n');
+  return doctorExitCode(checks);
+}
+
 if (command === 'status') process.exitCode = await status();
 else if (command === 'stats') process.exitCode = await stats();
 else if (command === 'policy') process.exitCode = await policyReport();
 else if (command === 'eval') process.exitCode = await evalCommand();
+else if (command === 'benchmark') process.exitCode = await benchmark();
+else if (command === 'doctor') process.exitCode = await doctor();
 else if (command === 'verify') process.exitCode = await verify();
 else if (command === 'test') process.exitCode = await live();
 else process.stdout.write(USAGE);

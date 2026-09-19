@@ -87,6 +87,12 @@ function toolPolicies(raw) {
 /** Total: never throws, and never returns a field of the wrong type. */
 export function resolveConfig(raw) {
     const o = (raw && typeof raw === 'object' ? raw : {});
+    // Names the 1.0 specification proposed where this implementation chose a
+    // shorter one. Accepted as aliases so a config written against the spec
+    // keeps working. The canonical name wins when both are present.
+    const aliasDedupe = o.duplicateDetection;
+    const aliasPressure = o.adaptiveContextPressure;
+    const aliasChunkMaxCount = o.chunkMaxCount;
     const config = {
         enabled: bool(o.enabled, DEFAULT_CONFIG.enabled),
         mode: o.mode === 'observe' ? 'observe' : 'diet',
@@ -119,14 +125,14 @@ export function resolveConfig(raw) {
         capsuleMaxErrorLines: num(o.capsuleMaxErrorLines, DEFAULT_CONFIG.capsuleMaxErrorLines),
         capsuleMaxStackFrames: num(o.capsuleMaxStackFrames, DEFAULT_CONFIG.capsuleMaxStackFrames),
         capsuleMaxSummaryLines: num(o.capsuleMaxSummaryLines, DEFAULT_CONFIG.capsuleMaxSummaryLines),
-        dedupe: bool(o.dedupe, DEFAULT_CONFIG.dedupe),
+        dedupe: bool(o.dedupe, bool(aliasDedupe, DEFAULT_CONFIG.dedupe)),
         chunkRelevance: bool(o.chunkRelevance, DEFAULT_CONFIG.chunkRelevance),
         chunkMinChars: num(o.chunkMinChars, DEFAULT_CONFIG.chunkMinChars),
         chunkMaxChars: num(o.chunkMaxChars, DEFAULT_CONFIG.chunkMaxChars, 1),
-        chunkMaxChunks: Math.floor(num(o.chunkMaxChunks, DEFAULT_CONFIG.chunkMaxChunks, 1)),
+        chunkMaxChunks: Math.floor(num(o.chunkMaxChunks, num(aliasChunkMaxCount, DEFAULT_CONFIG.chunkMaxChunks, 1), 1)),
         chunkMaxInclude: Math.floor(num(o.chunkMaxInclude, DEFAULT_CONFIG.chunkMaxInclude)),
         recoveryWindowMs: num(o.recoveryWindowMs, DEFAULT_CONFIG.recoveryWindowMs),
-        contextPressure: bool(o.contextPressure, DEFAULT_CONFIG.contextPressure),
+        contextPressure: bool(o.contextPressure, bool(aliasPressure, DEFAULT_CONFIG.contextPressure)),
         pressureLowTokens: num(o.pressureLowTokens, DEFAULT_CONFIG.pressureLowTokens),
         pressureModerateTokens: num(o.pressureModerateTokens, DEFAULT_CONFIG.pressureModerateTokens),
         pressureHighTokens: num(o.pressureHighTokens, DEFAULT_CONFIG.pressureHighTokens),

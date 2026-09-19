@@ -17,6 +17,7 @@ afterEach(() => {
 interface Server {
   data: string;
   call: (method: string, params?: unknown) => Promise<Record<string, unknown>>;
+  child: ChildProcessWithoutNullStreams;
 }
 
 async function start(overrides: Record<string, string> = {}): Promise<Server> {
@@ -57,7 +58,7 @@ async function start(overrides: Record<string, string> = {}): Promise<Server> {
     clientInfo: { name: 'test', version: '1' },
   });
   expect(started.result).toBeTruthy();
-  return { data, call };
+  return { data, call, child };
 }
 
 const toolText = (response: Record<string, unknown>): string => {
@@ -166,5 +167,52 @@ describe('the Context Diet MCP server', () => {
     const response = await call('tools/call', { name: 'nope', arguments: {} });
     expect(isError(response)).toBe(true);
     expect(toolText(response)).toContain('unknown tool');
+  });
+
+  it('rejects a call that is missing a required argument', async () => {
+    const { call } = await start();
+    const response = await call('tools/call', { name: 'post_tool_use', arguments: { session_id: 's1' } });
+    expect(isError(response)).toBe(true);
+    expect(toolText(response)).toContain('missing required argument');
+    expect(toolText(response)).toContain('tool_name');
+  });
+
+  it('tolerates an extra argument instead of failing the session', async () => {
+    const { call } = await start({ CONTEXT_DIET_TEST_ANSWERS: dropAnswers });
+    const response = await call('tools/call', {
+      name: 'post_tool_use',
+      arguments: { ...bigPayload('t1'), future_field: 'ignored' },
+    });
+    expect(isError(response)).toBe(false);
+  });
+
+  it('reports an unknown method as a JSON-RPC error', async () => {
+    const { call } = await start();
+    const response = await call('not/a/method');
+    const error = response.error as { code?: number; message?: string };
+    expect(error?.code).toBe(-32601);
+    expect(error?.message).toContain('method not found');
+  });
+
+  it('survives a malformed line and keeps answering', async () => {
+    const { call, child } = await start();
+    child.stdin.write('{ this is not json\n');
+    const listed = await call('tools/list');
+    const tools = (listed.result as { tools: { name: string }[] }).tools;
+    expect(tools.length).toBeGreaterThan(0);
+  });
+
+  it('fails jev_boolean without a key instead of calling out', async () => {
+    const { call } = await start({
+      CONTEXT_DIET_TEST_ANSWERS: '',
+      TYPESAFE_API_KEY: '',
+      TYPESAFE_KEY_FILE: join(tmpdir(), 'cd-no-such-key-file'),
+    });
+    const response = await call('tools/call', {
+      name: 'jev_boolean',
+      arguments: { state: 'anything', question: 'Is this reachable?' },
+    });
+    expect(isError(response)).toBe(true);
+    expect(toolText(response)).toContain('no TypeSafe API key');
   });
 });

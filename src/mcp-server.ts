@@ -305,6 +305,23 @@ async function handle(message: Record<string, unknown>, env: NodeJS.ProcessEnv):
   if (method === 'tools/call') {
     const name = text(params.name);
     const args = (params.arguments && typeof params.arguments === 'object' ? params.arguments : {}) as Args;
+    const definition = TOOLS.find((entry) => entry.name === name);
+    if (!definition) return { jsonrpc: '2.0', id, result: fail('unknown tool: ' + name) };
+    // Required arguments are checked here so a missing field is a clear
+    // message instead of a silent no-op downstream. Extra fields are
+    // tolerated: a future host that adds one must not break the session.
+    const schema = definition.inputSchema as {
+      properties: Record<string, { type?: string }>;
+      required: string[];
+    };
+    const missing = schema.required.filter((key) => {
+      const value = args[key];
+      if (value === undefined || value === null) return true;
+      return schema.properties[key]?.type === 'string' && text(value).trim().length === 0;
+    });
+    if (missing.length > 0) {
+      return { jsonrpc: '2.0', id, result: fail('missing required argument(s): ' + missing.join(', ')) };
+    }
     try {
       return { jsonrpc: '2.0', id, result: await callTool(name, args, env) };
     } catch (error) {
