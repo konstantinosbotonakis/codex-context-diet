@@ -181,4 +181,38 @@ describe('capsule extras', () => {
     expect(found.text).toContain('AssertionError');
     expect(found.text.length).toBeLessThanOrEqual(600);
   });
+
+  it('retains a chunk that sits exactly on the drop threshold', async () => {
+    const exact = answering({ chunk_1_needed: DEFAULT_CONFIG.dropThreshold, chunk_2_needed: 0.0 });
+    const kept = await selectChunks(bigText, 'goal', exact.asker as never, config({ chunkMaxChunks: 2, chunkMaxInclude: 2 }));
+    expect(kept.ids).toContain(1);
+    expect(kept.ids).not.toContain(2);
+  });
+
+  it('keeps the deterministic capsule when there is no asker', async () => {
+    // The diet questions are answered, the chunk questions are not: the drop
+    // still happens and the deterministic capsule survives untouched.
+    const asker = {
+      async ask(_state: unknown, questions: Record<string, unknown>) {
+        const keys = Object.keys(questions);
+        if (keys.some((key) => key.startsWith('chunk_'))) throw new Error('chunk transport failed');
+        return {
+          answers: Object.fromEntries(
+            keys.map((key) => [key, { type: 'noul' as const, noul: (dropScores as Record<string, number>)[key] ?? 0.5 }]),
+          ),
+        };
+      },
+    };
+    const outcome = await runDiet({
+      input: input(bigText),
+      config: config({ minTokens: 10, chunkMinChars: 1000, chunkMaxChars: 2000, chunkMaxChunks: 3 }),
+      cache: [seed],
+      asker: asker as never,
+      goal: 'fix it',
+      firstResult: false,
+    } as never);
+    expect(outcome.decision.action).toBe('drop_result');
+    expect(outcome.chunkIds).toEqual([]);
+    expect(String(outcome.note)).toContain('[codex-context-diet evidence]');
+  });
 });

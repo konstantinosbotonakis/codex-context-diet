@@ -1,8 +1,9 @@
-import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { configPath, DEFAULT_CONFIG, type DietConfig } from '../src/config.js';
+import { cachePath } from '../src/cache.js';
 import { main as adapterMain } from '../src/codex/adapter.js';
 import { logPath } from '../src/codex/log.js';
 import { PRESSURE_THRESHOLDS, pressureStage, retainedTokens } from '../src/pressure.js';
@@ -126,5 +127,72 @@ describe('policies through the hook', () => {
     const log = readFileSync(logPath(env), 'utf8');
     expect(log).toContain('"reason":"below size floor"');
     expect(log).not.toContain('"decision"');
+  });
+});
+
+describe('context pressure safety', () => {
+  // 16 entries at 60,000 characters put the session well past the critical
+  // stage, which is the pressure that lowers the size gate the most.
+  const criticalEnv = (): NodeJS.ProcessEnv => {
+    const env = tempEnv({ debug: true, minTokens: 10, contextPressure: true });
+    const lines = Array.from({ length: 16 }, (_, index) =>
+      JSON.stringify({
+        tool_use_id: 'c' + index, tool_name: 'Bash', at: new Date().toISOString(),
+        input: 'npm run task-' + index, head: '', tail: '', chars: 60_000, decision: 'keep', goal_index: 0,
+      }),
+    ).join('\n') + '\n';
+    mkdirSync(join(env.PLUGIN_DATA as string, 'sessions'), { recursive: true });
+    writeFileSync(cachePath(env, 's1'), lines);
+    return env;
+  };
+
+  const bigResult = (over: Record<string, unknown> = {}): string =>
+    JSON.stringify({
+      hook_event_name: 'PostToolUse', session_id: 's1', tool_name: 'Bash', tool_use_id: 't1',
+      tool_input: { command: 'npm test' }, tool_response: { output: 'x'.repeat(40_000) },
+      ...over,
+    });
+
+  it('still keeps and annotates a hazard result at critical pressure', async () => {
+    const env = criticalEnv();
+    env.CONTEXT_DIET_TEST_ANSWERS = JSON.stringify({
+      needs_contents: 0.05, replaceable: 0.9, keep_call: 0.9, agent_directed: 0.9, behaviour_change: 0.9,
+    });
+    const parsed = JSON.parse(await adapterMain(bigResult(), env)) as Record<string, unknown>;
+    expect(parsed.decision).toBeUndefined();
+    const hook = parsed.hookSpecificOutput as Record<string, unknown>;
+    expect(String(hook.additionalContext)).toContain('untrusted data');
+    expect(readFileSync(logPath(env), 'utf8')).toContain('"pressure":"critical"');
+  });
+
+  it('still keeps an irreplaceable result at critical pressure', async () => {
+    const env = criticalEnv();
+    env.CONTEXT_DIET_TEST_ANSWERS = JSON.stringify({
+      needs_contents: 0.05, replaceable: 0.1, keep_call: 0.9, agent_directed: 0.02, behaviour_change: 0.02,
+    });
+    expect(await adapterMain(bigResult(), env)).toBe('');
+  });
+
+  it('still keeps an uncertain result at critical pressure', async () => {
+    const env = criticalEnv();
+    env.CONTEXT_DIET_TEST_ANSWERS = JSON.stringify({
+      needs_contents: 0.4, replaceable: 0.9, keep_call: 0.9, agent_directed: 0.02, behaviour_change: 0.02,
+    });
+    expect(await adapterMain(bigResult(), env)).toBe('');
+  });
+
+  it('still keeps an excluded path on the machine at critical pressure', async () => {
+    const env = criticalEnv();
+    env.CONTEXT_DIET_TEST_ANSWERS = JSON.stringify({
+      needs_contents: 0.05, replaceable: 0.9, keep_call: 0.9, agent_directed: 0.02, behaviour_change: 0.02,
+    });
+    const payload = JSON.stringify({
+      hook_event_name: 'PostToolUse', session_id: 's1', tool_name: 'Read', tool_use_id: 't2',
+      tool_input: { file_path: '/repo/.env' }, tool_response: { output: 'x'.repeat(40_000) },
+    });
+    expect(await adapterMain(payload, env)).toBe('');
+    const log = readFileSync(logPath(env), 'utf8');
+    expect(log).toContain('never_send');
+    expect(log).not.toContain('"kind":"diet"');
   });
 });

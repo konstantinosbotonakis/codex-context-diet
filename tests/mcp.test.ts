@@ -129,7 +129,7 @@ describe('the Context Diet MCP server', () => {
   });
 
   it('answers a score question through jev_score', async () => {
-    const spec = JSON.stringify({ answer: { score: 0.7, confidence: 0.8, probabilities: { low: 0.2, high: 0.8 } } });
+    const spec = JSON.stringify({ answer: { score: 0.7, confidence: 0.8, probabilities: { quiet: 0.1, noisy: 0.7, unusable: 0.2 } } });
     const { call } = await start({ CONTEXT_DIET_TEST_ANSWERS: spec });
     const response = await call('tools/call', {
       name: 'jev_score',
@@ -214,5 +214,55 @@ describe('the Context Diet MCP server', () => {
     });
     expect(isError(response)).toBe(true);
     expect(toolText(response)).toContain('no TypeSafe API key');
+  });
+
+  it('rejects a choice that was not among the options', async () => {
+    const { call } = await start({ CONTEXT_DIET_TEST_ANSWERS: JSON.stringify({ answer: { choice: 'elsewhere' } }) });
+    const response = await call('tools/call', {
+      name: 'jev_choice',
+      arguments: { state: 'anything', question: 'Where?', options: ['frontend', 'database'] },
+    });
+    expect(isError(response)).toBe(true);
+    expect(toolText(response)).toContain('not one of the supplied options');
+  });
+
+  it('rejects a score outside 0..1', async () => {
+    const { call } = await start({ CONTEXT_DIET_TEST_ANSWERS: JSON.stringify({ answer: { score: 7 } }) });
+    const response = await call('tools/call', {
+      name: 'jev_score',
+      arguments: { state: 'anything', question: 'How bad?', levels: ['quiet', 'loud'] },
+    });
+    expect(isError(response)).toBe(true);
+    expect(toolText(response)).toContain('outside 0..1');
+  });
+
+  it('rejects a probability outside 0..1', async () => {
+    const { call } = await start({ CONTEXT_DIET_TEST_ANSWERS: JSON.stringify({ answer: 1.5 }) });
+    const response = await call('tools/call', {
+      name: 'jev_boolean',
+      arguments: { state: 'anything', question: 'Is it up?' },
+    });
+    expect(isError(response)).toBe(true);
+    expect(toolText(response)).toContain('outside 0..1');
+  });
+
+  it('rejects malformed probabilities and unknown entries', async () => {
+    const malformed = JSON.stringify({ answer: { choice: 'database', probabilities: { database: 'high' } } });
+    const first = await start({ CONTEXT_DIET_TEST_ANSWERS: malformed });
+    const badShape = await first.call('tools/call', {
+      name: 'jev_choice',
+      arguments: { state: 'anything', question: 'Where?', options: ['frontend', 'database'] },
+    });
+    expect(isError(badShape)).toBe(true);
+    expect(toolText(badShape)).toContain('malformed probabilities');
+
+    const unknown = JSON.stringify({ answer: { choice: 'database', probabilities: { database: 0.8, cache: 0.2 } } });
+    const second = await start({ CONTEXT_DIET_TEST_ANSWERS: unknown });
+    const unknownEntry = await second.call('tools/call', {
+      name: 'jev_choice',
+      arguments: { state: 'anything', question: 'Where?', options: ['frontend', 'database'] },
+    });
+    expect(isError(unknownEntry)).toBe(true);
+    expect(toolText(unknownEntry)).toContain('entries that were not supplied');
   });
 });

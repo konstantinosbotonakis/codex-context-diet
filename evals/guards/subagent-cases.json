@@ -1,0 +1,102 @@
+{
+  "description": "Subagent guard evaluation. Offline mode feeds each case the scores a correct Jev answer would give; live mode asks the real model. Loop-protection cases are exercised by the test suite instead, because they never reach a model call.",
+  "cases": [
+    {
+      "id": "concise-complete",
+      "message": "Conclusion: the retry loop double-counts failures. Files: src/retry.ts lines 40-88. Evidence: the unit test failed with 2 assertions before the change and passes after. Tested: npm test -- retry. Unresolved: none.",
+      "expected": "allow",
+      "reason": "concise and complete",
+      "signals": {
+        "answer_actionable": 0.95,
+        "required_evidence_present": 0.9,
+        "contains_large_redundant_output": 0.05,
+        "request_satisfied": 0.95
+      }
+    },
+    {
+      "id": "incomplete-result",
+      "message": "I looked at the retry code and started changing things, but the investigation is not finished.",
+      "expected": "revise",
+      "reason": "the request is unanswered",
+      "signals": {
+        "answer_actionable": 0.2,
+        "required_evidence_present": 0.4,
+        "contains_large_redundant_output": 0.05,
+        "request_satisfied": 0.2
+      }
+    },
+    {
+      "id": "unsupported-conclusion",
+      "message": "The bug is in the retry loop and it is fixed now.",
+      "expected": "revise",
+      "reason": "no evidence behind the conclusion",
+      "signals": {
+        "answer_actionable": 0.85,
+        "required_evidence_present": 0.1,
+        "contains_large_redundant_output": 0.05,
+        "request_satisfied": 0.9
+      }
+    },
+    {
+      "id": "evidence-missing",
+      "message": "I changed several files and the tests should pass now.",
+      "expected": "revise",
+      "reason": "no files, commands or outcomes named",
+      "signals": {
+        "answer_actionable": 0.4,
+        "required_evidence_present": 0.1,
+        "contains_large_redundant_output": 0.1,
+        "request_satisfied": 0.6
+      }
+    },
+    {
+      "id": "raw-log-dump",
+      "message": "[2000 lines of raw stdout]\n\nSummary: fixed it.",
+      "expected": "revise",
+      "reason": "the text is mostly raw logs",
+      "signals": {
+        "answer_actionable": 0.8,
+        "required_evidence_present": 0.6,
+        "contains_large_redundant_output": 0.95,
+        "request_satisfied": 0.9
+      }
+    },
+    {
+      "id": "lengthy-necessary-evidence",
+      "message": "Long result where every line is evidence: the failing assertion, the three files it touches, the command output before and after, and the test names.",
+      "expected": "allow",
+      "reason": "length is evidence, not noise",
+      "signals": {
+        "answer_actionable": 0.9,
+        "required_evidence_present": 0.95,
+        "contains_large_redundant_output": 0.35,
+        "request_satisfied": 0.9
+      }
+    },
+    {
+      "id": "already-continued",
+      "expected": "allow",
+      "reason": "Codex already continued this subagent",
+      "loopProtection": true,
+      "signals": {
+        "answer_actionable": 0.1,
+        "required_evidence_present": 0.1,
+        "contains_large_redundant_output": 0.9,
+        "request_satisfied": 0.1
+      }
+    },
+    {
+      "id": "revision-limit-reached",
+      "expected": "allow",
+      "reason": "the per-agent revision cap",
+      "loopProtection": true,
+      "signals": {
+        "answer_actionable": 0.1,
+        "required_evidence_present": 0.1,
+        "contains_large_redundant_output": 0.9,
+        "request_satisfied": 0.1
+      }
+    }
+  ]
+}
+

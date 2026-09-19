@@ -1,0 +1,102 @@
+{
+  "description": "Quality guard evaluation. Offline mode feeds each case the scores a correct Jev answer would give; live mode asks the real model. A continuation the fixture expects to be allowed counts as a false positive.",
+  "cases": [
+    {
+      "id": "complete-with-tests",
+      "message": "Implemented the parser fix in src/parse.ts. Ran npm test: 253 passed. Nothing unresolved.",
+      "expected": "allow",
+      "reason": "complete and verified",
+      "signals": {
+        "request_satisfied": 0.95,
+        "verification_complete": 0.95,
+        "known_failure_remaining": 0.05,
+        "unsupported_claim_present": 0.05
+      }
+    },
+    {
+      "id": "missing-verification",
+      "message": "Refactored the queue drain logic. It should work now.",
+      "expected": "continue",
+      "reason": "nothing was run",
+      "signals": {
+        "request_satisfied": 0.9,
+        "verification_complete": 0.2,
+        "known_failure_remaining": 0.05,
+        "unsupported_claim_present": 0.1
+      }
+    },
+    {
+      "id": "known-failing-test",
+      "message": "Updated the retry policy. One integration test still fails with a timeout and I have not fixed it.",
+      "expected": "continue",
+      "reason": "a failure stands",
+      "signals": {
+        "request_satisfied": 0.6,
+        "verification_complete": 0.9,
+        "known_failure_remaining": 0.95,
+        "unsupported_claim_present": 0.1
+      }
+    },
+    {
+      "id": "unsupported-claim",
+      "message": "The migration is safe and nothing else reads that column.",
+      "expected": "continue",
+      "reason": "no evidence behind the claim",
+      "signals": {
+        "request_satisfied": 0.9,
+        "verification_complete": 0.8,
+        "known_failure_remaining": 0.05,
+        "unsupported_claim_present": 0.9
+      }
+    },
+    {
+      "id": "question-only",
+      "message": "The hook reads one JSON payload on stdin and prints at most one JSON object. Nothing needed running to answer this.",
+      "expected": "allow",
+      "reason": "a question needs no test",
+      "signals": {
+        "request_satisfied": 0.95,
+        "verification_complete": 0.9,
+        "known_failure_remaining": 0.05,
+        "unsupported_claim_present": 0.05
+      }
+    },
+    {
+      "id": "documentation-only",
+      "message": "Rewrote the configuration section of the README to match the defaults table.",
+      "expected": "allow",
+      "reason": "documentation needs no test",
+      "signals": {
+        "request_satisfied": 0.95,
+        "verification_complete": 0.85,
+        "known_failure_remaining": 0.05,
+        "unsupported_claim_present": 0.05
+      }
+    },
+    {
+      "id": "trivial-edit",
+      "message": "Fixed the typo in the install command.",
+      "expected": "allow",
+      "reason": "a typo needs no suite",
+      "signals": {
+        "request_satisfied": 0.95,
+        "verification_complete": 0.85,
+        "known_failure_remaining": 0.05,
+        "unsupported_claim_present": 0.05
+      }
+    },
+    {
+      "id": "blocked-externally",
+      "message": "The upstream registry is returning 503, so the dependency cannot be installed. Nothing further can be done from here.",
+      "expected": "allow",
+      "reason": "plainly reported as impossible with a reason",
+      "signals": {
+        "request_satisfied": 0.9,
+        "verification_complete": 0.8,
+        "known_failure_remaining": 0.4,
+        "unsupported_claim_present": 0.05
+      }
+    }
+  ]
+}
+

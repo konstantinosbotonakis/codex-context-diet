@@ -111,5 +111,39 @@ describe('the note that replaces a result', () => {
     expect(note as string).toContain('Replaced ');
     expect(note as string).not.toContain('Ran:');
   });
-});
 
+  it('keeps the compiler code, file, line and diagnostic', () => {
+    const compiler = [
+      filler,
+      "src/app.ts(42,7): error TS2322: Type 'string' is not assignable to type 'number'.",
+      'Found 1 error in the same file.',
+    ].join('\n');
+    const found = capsule({ toolName: 'Bash', inputLine: 'npm run build', resultText: compiler, isError: true });
+    expect(found.text).toContain('error TS2322');
+    expect(found.text).toContain('src/app.ts(42,7)');
+    expect(found.text).toContain("Type 'string' is not assignable to type 'number'");
+    expect(found.text.length).toBeLessThanOrEqual(budgets.maxChars);
+  });
+
+  it('keeps the success summary and the test count', () => {
+    const success = [filler, ' Test Files  28 passed (28)', '      Tests  253 passed (253)', '   Duration  782ms'].join('\n');
+    const found = capsule({ toolName: 'Bash', inputLine: 'npm test', resultText: success, isError: false });
+    expect(found.text).toContain('253 passed (253)');
+    expect(found.text).toContain('28 passed (28)');
+    expect(found.text.length).toBeLessThanOrEqual(budgets.maxChars);
+  });
+
+  it('keeps a python traceback and the frame that raised', () => {
+    const traceback = [
+      filler,
+      'Traceback (most recent call last):',
+      '  File "/repo/jobs/sync.py", line 88, in run',
+      '    client.push(payload)',
+      'ValueError: payload is missing tenant_id',
+    ].join('\n');
+    const found = capsule({ toolName: 'Bash', inputLine: 'python -m jobs.sync', resultText: traceback, isError: true });
+    expect(found.text).toContain('Traceback (most recent call last):');
+    expect(found.text).toContain('ValueError: payload is missing tenant_id');
+    expect(found.text.length).toBeLessThanOrEqual(budgets.maxChars);
+  });
+});

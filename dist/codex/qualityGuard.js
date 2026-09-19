@@ -37,10 +37,10 @@ export function qualityQuestions() {
         },
         [Q_VERIFICATION_COMPLETE]: {
             type: 'noul',
-            instructions: 'Was the result verified, for example by running the relevant tests or commands?',
+            instructions: 'Was the result verified where verification was required, for example by running the relevant tests or commands?',
             criteria: {
-                true: 'A test, build or command ran and its outcome is reported',
-                false: 'Nothing was run, or the outcome is unknown',
+                true: 'A test, build or command ran, or the request needed no verification',
+                false: 'Verification was required and nothing was run, or the outcome is unknown',
             },
         },
         [Q_KNOWN_FAILURE]: {

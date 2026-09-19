@@ -36,6 +36,7 @@
     "bench:hooks": "node scripts/bench-hooks.mjs",
     "bench:stages": "node scripts/bench-stages.mjs",
     "eval:prompts": "node scripts/eval-prompts.mjs",
+    "eval:guards": "node scripts/eval-guards.mjs",
     "eval:decisions": "node dist/cli.js eval",
     "doctor": "node dist/cli.js doctor",
     "release": "node scripts/release.mjs",

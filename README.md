@@ -500,6 +500,7 @@ Loop safety is layered: a subagent that Codex already continued is never asked a
 `qualityGuard` is off by default. When it is on, `Stop` runs four independent Jev checks over the final message: was the request satisfied, was the result verified, is a known failure still unresolved, and is a claim unsupported. Deterministic policy decides, and a failing check returns a continuation reason such as `Verification is incomplete. Run the relevant test suite before completing.`.
 
 It cannot loop: `stop_hook_active` is respected, each turn has an intervention cap, and any failure lets the turn finish. Enable it only after running the evaluation corpus against your own workload.
+The labelled corpus in `evals/guards/quality-cases.json` covers the shapes that decide whether the guard is fair, and `node scripts/eval-guards.mjs` scores them offline or against the real model.
 
 [docs/architecture.md](docs/architecture.md) has the pipeline, the module map and the storage layout. [docs/configuration.md](docs/configuration.md) is the full field reference with the accepted aliases and the migration notes. [docs/security.md](docs/security.md) is the trust boundary and what the plugin is not. [docs/performance.md](docs/performance.md) holds every measured number and the commands that reproduce them. [docs/releases.md](docs/releases.md) maps the 1.0 capability set onto versions.
 
@@ -511,6 +512,8 @@ Two evaluation surfaces ship with the plugin.
 `node dist/cli.js eval` runs the decision corpus in `evals/`: 26 fixtures covering errors at the head, middle and tail, huge green and red builds, one failure among thousands, generated code, large JSON, identical repeats, timestamps, UUIDs, random tokens, changing network answers, file reads before and after an edit, injections, secret material, malformed MCP payloads, enormous stack traces and tail-only summaries. Offline mode feeds each case the signals a correct Jev answer would give, so the deterministic pipeline is what is under test, and one false drop fails the run. Add `--live` to ask the real model and get tokens and cost instead.
 
 `node scripts/eval-prompts.mjs [--live]` does the same for the prompt guard's labelled prompt set.
+
+`node scripts/eval-guards.mjs [--live]` runs the labelled corpora for the subagent guard (6 cases) and the quality guard (8 cases). Offline it proves the decision logic turns correct signals into the right action; live it asks the model the same cases. The quality corpus is built around the false positives that matter most: a question that needed no test, a documentation-only change, a trivial edit, and a task blocked by an external dependency.
 
 The report covers cases, correct decisions, false keeps, false drops and the wrong-drop rate, drop precision, keep recall, replacement rate, mean and median compression, Jev calls, tokens, estimated cost, and p50 and p95 latency. The target is a wrong-drop rate under 1 percent; the offline corpus currently reports zero across all 26 cases. Add a regression fixture whenever a real incorrect decision is found.
 

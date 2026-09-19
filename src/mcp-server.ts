@@ -247,6 +247,9 @@ async function callTool(name: string, args: Args, env: NodeJS.ProcessEnv): Promi
     if (name === 'jev_boolean') {
       const response = await asker.ask(state, { answer: { type: 'noul', instructions: question } });
       const probability = noulAnswer(response.answers, 'answer');
+      if (!Number.isFinite(probability) || probability < 0 || probability > 1) {
+        return fail('Jev returned a probability outside 0..1');
+      }
       return ok(JSON.stringify({ probability, answer: probability >= 0.5, model: response.model ?? null, input_tokens: inputTokens(response) }));
     }
     const items = list(name === 'jev_choice' ? args.options : args.levels);
@@ -257,18 +260,43 @@ async function callTool(name: string, args: Args, env: NodeJS.ProcessEnv): Promi
       : { answer: { type: 'score' as const, instructions: question, criteria: items } };
     const response = await asker.ask(state, questions);
     const answer = (response.answers.answer ?? {}) as unknown as Record<string, unknown>;
-    return ok(
-      JSON.stringify({
-        choice: typeof answer.choice === 'string' ? answer.choice : null,
-        score: typeof answer.score === 'number' ? answer.score : null,
-        probabilities: answer.probabilities ?? null,
-        confidence: typeof answer.confidence === 'number' ? answer.confidence : null,
-        model: response.model ?? null,
-        input_tokens: inputTokens(response),
-      }),
-    );
+    const confidence =
+      typeof answer.confidence === 'number' && Number.isFinite(answer.confidence) ? answer.confidence : null;
+    const rawProbabilities = answer.probabilities;
+    const probabilities = rawProbabilities === undefined ? null : probabilitiesOf(rawProbabilities);
+    if (rawProbabilities !== undefined && probabilities === null) {
+      return fail('Jev returned malformed probabilities');
+    }
+    if (probabilities !== null && Object.keys(probabilities).some((key) => !items.includes(key))) {
+      return fail('Jev returned probabilities for entries that were not supplied');
+    }
+    // A semantic answer that does not fit the request is an error, not data.
+    if (name === 'jev_choice') {
+      const choice = typeof answer.choice === 'string' ? answer.choice : null;
+      if (choice === null || !items.includes(choice)) {
+        return fail('Jev returned a choice that is not one of the supplied options');
+      }
+      return ok(JSON.stringify({ choice, probabilities, confidence, model: response.model ?? null, input_tokens: inputTokens(response) }));
+    }
+    const score =
+      typeof answer.score === 'number' && Number.isFinite(answer.score) && answer.score >= 0 && answer.score <= 1
+        ? answer.score
+        : null;
+    if (score === null) return fail('Jev returned a score outside 0..1');
+    return ok(JSON.stringify({ score, probabilities, confidence, model: response.model ?? null, input_tokens: inputTokens(response) }));
   }
   return fail('unknown tool: ' + name);
+}
+
+/** Probabilities must be an object of finite numbers in 0..1, or nothing. */
+function probabilitiesOf(raw: unknown): Record<string, number> | null {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return null;
+  const out: Record<string, number> = {};
+  for (const [key, value] of Object.entries(raw)) {
+    if (typeof value !== 'number' || !Number.isFinite(value) || value < 0 || value > 1) return null;
+    out[key] = value;
+  }
+  return out;
 }
 
 function inputTokens(response: { usage?: { input_tokens?: unknown } }): number | null {
