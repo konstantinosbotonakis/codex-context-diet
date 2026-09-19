@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_CONFIG, type DietConfig } from './config.js';
+import { loadConfig, type DietConfig } from './config.js';
 import { runDiet } from './codex/diet.js';
 import { createAsker, testAsker } from './codex/transport.js';
 import type { CacheEntry } from './cache.js';
@@ -42,6 +42,8 @@ export interface EvalCaseResult {
   noteChars: number;
   inputTokens: number | null;
   ms: number;
+  /** The raw model answers, when the caller asked for a dump (calibration). */
+  answers?: Record<string, Record<string, number | string>>;
 }
 
 export interface EvalMetrics {
@@ -109,13 +111,17 @@ export interface EvalOptions {
   live?: boolean;
   env?: NodeJS.ProcessEnv;
   root?: string;
+  /** Record the raw answers for every case, for threshold calibration. */
+  dump?: boolean;
 }
 
 export async function runEvaluation(options: EvalOptions = {}): Promise<EvalReport> {
   const root = options.root ?? EVAL_ROOT;
   const env = options.env ?? process.env;
   const live = options.live === true;
-  const config: DietConfig = { ...DEFAULT_CONFIG, minTokens: 0, chunkRelevance: false };
+  // The configured provider answers the live run; the corpus only pins the
+  // knobs that would otherwise skip cases.
+  const config: DietConfig = { ...loadConfig(env), minTokens: 0, chunkRelevance: false };
   const cases = loadCases(root);
   let asker: JevAsker;
   if (live) {
@@ -129,7 +135,27 @@ export async function runEvaluation(options: EvalOptions = {}): Promise<EvalRepo
   const results: EvalCaseResult[] = [];
   for (const item of cases) {
     const resultText = readFixture(item.fixture, root);
-    const caseAsker = live ? asker : testAsker(item.signals);
+    let captured: Record<string, Record<string, number | string>> | undefined;
+    const baseAsker = live ? asker : testAsker(item.signals);
+    const caseAsker = options.dump === true
+      ? {
+          async ask(state: unknown, questions: Record<string, unknown>) {
+            const response = await baseAsker.ask(state as never, questions as never);
+            captured = Object.fromEntries(
+              Object.entries(response.answers ?? {}).map(([id, answer]) => {
+                const record = answer as unknown as Record<string, unknown>;
+                const slim: Record<string, number | string> = {};
+                for (const key of ['noul', 'choice', 'score', 'confidence']) {
+                  const value = record[key];
+                  if (typeof value === 'number' || typeof value === 'string') slim[key] = value;
+                }
+                return [id, slim];
+              }),
+            );
+            return response;
+          },
+        }
+      : baseAsker;
     const started = performance.now();
     const outcome = await runDiet({
       input: {
@@ -158,6 +184,7 @@ export async function runEvaluation(options: EvalOptions = {}): Promise<EvalRepo
       noteChars: outcome.note === null ? resultText.length : outcome.note.length,
       inputTokens: outcome.inputTokens,
       ms,
+      ...(captured === undefined ? {} : { answers: captured }),
     });
   }
 
@@ -177,7 +204,11 @@ export async function runEvaluation(options: EvalOptions = {}): Promise<EvalRepo
 
   return {
     mode: live ? 'live' : 'offline',
-    model: live ? config.model : null,
+    model: live
+      ? config.provider === 'laya'
+        ? 'laya/' + config.layaModel + (config.layaSubfolder.length > 0 ? '/' + config.layaSubfolder : '')
+        : config.model
+      : null,
     cases: results,
     metrics: {
       cases: cases.length,
@@ -195,7 +226,9 @@ export async function runEvaluation(options: EvalOptions = {}): Promise<EvalRepo
           : (sortedCompressions[Math.floor(sortedCompressions.length / 2)] as number),
       jevCalls: live ? results.length : results.length,
       jevTokens: tokens,
-      estimatedCostUsd: (tokens * config.pricePerMillionInputTokens) / 1_000_000,
+      // A local model has no metered cost; only the hosted provider does.
+      estimatedCostUsd:
+        config.provider === 'laya' ? 0 : (tokens * config.pricePerMillionInputTokens) / 1_000_000,
       p50Ms: percentile(times, 0.5),
       p95Ms: percentile(times, 0.95),
       falseDropUpper95: falseDropUpperBound(falseDrops, cases.length),

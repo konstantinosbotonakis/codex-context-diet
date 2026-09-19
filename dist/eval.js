@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_CONFIG } from './config.js';
+import { loadConfig } from './config.js';
 import { runDiet } from './codex/diet.js';
 import { createAsker, testAsker } from './codex/transport.js';
 import { resolveApiKey } from './key.js';
@@ -49,7 +49,9 @@ export async function runEvaluation(options = {}) {
     const root = options.root ?? EVAL_ROOT;
     const env = options.env ?? process.env;
     const live = options.live === true;
-    const config = { ...DEFAULT_CONFIG, minTokens: 0, chunkRelevance: false };
+    // The configured provider answers the live run; the corpus only pins the
+    // knobs that would otherwise skip cases.
+    const config = { ...loadConfig(env), minTokens: 0, chunkRelevance: false };
     const cases = loadCases(root);
     let asker;
     if (live) {
@@ -64,7 +66,26 @@ export async function runEvaluation(options = {}) {
     const results = [];
     for (const item of cases) {
         const resultText = readFixture(item.fixture, root);
-        const caseAsker = live ? asker : testAsker(item.signals);
+        let captured;
+        const baseAsker = live ? asker : testAsker(item.signals);
+        const caseAsker = options.dump === true
+            ? {
+                async ask(state, questions) {
+                    const response = await baseAsker.ask(state, questions);
+                    captured = Object.fromEntries(Object.entries(response.answers ?? {}).map(([id, answer]) => {
+                        const record = answer;
+                        const slim = {};
+                        for (const key of ['noul', 'choice', 'score', 'confidence']) {
+                            const value = record[key];
+                            if (typeof value === 'number' || typeof value === 'string')
+                                slim[key] = value;
+                        }
+                        return [id, slim];
+                    }));
+                    return response;
+                },
+            }
+            : baseAsker;
         const started = performance.now();
         const outcome = await runDiet({
             input: {
@@ -93,6 +114,7 @@ export async function runEvaluation(options = {}) {
             noteChars: outcome.note === null ? resultText.length : outcome.note.length,
             inputTokens: outcome.inputTokens,
             ms,
+            ...(captured === undefined ? {} : { answers: captured }),
         });
     }
     const expectedDrops = cases.filter((item) => item.expectedAction === 'drop').length;
@@ -108,7 +130,11 @@ export async function runEvaluation(options = {}) {
     const times = results.map((item) => item.ms);
     return {
         mode: live ? 'live' : 'offline',
-        model: live ? config.model : null,
+        model: live
+            ? config.provider === 'laya'
+                ? 'laya/' + config.layaModel + (config.layaSubfolder.length > 0 ? '/' + config.layaSubfolder : '')
+                : config.model
+            : null,
         cases: results,
         metrics: {
             cases: cases.length,
@@ -125,7 +151,8 @@ export async function runEvaluation(options = {}) {
                 : sortedCompressions[Math.floor(sortedCompressions.length / 2)],
             jevCalls: live ? results.length : results.length,
             jevTokens: tokens,
-            estimatedCostUsd: (tokens * config.pricePerMillionInputTokens) / 1_000_000,
+            // A local model has no metered cost; only the hosted provider does.
+            estimatedCostUsd: config.provider === 'laya' ? 0 : (tokens * config.pricePerMillionInputTokens) / 1_000_000,
             p50Ms: percentile(times, 0.5),
             p95Ms: percentile(times, 0.95),
             falseDropUpper95: falseDropUpperBound(falseDrops, cases.length),

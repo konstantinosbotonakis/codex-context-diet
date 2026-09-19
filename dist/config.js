@@ -1,9 +1,16 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export const JEV_INPUT_PRICE_PER_MTOK = 0.042;
 export const DEFAULT_CONFIG = {
     enabled: true, mode: 'diet', dryRun: false, stateSource: 'cache',
+    provider: 'jev',
+    layaPython: '',
+    layaModel: 'convaiinnovations/laya',
+    layaSubfolder: 'multilingual',
+    layaDevice: '',
+    layaTimeoutMs: 20_000,
+    layaWarmTimeoutMs: 120_000,
     minTokens: 2000, keepThreshold: 0.5, dropThreshold: 0.25, truncateHeadChars: 300,
     maxStateTokens: 25000, stateResultCapChars: 4000, requestTimeoutMs: 5000,
     injectionGuard: true, model: 'jev-latest', neverDietTools: [],
@@ -95,6 +102,13 @@ export function resolveConfig(raw) {
     const aliasChunkMaxCount = o.chunkMaxCount;
     const config = {
         enabled: bool(o.enabled, DEFAULT_CONFIG.enabled),
+        provider: o.provider === 'laya' ? 'laya' : 'jev',
+        layaPython: str(o.layaPython, ''),
+        layaModel: str(o.layaModel, DEFAULT_CONFIG.layaModel),
+        layaSubfolder: typeof o.layaSubfolder === 'string' ? o.layaSubfolder : DEFAULT_CONFIG.layaSubfolder,
+        layaDevice: typeof o.layaDevice === 'string' ? o.layaDevice : DEFAULT_CONFIG.layaDevice,
+        layaTimeoutMs: num(o.layaTimeoutMs, DEFAULT_CONFIG.layaTimeoutMs, 1),
+        layaWarmTimeoutMs: num(o.layaWarmTimeoutMs, DEFAULT_CONFIG.layaWarmTimeoutMs, 1),
         mode: o.mode === 'observe' ? 'observe' : 'diet',
         dryRun: bool(o.dryRun, DEFAULT_CONFIG.dryRun),
         stateSource: o.stateSource === 'off' ? 'off' : 'cache',
@@ -158,5 +172,21 @@ export function loadConfig(env) {
     catch {
         return DEFAULT_CONFIG;
     }
+}
+/** Merges a patch into the config file, keeping every other field as written. */
+export function saveConfig(env, patch) {
+    let current = {};
+    try {
+        const parsed = JSON.parse(readFileSync(configPath(env), 'utf8'));
+        if (parsed && typeof parsed === 'object' && !Array.isArray(parsed))
+            current = parsed;
+    }
+    catch {
+        // no config yet: the patch becomes the file
+    }
+    const merged = { ...current, ...patch };
+    mkdirSync(pluginDataDir(env), { recursive: true });
+    writeFileSync(configPath(env), JSON.stringify(merged, null, 2) + '\n');
+    return resolveConfig(merged);
 }
 //# sourceMappingURL=config.js.map

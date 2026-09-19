@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 export type PrivacyMode = 'strict' | 'standard' | 'off';
@@ -13,6 +13,19 @@ export interface ToolPolicy {
 
 export interface DietConfig {
   enabled: boolean; mode: 'diet' | 'observe'; dryRun: boolean;
+  /** Which decision model answers the questions: TypeSafe's Jev or a local Laya checkpoint. */
+  provider: 'jev' | 'laya';
+  /** Python for the Laya worker. Empty means the managed venv, then python3. */
+  layaPython: string;
+  /** Hugging Face repo and subfolder for the Laya checkpoint. */
+  layaModel: string;
+  layaSubfolder: string;
+  /** torch device: empty means auto (mps or cuda when available). */
+  layaDevice: string;
+  /** How long one Laya answer may take once the model is loaded. */
+  layaTimeoutMs: number;
+  /** How long the first call may take while the model loads. */
+  layaWarmTimeoutMs: number;
   /** 'cache' keeps a rolling per-session digest; 'off' is single-turn and writes nothing. */
   stateSource: 'cache' | 'off';
   minTokens: number; keepThreshold: number; dropThreshold: number; truncateHeadChars: number;
@@ -73,6 +86,13 @@ export const JEV_INPUT_PRICE_PER_MTOK = 0.042;
 
 export const DEFAULT_CONFIG: DietConfig = {
   enabled: true, mode: 'diet', dryRun: false, stateSource: 'cache',
+  provider: 'jev',
+  layaPython: '',
+  layaModel: 'convaiinnovations/laya',
+  layaSubfolder: 'multilingual',
+  layaDevice: '',
+  layaTimeoutMs: 20_000,
+  layaWarmTimeoutMs: 120_000,
   minTokens: 2000, keepThreshold: 0.5, dropThreshold: 0.25, truncateHeadChars: 300,
   maxStateTokens: 25000, stateResultCapChars: 4000, requestTimeoutMs: 5000,
   injectionGuard: true, model: 'jev-latest', neverDietTools: [],
@@ -168,6 +188,13 @@ export function resolveConfig(raw: unknown): DietConfig {
   const aliasChunkMaxCount = o.chunkMaxCount;
   const config: DietConfig = {
     enabled: bool(o.enabled, DEFAULT_CONFIG.enabled),
+    provider: o.provider === 'laya' ? 'laya' : 'jev',
+    layaPython: str(o.layaPython, ''),
+    layaModel: str(o.layaModel, DEFAULT_CONFIG.layaModel),
+    layaSubfolder: typeof o.layaSubfolder === 'string' ? o.layaSubfolder : DEFAULT_CONFIG.layaSubfolder,
+    layaDevice: typeof o.layaDevice === 'string' ? o.layaDevice : DEFAULT_CONFIG.layaDevice,
+    layaTimeoutMs: num(o.layaTimeoutMs, DEFAULT_CONFIG.layaTimeoutMs, 1),
+    layaWarmTimeoutMs: num(o.layaWarmTimeoutMs, DEFAULT_CONFIG.layaWarmTimeoutMs, 1),
     mode: o.mode === 'observe' ? 'observe' : 'diet',
     dryRun: bool(o.dryRun, DEFAULT_CONFIG.dryRun),
     stateSource: o.stateSource === 'off' ? 'off' : 'cache',
@@ -236,4 +263,19 @@ export function loadConfig(env: NodeJS.ProcessEnv): DietConfig {
   } catch {
     return DEFAULT_CONFIG;
   }
+}
+
+/** Merges a patch into the config file, keeping every other field as written. */
+export function saveConfig(env: NodeJS.ProcessEnv, patch: Partial<DietConfig>): DietConfig {
+  let current: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse(readFileSync(configPath(env), 'utf8'));
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) current = parsed as Record<string, unknown>;
+  } catch {
+    // no config yet: the patch becomes the file
+  }
+  const merged = { ...current, ...patch };
+  mkdirSync(pluginDataDir(env), { recursive: true });
+  writeFileSync(configPath(env), JSON.stringify(merged, null, 2) + '\n');
+  return resolveConfig(merged);
 }

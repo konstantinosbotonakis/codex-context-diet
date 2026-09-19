@@ -21,6 +21,12 @@ and evaluation gaps against the design document, and its live evaluation is publ
 `docs/evals/`.
 
 ## Cutting a release
+### 0.7.0
+
+Pluggable decision-model providers. `provider` selects TypeSafe's Jev (default) or a local open
+Laya checkpoint, with `setup`, `provider set`, `provider warm` and a calibration script. The
+measured comparison and the honest state of the stock Laya checkpoints are in `docs/providers.md`.
+
 
 ```bash
 npm run release -- minor            # 0.6.0 -> 0.7.0

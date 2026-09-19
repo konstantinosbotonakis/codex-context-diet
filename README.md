@@ -220,6 +220,13 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "promptGuardThreshold": 0.7,
   "promptGuardTimeoutMs": 3500,
   "model": "jev-latest",
+  "provider": "jev",
+  "layaPython": "",
+  "layaModel": "convaiinnovations/laya",
+  "layaSubfolder": "multilingual",
+  "layaDevice": "",
+  "layaTimeoutMs": 20000,
+  "layaWarmTimeoutMs": 120000,
   "neverDietTools": [],
   "cacheMaxEntries": 40,
   "cacheMaxBytes": 262144,
@@ -302,6 +309,13 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `qualityGuard` | optional completion-quality check on Stop, off until the evaluation corpus supports it |
 | `qualityGuardThreshold` | Jev score at or above which a quality problem blocks completion |
 | `qualityGuardMaxInterventions` | how many continuations one turn can be asked for |
+| `provider` | `jev` asks TypeSafe's hosted model, `laya` runs an open checkpoint locally |
+| `layaPython` | python for the Laya worker, empty uses the managed venv then `python3` |
+| `layaModel` | Hugging Face repo for the Laya checkpoint |
+| `layaSubfolder` | which checkpoint: `multilingual`, `english`, `typed-decisions`, or empty for the repo root |
+| `layaDevice` | torch device, empty means auto (`mps` or `cuda` when available) |
+| `layaTimeoutMs` | how long one answer may take once the model is loaded |
+| `layaWarmTimeoutMs` | how long the first call may take while the model loads |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
@@ -310,6 +324,28 @@ Reading Codex's own transcript is deliberately not implemented. The format is do
 Resolution order is `TYPESAFE_API_KEY`, then `~/.typesafe_key` (override the path with `TYPESAFE_KEY_FILE`), then `apiKey` in the config. The key is never written to stdout, stderr, the log, or the cache. Only its source is ever reported.
 
 When the key is missing, or TypeSafe rejects it, Jev is skipped and results stay in full. The hook then adds one line saying so, at most once an hour, so a broken key is neither silent nor noisy.
+
+### Choosing the decision model
+
+The questions are answered by a provider you pick. Jev is the default because it is the only
+one measured to drop results accurately; a local open checkpoint is available for keyless,
+private, zero-cost operation.
+
+```bash
+node dist/cli.js provider                        # what is configured, and its live state
+node dist/cli.js provider set laya               # run the model locally
+node dist/cli.js provider set jev                # back to the hosted model
+node dist/cli.js setup --provider laya --install # create the venv and install the SDK
+node dist/cli.js provider warm                   # load the checkpoint once, about 25 s
+```
+
+The local provider is ConvAI Innovations' [Laya](https://laya.convaiinnovations.com/) (Apache 2.0),
+a non-autoregressive decision model with the same three primitives this plugin asks for. It runs
+through a Python worker that holds the checkpoint and answers over a unix socket. On the 112-case
+corpus its stock checkpoints keep every result, so it is a base to fine-tune rather than a
+replacement for Jev's judgement today; the measured table, the calibration script and the setup
+requirements are in [docs/providers.md](docs/providers.md). Every provider failure keeps the tool
+result, so switching cannot lose a session.
 
 ### Secrets
 

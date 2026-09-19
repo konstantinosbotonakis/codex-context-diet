@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { cachePath, countSessions, sessionsDir } from './cache.js';
 import { configPath, loadConfig, pluginDataDir } from './config.js';
 import { keyFilePath, resolveApiKey } from './key.js';
+import { layaPaths, resolveLayaPython } from './providers/laya.js';
 const pluginRoot = fileURLToPath(new URL('..', import.meta.url));
 function readJson(path) {
     try {
@@ -100,6 +101,26 @@ export function runDoctor(env) {
                 ', and the apiKey config field. Deterministic filters still run and each session says Jev was skipped.',
         }
         : { name: 'jev key', status: 'ok', detail: 'found via ' + source });
+    if (config.provider === 'laya') {
+        const paths = layaPaths(env);
+        const python = resolveLayaPython(config, env);
+        const workerReady = existsSync(paths.worker);
+        const pythonReady = existsSync(python);
+        checks.push({
+            name: 'provider',
+            status: workerReady && pythonReady ? 'ok' : 'fail',
+            detail: workerReady
+                ? (pythonReady
+                    ? 'laya ' + config.layaModel + '/' + config.layaSubfolder + ' via ' + python +
+                        '. Live status: `context-diet provider`. Warm it: `context-diet provider warm`.'
+                    : 'laya configured but python is missing at ' + python +
+                        '. Run `context-diet setup --provider laya --install`.')
+                : 'laya worker script is missing: ' + paths.worker,
+        });
+    }
+    else {
+        checks.push({ name: 'provider', status: 'ok', detail: 'jev, model ' + config.model });
+    }
     const dataDir = pluginDataDir(env);
     try {
         mkdirSync(dataDir, { recursive: true });

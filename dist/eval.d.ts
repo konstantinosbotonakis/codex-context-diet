@@ -29,6 +29,8 @@ export interface EvalCaseResult {
     noteChars: number;
     inputTokens: number | null;
     ms: number;
+    /** The raw model answers, when the caller asked for a dump (calibration). */
+    answers?: Record<string, Record<string, number | string>>;
 }
 export interface EvalMetrics {
     cases: number;
@@ -64,6 +66,8 @@ export interface EvalOptions {
     live?: boolean;
     env?: NodeJS.ProcessEnv;
     root?: string;
+    /** Record the raw answers for every case, for threshold calibration. */
+    dump?: boolean;
 }
 export declare function runEvaluation(options?: EvalOptions): Promise<EvalReport>;
 /**

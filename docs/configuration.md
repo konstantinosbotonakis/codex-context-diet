@@ -31,6 +31,18 @@ by what it changes.
 | `model` | `"jev-latest"` | model id sent to TypeSafe |
 | `neverDietTools` | `[]` | exact tool names exempt from the diet |
 
+## Decision model
+
+| field | default | effect |
+|---|---|---|
+| `provider` | `"jev"` | `jev` asks TypeSafe's hosted model, `laya` runs an open checkpoint locally |
+| `layaPython` | `""` | python for the Laya worker; empty uses the managed venv, then `python3` |
+| `layaModel` | `"convaiinnovations/laya"` | Hugging Face repo holding the checkpoints |
+| `layaSubfolder` | `"multilingual"` | `multilingual`, `english`, `typed-decisions`, or empty for the repo root |
+| `layaDevice` | `""` | torch device; empty means auto (`mps` or `cuda` when available) |
+| `layaTimeoutMs` | `20000` | how long one local answer may take once the model is loaded |
+| `layaWarmTimeoutMs` | `120000` | how long the first call may take while the model loads |
+
 ## Privacy
 
 | field | default | effect |
@@ -149,4 +161,3 @@ are ignored rather than rejected. The aliases above cover a config written again
 design document. The only operational change is the hook transport: after updating, trust
 the hooks again in `/hooks`, and use `hooks/hooks.command.json` on a Codex build without MCP
 tool hooks.
-

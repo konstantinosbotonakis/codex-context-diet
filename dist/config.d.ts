@@ -10,6 +10,19 @@ export interface DietConfig {
     enabled: boolean;
     mode: 'diet' | 'observe';
     dryRun: boolean;
+    /** Which decision model answers the questions: TypeSafe's Jev or a local Laya checkpoint. */
+    provider: 'jev' | 'laya';
+    /** Python for the Laya worker. Empty means the managed venv, then python3. */
+    layaPython: string;
+    /** Hugging Face repo and subfolder for the Laya checkpoint. */
+    layaModel: string;
+    layaSubfolder: string;
+    /** torch device: empty means auto (mps or cuda when available). */
+    layaDevice: string;
+    /** How long one Laya answer may take once the model is loaded. */
+    layaTimeoutMs: number;
+    /** How long the first call may take while the model loads. */
+    layaWarmTimeoutMs: number;
     /** 'cache' keeps a rolling per-session digest; 'off' is single-turn and writes nothing. */
     stateSource: 'cache' | 'off';
     minTokens: number;
@@ -85,3 +98,5 @@ export declare function configPath(env: NodeJS.ProcessEnv): string;
 /** Total: never throws, and never returns a field of the wrong type. */
 export declare function resolveConfig(raw: unknown): DietConfig;
 export declare function loadConfig(env: NodeJS.ProcessEnv): DietConfig;
+/** Merges a patch into the config file, keeping every other field as written. */
+export declare function saveConfig(env: NodeJS.ProcessEnv, patch: Partial<DietConfig>): DietConfig;

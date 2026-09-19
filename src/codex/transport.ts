@@ -1,4 +1,5 @@
 import { buildJevRequest, parseJevResponse } from '../request.js';
+import { createLayaAsker } from '../providers/laya.js';
 import type { DietConfig } from '../config.js';
 import type { JevAnswer, JevAsker, JevQuestions, JevResponse } from '../types.js';
 
@@ -48,6 +49,8 @@ export function testAsker(spec: string | Record<string, TestAnswer>): JevAsker {
 export function createAsker(config: DietConfig, key: string, env: NodeJS.ProcessEnv): JevAsker {
   const injected = env.CONTEXT_DIET_TEST_ANSWERS;
   if (injected) return testAsker(injected);
+  // A local Laya checkpoint answers the same questions with no key and no network.
+  if (config.provider === 'laya') return createLayaAsker(config, env);
   return {
     async ask(state, questions) {
       const request = buildJevRequest({ apiKey: key, model: config.model }, state, questions);
