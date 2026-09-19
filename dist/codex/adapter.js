@@ -1,4 +1,4 @@
-import { appendCache, readCache } from '../cache.js';
+import { appendCache, appendTouch, readCache, readTouches } from '../cache.js';
 import { loadConfig } from '../config.js';
 import { resolveApiKey } from '../key.js';
 import { estimateTokens } from '../state.js';
@@ -10,6 +10,7 @@ import { inputLine, isSkippedTool, toolResultText } from './payload.js';
 import { readGoal } from './session.js';
 import { createAsker } from './transport.js';
 import { isNeverSendInput, redactText } from '../privacy.js';
+import { DUPLICATE_REASON, findDuplicate, touchedPaths } from '../dedupe.js';
 function text(value) {
     return typeof value === 'string' ? value : '';
 }
@@ -54,6 +55,13 @@ export async function main(stdin, env) {
         if (!config.enabled)
             return '';
         const toolName = text(payload.tool_name);
+        const sessionId = text(payload.session_id);
+        // Writers are recorded even when their own result is never dieted, so a
+        // later read cannot be called a duplicate of a file that has changed.
+        const touched = touchedPaths(toolName, payload.tool_input);
+        if (touched.length > 0) {
+            appendTouch(env, sessionId, { at: new Date().toISOString(), tool: toolName, paths: touched });
+        }
         if (isSkippedTool(toolName, config))
             return '';
         const resultText = toolResultText(toolName, payload.tool_response);
@@ -70,11 +78,13 @@ export async function main(stdin, env) {
         const safeInput = redactText(rawInput, config.privacyMode).text;
         if (estimateTokens(safeResultText) < config.minTokens)
             return '';
-        const sessionId = text(payload.session_id);
         // stateSource 'off' is single-turn: no history is read and nothing is written.
         const singleTurn = config.stateSource === 'off';
         const cache = singleTurn ? [] : readCache(env, sessionId, config);
         const firstResult = !singleTurn && cache.length === 0;
+        const duplicate = config.dedupe &&
+            !firstResult &&
+            findDuplicate(toolName, safeInput, safeResultText, cache, readTouches(env, sessionId)) !== null;
         const { goal, goalIndex } = readGoal(env, sessionId);
         const { key } = resolveApiKey(config, env);
         // CONTEXT_DIET_TEST_ANSWERS is a tests-only transport: it never reaches the
@@ -96,6 +106,7 @@ export async function main(stdin, env) {
             asker,
             goal,
             firstResult,
+            duplicate,
         });
         if (!singleTurn)
             appendCache(env, sessionId, outcome.entry, config);
@@ -104,7 +115,9 @@ export async function main(stdin, env) {
         // rather than failing silently.
         // The first result of a session is never sent to Jev, so a missing key is
         // not worth mentioning there.
-        const problem = firstResult
+        // A deterministic duplicate never needed a key, so a missing key is not a
+        // problem worth reporting on that path.
+        const problem = firstResult || outcome.decision.reason === DUPLICATE_REASON
             ? null
             : asker === null
                 ? 'missing'

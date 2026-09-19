@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { JEV_INPUT_PRICE_PER_MTOK, pluginDataDir } from './config.js';
+import { DUPLICATE_REASON } from './dedupe.js';
 
 export interface RawRecord {
   [key: string]: unknown;
@@ -36,6 +37,8 @@ export interface UsageWindow {
   guardRuns: number;
   guardFlags: number;
   keyWarnings: number;
+  /** Results removed because the session already held an identical one. */
+  deterministicDrops: number;
 }
 
 export interface UsageReport {
@@ -86,6 +89,7 @@ export function summarizeUsage(
     guardRuns: 0,
     guardFlags: 0,
     keyWarnings: 0,
+    deterministicDrops: 0,
   }));
   const seen = windows.map(() => new Set<string>());
   let earliest: number | null = null;
@@ -132,6 +136,10 @@ export function summarizeUsage(
       }
       if (kind === 'key_missing' || kind === 'key_rejected') {
         window.keyWarnings += 1;
+        return;
+      }
+      if (reason === DUPLICATE_REASON) {
+        window.deterministicDrops += 1;
         return;
       }
       if (jevReasons.includes(reason)) {
@@ -204,6 +212,7 @@ export function renderUsage(report: UsageReport, options: RenderOptions): string
       ['prompt guard runs', (w) => formatNumber(w.guardRuns)],
       ['  prompts flagged', (w) => formatNumber(w.guardFlags)],
       ['key warnings', (w) => formatNumber(w.keyWarnings)],
+      ['  deterministic drops', (w) => formatNumber(w.deterministicDrops)],
       ['Jev input tokens', (w) => formatNumber(w.jevTokens)],
       ['  estimated cost', (w) => formatCost(w.costUsd)],
     );

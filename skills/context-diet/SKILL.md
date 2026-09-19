@@ -36,6 +36,8 @@ The settings worth tuning:
   tools whose results are never sent at all.
 - `capsuleMaxChars` and its sibling budgets bound the evidence capsule that replaces a dropped
   result: failures, stack frames and summaries survive, the rest is an omission count.
+- `dedupe` (default on) replaces a result that is identical to one the session already holds, and
+  a file read stops counting as a duplicate once something writes to that file.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 

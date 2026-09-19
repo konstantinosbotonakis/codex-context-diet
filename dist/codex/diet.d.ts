@@ -55,6 +55,8 @@ export interface DietDeps {
     goal: string;
     /** True only for the first result of a session that keeps a cache to reason against. */
     firstResult: boolean;
+    /** The session cache already holds a result identical to this one. */
+    duplicate?: boolean;
 }
 /**
  * Two thresholds, the TypeSafe guardrail shape: contents at or above

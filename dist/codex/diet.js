@@ -3,6 +3,7 @@ import { dietQuestions, Q_AGENT_DIRECTED, Q_BEHAVIOUR_CHANGE, Q_KEEP_CALL, Q_NEE
 import { inputTokensOf, noulAnswer } from '../request.js';
 import { redactValue } from '../privacy.js';
 import { renderCapsule } from '../compressors/index.js';
+import { DUPLICATE_REASON, fingerprint, resourceOf } from '../dedupe.js';
 /**
  * The only reasons decideDiet produces, which means a Jev answer arrived. The
  * stats command counts these as Jev calls: every other reason is a path that
@@ -52,6 +53,12 @@ export function decideDiet(answers, config) {
 export function buildNote(input, decision, config) {
     if (decision.action !== 'drop_result')
         return null;
+    const ran = decision.keepCall >= config.keepThreshold ? ' Ran: ' + input.toolName + ' ' + input.inputLine + '.' : '';
+    if (decision.reason === DUPLICATE_REASON) {
+        return ('[codex-context-diet] Replaced ' + input.resultText.length + ' chars of ' + input.toolName + ' output' +
+            ' (identical to an earlier call in this session).' + ran +
+            ' Re-run the tool if you need the full output.');
+    }
     const capsule = renderCapsule({ toolName: input.toolName, inputLine: input.inputLine, resultText: input.resultText, isError: input.isError }, {
         maxChars: config.capsuleMaxChars,
         maxErrorLines: config.capsuleMaxErrorLines,
@@ -59,7 +66,6 @@ export function buildNote(input, decision, config) {
         maxSummaryLines: config.capsuleMaxSummaryLines,
         headChars: config.truncateHeadChars,
     });
-    const ran = decision.keepCall >= config.keepThreshold ? ' Ran: ' + input.toolName + ' ' + input.inputLine + '.' : '';
     return (capsule.text + '\n\n' +
         '[codex-context-diet] Replaced ' + capsule.omittedChars + ' chars of ' + input.toolName + ' output' +
         (input.isError ? ' (error)' : '') + '.' + ran +
@@ -76,6 +82,8 @@ export function cacheEntryOf(input, decision, at) {
         chars: input.resultText.length,
         decision: decision.action,
         goal_index: input.goalIndex,
+        hash: fingerprint(input.toolName, input.inputLine, input.resultText),
+        resource: resourceOf(input.toolName, input.inputLine) ?? undefined,
     };
 }
 export async function runDiet(deps) {
@@ -109,6 +117,13 @@ export async function runDiet(deps) {
     };
     if (firstResult)
         return outcomeOf(keptResult('first result in this session'), null, null);
+    if (deps.duplicate === true) {
+        const decision = {
+            keepCall: 1, needsContents: 0, replaceable: 1, injection: null,
+            action: 'drop_result', reason: DUPLICATE_REASON,
+        };
+        return outcomeOf(decision, buildNote(input, decision, config), null);
+    }
     if (asker === null)
         return outcomeOf(keptResult('no API key'), null, null);
     let state;

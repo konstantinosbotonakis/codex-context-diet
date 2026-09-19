@@ -29,6 +29,8 @@ export interface UsageWindow {
     guardRuns: number;
     guardFlags: number;
     keyWarnings: number;
+    /** Results removed because the session already held an identical one. */
+    deterministicDrops: number;
 }
 export interface UsageReport {
     windows: UsageWindow[];

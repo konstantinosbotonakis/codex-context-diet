@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { JEV_REASONS, JEV_REASON_VALUES } from '../src/codex/diet.js';
+import { DUPLICATE_REASON } from '../src/dedupe.js';
 import { localMidnight, readUsageInput, renderUsage, summarizeUsage, WINDOWS } from '../src/stats.js';
 
 const NOW = new Date('2026-09-18T12:00:00Z');
@@ -59,15 +60,16 @@ describe('usage windows', () => {
           { at: at(0), kind: 'prompt_guard', flagged: true },
           { at: at(0), kind: 'prompt_guard', flagged: false },
           { at: at(0), kind: 'key_missing' },
+          { at: at(0), kind: 'diet', reason: DUPLICATE_REASON },
           { at: new Date(NOW.getTime() + 60_000).toISOString(), kind: 'diet', reason: JEV_REASONS.stale },
         ],
       }),
       JEV_REASON_VALUES,
     );
     expect(report.windows[0]).toMatchObject({
-      jevCalls: 2, guardRuns: 2, guardFlags: 1, keyWarnings: 1,
+      jevCalls: 2, guardRuns: 2, guardFlags: 1, keyWarnings: 1, deterministicDrops: 1,
     });
-    expect(report.logLines).toBe(9);
+    expect(report.logLines).toBe(10);
   });
 
   it('adds up input tokens and cost from the usage the API reported', () => {

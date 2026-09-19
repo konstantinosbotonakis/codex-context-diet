@@ -5,6 +5,17 @@ import { pluginDataDir, type DietConfig } from './config.js';
 export interface CacheEntry {
   tool_use_id: string; tool_name: string; at: string; input: string;
   head: string; tail: string; chars: number; decision: string; goal_index: number;
+  /** sha256 of the normalised result, used to prove a duplicate deterministically. */
+  hash?: string;
+  /** File path for read-class results, so a later write can invalidate them. */
+  resource?: string;
+}
+
+export interface TouchRecord {
+  at: string;
+  tool: string;
+  /** Paths this call could have written; `*` means unknown, treat everything as dirty. */
+  paths: string[];
 }
 
 const UNSAFE = /[^A-Za-z0-9._-]+/g;
@@ -21,6 +32,55 @@ export function sessionsDir(env: NodeJS.ProcessEnv): string {
 
 export function cachePath(env: NodeJS.ProcessEnv, sessionId: string): string {
   return join(sessionsDir(env), sessionKey(sessionId) + '.results.jsonl');
+}
+
+export function touchPath(env: NodeJS.ProcessEnv, sessionId: string): string {
+  return join(sessionsDir(env), sessionKey(sessionId) + '.touches.jsonl');
+}
+
+export function appendTouch(
+  env: NodeJS.ProcessEnv,
+  sessionId: string,
+  touch: TouchRecord,
+  limit = 500,
+): void {
+  let path: string;
+  try {
+    mkdirSync(sessionsDir(env), { recursive: true });
+    path = touchPath(env, sessionId);
+    appendFileSync(path, JSON.stringify(touch) + '\n');
+  } catch {
+    return;
+  }
+  try {
+    const lines = readFileSync(path, 'utf8').split('\n').filter((line) => line.trim().length > 0);
+    if (lines.length <= limit) return;
+    const tmp = path + '.' + process.pid + '.tmp';
+    writeFileSync(tmp, lines.slice(-limit).join('\n') + '\n');
+    renameSync(tmp, path);
+  } catch {
+    // Trimming is best effort: a long touch file costs reads, never correctness.
+  }
+}
+
+export function readTouches(env: NodeJS.ProcessEnv, sessionId: string): TouchRecord[] {
+  try {
+    const touches: TouchRecord[] = [];
+    for (const line of readFileSync(touchPath(env, sessionId), 'utf8').split('\n')) {
+      if (line.trim().length === 0) continue;
+      try {
+        const parsed = JSON.parse(line) as TouchRecord;
+        if (parsed && typeof parsed === 'object' && typeof parsed.at === 'string' && Array.isArray(parsed.paths)) {
+          touches.push(parsed);
+        }
+      } catch {
+        // skip
+      }
+    }
+    return touches;
+  } catch {
+    return [];
+  }
 }
 
 function isEntry(value: unknown): value is CacheEntry {

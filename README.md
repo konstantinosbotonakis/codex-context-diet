@@ -207,7 +207,8 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "capsuleMaxChars": 1200,
   "capsuleMaxErrorLines": 20,
   "capsuleMaxStackFrames": 10,
-  "capsuleMaxSummaryLines": 8
+  "capsuleMaxSummaryLines": 8,
+  "dedupe": true
 }
 ```
 
@@ -235,6 +236,7 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `capsuleMaxErrorLines` | maximum error or failure lines kept in a capsule |
 | `capsuleMaxStackFrames` | maximum stack frames kept in a capsule |
 | `capsuleMaxSummaryLines` | maximum summary lines kept in a capsule |
+| `dedupe` | drop a result that is identical to one the session already holds, with no Jev call |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
@@ -274,6 +276,8 @@ node dist/cli.js stats --all    # every store under ~/.codex/plugins/data
 ```
 
 The table counts sessions, results judged, results replaced, the replaced share, characters dropped and a token estimate for each window. With `debug: true` it adds Jev calls, prompt guard runs and key warnings. Nothing in the table comes from tool output, prompts or commands. The event log behind those last rows rotates daily and keeps 30 days by default; change `logRetentionDays` to move that, or set it to 0 to keep everything.
+
+Repeated commands are handled before Jev is asked: a result that is byte-identical to one the session already holds is replaced with a short note, counted as a deterministic drop rather than a Jev call. A file read stops counting as a duplicate once something writes to that file.
 
 Every Jev response reports token usage, so the table also adds up input tokens and prices them at `pricePerMillionInputTokens`, 0.042 USD per million input tokens by default, which is the published Jev input price. Output tokens are free. Calls recorded before usage was kept make the cost a lower bound, and the table says so when that applies.
 

@@ -1,6 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { basename, dirname, join } from 'node:path';
 import { JEV_INPUT_PRICE_PER_MTOK, pluginDataDir } from './config.js';
+import { DUPLICATE_REASON } from './dedupe.js';
 export const WINDOWS = [
     { label: 'today', days: 1 },
     { label: '7 days', days: 7 },
@@ -34,6 +35,7 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
         guardRuns: 0,
         guardFlags: 0,
         keyWarnings: 0,
+        deterministicDrops: 0,
     }));
     const seen = windows.map(() => new Set());
     let earliest = null;
@@ -83,6 +85,10 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
             }
             if (kind === 'key_missing' || kind === 'key_rejected') {
                 window.keyWarnings += 1;
+                return;
+            }
+            if (reason === DUPLICATE_REASON) {
+                window.deterministicDrops += 1;
                 return;
             }
             if (jevReasons.includes(reason)) {
@@ -138,7 +144,7 @@ export function renderUsage(report, options) {
         ['  roughly tokens', (w) => '~' + formatNumber(Math.round(w.charsDropped / 4))],
     ];
     if (report.logLines > 0) {
-        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)]);
+        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['  deterministic drops', (w) => formatNumber(w.deterministicDrops)], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)]);
     }
     const labelWidth = Math.max(...rows.map(([label]) => label.length));
     const cells = rows.map(([, value]) => report.windows.map(value));

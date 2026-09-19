@@ -37,6 +37,8 @@ export interface DietConfig {
     capsuleMaxErrorLines: number;
     capsuleMaxStackFrames: number;
     capsuleMaxSummaryLines: number;
+    /** Drop a result that is byte-identical to one the session already has. */
+    dedupe: boolean;
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;

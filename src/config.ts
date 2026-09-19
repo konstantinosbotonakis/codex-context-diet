@@ -27,6 +27,8 @@ export interface DietConfig {
   capsuleMaxErrorLines: number;
   capsuleMaxStackFrames: number;
   capsuleMaxSummaryLines: number;
+  /** Drop a result that is byte-identical to one the session already has. */
+  dedupe: boolean;
 }
 
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
@@ -48,6 +50,7 @@ export const DEFAULT_CONFIG: DietConfig = {
   capsuleMaxErrorLines: 20,
   capsuleMaxStackFrames: 10,
   capsuleMaxSummaryLines: 8,
+  dedupe: true,
 };
 
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
@@ -115,6 +118,7 @@ export function resolveConfig(raw: unknown): DietConfig {
     capsuleMaxErrorLines: num(o.capsuleMaxErrorLines, DEFAULT_CONFIG.capsuleMaxErrorLines),
     capsuleMaxStackFrames: num(o.capsuleMaxStackFrames, DEFAULT_CONFIG.capsuleMaxStackFrames),
     capsuleMaxSummaryLines: num(o.capsuleMaxSummaryLines, DEFAULT_CONFIG.capsuleMaxSummaryLines),
+    dedupe: bool(o.dedupe, DEFAULT_CONFIG.dedupe),
   };
   if (typeof o.apiKey === 'string' && o.apiKey.length > 0) config.apiKey = o.apiKey;
   return config;

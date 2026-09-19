@@ -346,7 +346,8 @@ plugin reinstalls and is never committed.
   "capsuleMaxChars": 1200,
   "capsuleMaxErrorLines": 20,
   "capsuleMaxStackFrames": 10,
-  "capsuleMaxSummaryLines": 8
+  "capsuleMaxSummaryLines": 8,
+  "dedupe": true
 }
 ```
 

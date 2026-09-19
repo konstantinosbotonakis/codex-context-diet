@@ -13,6 +13,53 @@ export function sessionsDir(env) {
 export function cachePath(env, sessionId) {
     return join(sessionsDir(env), sessionKey(sessionId) + '.results.jsonl');
 }
+export function touchPath(env, sessionId) {
+    return join(sessionsDir(env), sessionKey(sessionId) + '.touches.jsonl');
+}
+export function appendTouch(env, sessionId, touch, limit = 500) {
+    let path;
+    try {
+        mkdirSync(sessionsDir(env), { recursive: true });
+        path = touchPath(env, sessionId);
+        appendFileSync(path, JSON.stringify(touch) + '\n');
+    }
+    catch {
+        return;
+    }
+    try {
+        const lines = readFileSync(path, 'utf8').split('\n').filter((line) => line.trim().length > 0);
+        if (lines.length <= limit)
+            return;
+        const tmp = path + '.' + process.pid + '.tmp';
+        writeFileSync(tmp, lines.slice(-limit).join('\n') + '\n');
+        renameSync(tmp, path);
+    }
+    catch {
+        // Trimming is best effort: a long touch file costs reads, never correctness.
+    }
+}
+export function readTouches(env, sessionId) {
+    try {
+        const touches = [];
+        for (const line of readFileSync(touchPath(env, sessionId), 'utf8').split('\n')) {
+            if (line.trim().length === 0)
+                continue;
+            try {
+                const parsed = JSON.parse(line);
+                if (parsed && typeof parsed === 'object' && typeof parsed.at === 'string' && Array.isArray(parsed.paths)) {
+                    touches.push(parsed);
+                }
+            }
+            catch {
+                // skip
+            }
+        }
+        return touches;
+    }
+    catch {
+        return [];
+    }
+}
 function isEntry(value) {
     if (!value || typeof value !== 'object')
         return false;

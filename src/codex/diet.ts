@@ -12,6 +12,7 @@ import {
 import { inputTokensOf, noulAnswer } from '../request.js';
 import { redactValue } from '../privacy.js';
 import { renderCapsule } from '../compressors/index.js';
+import { DUPLICATE_REASON, fingerprint, resourceOf } from '../dedupe.js';
 import type { JevAnswer, JevAsker } from '../types.js';
 
 export type DietAction = 'keep' | 'drop_result';
@@ -75,6 +76,8 @@ export interface DietDeps {
   goal: string;
   /** True only for the first result of a session that keeps a cache to reason against. */
   firstResult: boolean;
+  /** The session cache already holds a result identical to this one. */
+  duplicate?: boolean;
 }
 
 function keptResult(reason: string): DietDecision {
@@ -114,6 +117,15 @@ export function decideDiet(answers: DietAnswers, config: DietConfig): DietDecisi
 
 export function buildNote(input: DietInput, decision: DietDecision, config: DietConfig): string | null {
   if (decision.action !== 'drop_result') return null;
+  const ran =
+    decision.keepCall >= config.keepThreshold ? ' Ran: ' + input.toolName + ' ' + input.inputLine + '.' : '';
+  if (decision.reason === DUPLICATE_REASON) {
+    return (
+      '[codex-context-diet] Replaced ' + input.resultText.length + ' chars of ' + input.toolName + ' output' +
+      ' (identical to an earlier call in this session).' + ran +
+      ' Re-run the tool if you need the full output.'
+    );
+  }
   const capsule = renderCapsule(
     { toolName: input.toolName, inputLine: input.inputLine, resultText: input.resultText, isError: input.isError },
     {
@@ -124,8 +136,6 @@ export function buildNote(input: DietInput, decision: DietDecision, config: Diet
       headChars: config.truncateHeadChars,
     },
   );
-  const ran =
-    decision.keepCall >= config.keepThreshold ? ' Ran: ' + input.toolName + ' ' + input.inputLine + '.' : '';
   return (
     capsule.text + '\n\n' +
     '[codex-context-diet] Replaced ' + capsule.omittedChars + ' chars of ' + input.toolName + ' output' +
@@ -145,6 +155,8 @@ export function cacheEntryOf(input: DietInput, decision: DietDecision, at: strin
     chars: input.resultText.length,
     decision: decision.action,
     goal_index: input.goalIndex,
+    hash: fingerprint(input.toolName, input.inputLine, input.resultText),
+    resource: resourceOf(input.toolName, input.inputLine) ?? undefined,
   };
 }
 
@@ -184,6 +196,13 @@ export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
   };
 
   if (firstResult) return outcomeOf(keptResult('first result in this session'), null, null);
+  if (deps.duplicate === true) {
+    const decision: DietDecision = {
+      keepCall: 1, needsContents: 0, replaceable: 1, injection: null,
+      action: 'drop_result', reason: DUPLICATE_REASON,
+    };
+    return outcomeOf(decision, buildNote(input, decision, config), null);
+  }
   if (asker === null) return outcomeOf(keptResult('no API key'), null, null);
 
   let state;

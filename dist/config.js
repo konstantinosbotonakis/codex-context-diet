@@ -18,6 +18,7 @@ export const DEFAULT_CONFIG = {
     capsuleMaxErrorLines: 20,
     capsuleMaxStackFrames: 10,
     capsuleMaxSummaryLines: 8,
+    dedupe: true,
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -78,6 +79,7 @@ export function resolveConfig(raw) {
         capsuleMaxErrorLines: num(o.capsuleMaxErrorLines, DEFAULT_CONFIG.capsuleMaxErrorLines),
         capsuleMaxStackFrames: num(o.capsuleMaxStackFrames, DEFAULT_CONFIG.capsuleMaxStackFrames),
         capsuleMaxSummaryLines: num(o.capsuleMaxSummaryLines, DEFAULT_CONFIG.capsuleMaxSummaryLines),
+        dedupe: bool(o.dedupe, DEFAULT_CONFIG.dedupe),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;
