@@ -128,8 +128,21 @@ injects the snapshot once. `Stop` reports repeated recoveries once per session.
 | `src/bench.ts` | the local latency benchmark behind `benchmark` |
 
 Command entry points (`adapter-main.ts`, `session-main.ts`, `compaction-main.ts`, `subagent-main.ts`,
-`quality-guard-main.ts`) exist so the plugin works on Codex builds that cannot use MCP tool hooks.
+`stop-main.ts`, `quality-guard-main.ts`) exist so the plugin works on Codex builds that cannot use MCP
+tool hooks.
 `hooks/hooks.json` uses the MCP server; `hooks/hooks.command.json` is the fallback.
+
+Both transports call the same functions, and a parity test keeps it that way:
+
+| event | MCP tool | command entry | shared implementation |
+|---|---|---|---|
+| PostToolUse | `post_tool_use` | `adapter-main.js` | `adapter.main` |
+| SessionStart | `session_event` | `session-main.js` | `session.main` |
+| UserPromptSubmit | `prompt_guard` | `session-main.js` | `session.main` |
+| SubagentStart, SubagentStop | `subagent_start`, `subagent_stop` | `subagent-main.js` | `subagent.handleSubagent` |
+| PreCompact, PostCompact | `pre_compact`, `post_compact` | `compaction-main.js` | `compaction.handleCompaction` |
+| Stop recovery guard | `stop_guard` | `stop-main.js` | `stopGuard.handleStopGuard` |
+| Stop quality guard | `quality_guard` | `quality-guard-main.js` | `qualityGuard.handleStop` |
 
 ## Storage
 

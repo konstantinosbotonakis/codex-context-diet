@@ -15,7 +15,7 @@
  * The protocol is newline-delimited JSON-RPC 2.0 over stdin/stdout, per the
  * MCP stdio transport. No dependencies.
  */
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { appendEvent } from './codex/log.js';
@@ -24,8 +24,8 @@ import { main as sessionMain } from './codex/session.js';
 import { handleCompaction } from './codex/compaction.js';
 import { handleSubagent } from './codex/subagent.js';
 import { handleStop } from './codex/qualityGuard.js';
+import { handleStopGuard } from './codex/stopGuard.js';
 import { createAsker } from './codex/transport.js';
-import { readRecoveries } from './cache.js';
 import { loadConfig, pluginDataDir } from './config.js';
 import type { DietConfig } from './config.js';
 import { resolveApiKey } from './key.js';
@@ -36,9 +36,6 @@ import type { JevAsker } from './types.js';
 const PROTOCOL_VERSION = '2024-11-05';
 const SERVER_NAME = 'context-diet';
 const MAX_STATE_CHARS = 120_000;
-const RECOVERY_WINDOW_MS = 15 * 60 * 1000;
-const RECOVERY_WARN_AT = 2;
-
 type Args = Record<string, unknown>;
 
 const text = (value: unknown): string => (typeof value === 'string' ? value : '');
@@ -184,36 +181,23 @@ async function callTool(name: string, args: Args, env: NodeJS.ProcessEnv): Promi
     return ok(await sessionMain(JSON.stringify(payload), env));
   }
   if (name === 'stop_guard') {
-    const sessionId = text(args.session_id);
-    const recent = readRecoveries(env, sessionId).filter((record) => {
-      const at = Date.parse(record.at);
-      return Number.isFinite(at) && Date.now() - at <= RECOVERY_WINDOW_MS;
-    });
-    if (recent.length < RECOVERY_WARN_AT) return ok('');
-    const marker = join(pluginDataDir(env), 'state', 'stop-guard.json');
-    try {
-      const previous = JSON.parse(readFileSync(marker, 'utf8')) as { session_id?: string };
-      if (previous.session_id === sessionId) return ok('');
-    } catch {
-      // no marker yet
-    }
-    try {
-      mkdirSync(join(pluginDataDir(env), 'state'), { recursive: true });
-      writeFileSync(marker, JSON.stringify({ session_id: sessionId, at: new Date().toISOString() }) + '\n');
-    } catch {
-      // best effort
-    }
-    return ok(
-      JSON.stringify({
-        systemMessage:
-          '[codex-context-diet] ' + recent.length + ' dropped results were re-run in the last 15 minutes. ' +
-          'Consider a higher minTokens or a tool policy for the commands involved.',
-      }),
-    );
+    // Shared with the command fallback so both transports answer identically.
+    return ok(handleStopGuard({ session_id: text(args.session_id) }, env));
   }
   if (name === 'session_event') {
     const config = loadConfig(env);
-    appendEvent(env, config, { kind: 'session_event', event: text(args.event), session: text(args.session_id) });
+    const event = text(args.event);
+    appendEvent(env, config, { kind: 'session_event', event, session: text(args.session_id) });
+    // SessionStart goes through the same session handler the command hook
+    // uses, so the session record is written identically on both transports.
+    if (event === 'SessionStart') {
+      const payload = {
+        hook_event_name: 'SessionStart',
+        session_id: text(args.session_id),
+        cwd: text(args.cwd) || process.cwd(),
+      };
+      return ok(await sessionMain(JSON.stringify(payload), env));
+    }
     return ok('');
   }
   if (name === 'quality_guard') {

@@ -417,7 +417,7 @@ Measured on the development machine with the test asker standing in for Jev, 30 
 
 The server also backs the hooks with `stop_guard`, which reports once per session when several dropped results were re-run within 15 minutes.
 
-Command hooks remain in `hooks/hooks.command.json`. To fall back, copy it over `hooks/hooks.json` and trust the hooks again in `/hooks`. If the MCP server is unavailable, hooks do nothing and the session continues unchanged: MCP tool hooks never block an operation.
+Command hooks remain in `hooks/hooks.command.json`. To fall back, copy it over `hooks/hooks.json` and trust the hooks again in `/hooks`. Both transports call the same implementation functions, including both Stop guards, so the fallback behaves like the MCP path. If the MCP server is unavailable, hooks do nothing and the session continues unchanged: MCP tool hooks never block an operation.
 
 ### Direct Jev tools
 

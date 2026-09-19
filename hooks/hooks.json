@@ -32,7 +32,8 @@
             "tool": "session_event",
             "input": {
               "session_id": "${session_id}",
-              "event": "SessionStart"
+              "event": "SessionStart",
+              "cwd": "${cwd}"
             },
             "timeout": 5
           }
