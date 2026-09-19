@@ -39,6 +39,12 @@ export interface DietConfig {
     capsuleMaxSummaryLines: number;
     /** Drop a result that is byte-identical to one the session already has. */
     dedupe: boolean;
+    /** Ask Jev which chunks of an exceptionally large result to keep in the capsule. */
+    chunkRelevance: boolean;
+    chunkMinChars: number;
+    chunkMaxChars: number;
+    chunkMaxChunks: number;
+    chunkMaxInclude: number;
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;

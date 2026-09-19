@@ -38,6 +38,8 @@ The settings worth tuning:
   result: failures, stack frames and summaries survive, the rest is an omission count.
 - `dedupe` (default on) replaces a result that is identical to one the session already holds, and
   a file read stops counting as a duplicate once something writes to that file.
+- `chunkRelevance` (default on) adds one extra request for exceptionally large dropped results,
+  asking which chunks of a bounded sample belong in the capsule.
 
 `dryRun: true` records every decision without replacing anything. Start there.
 

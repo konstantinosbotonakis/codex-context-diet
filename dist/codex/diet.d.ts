@@ -46,6 +46,8 @@ export interface DietOutcome {
     entry: CacheEntry;
     /** Input tokens the API billed for this call, when it reported usage. */
     inputTokens: number | null;
+    /** One-based chunk numbers the capsule kept, when chunk relevance ran. */
+    chunkIds: number[];
 }
 export interface DietDeps {
     input: DietInput;
@@ -66,6 +68,6 @@ export interface DietDeps {
  * information. A hazard verdict always keeps and annotates.
  */
 export declare function decideDiet(answers: DietAnswers, config: DietConfig): DietDecision;
-export declare function buildNote(input: DietInput, decision: DietDecision, config: DietConfig): string | null;
+export declare function buildNote(input: DietInput, decision: DietDecision, config: DietConfig, extras?: string[]): string | null;
 export declare function cacheEntryOf(input: DietInput, decision: DietDecision, at: string): CacheEntry;
 export declare function runDiet(deps: DietDeps): Promise<DietOutcome>;

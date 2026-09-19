@@ -347,7 +347,12 @@ plugin reinstalls and is never committed.
   "capsuleMaxErrorLines": 20,
   "capsuleMaxStackFrames": 10,
   "capsuleMaxSummaryLines": 8,
-  "dedupe": true
+  "dedupe": true,
+  "chunkRelevance": true,
+  "chunkMinChars": 20000,
+  "chunkMaxChars": 24000,
+  "chunkMaxChunks": 12,
+  "chunkMaxInclude": 3
 }
 ```
 

@@ -37,11 +37,16 @@ export function extractEvidence(input: CapsuleInput, budgets: CapsuleBudgets): E
  * The note that replaces a dropped result. Structured evidence first, bounded
  * by maxChars, with the omission count stated at the end.
  */
-export function renderCapsule(input: CapsuleInput, budgets: CapsuleBudgets): Capsule {
+export function renderCapsule(input: CapsuleInput, budgets: CapsuleBudgets, extras: string[] = []): Capsule {
   const found = extractEvidence(input, budgets);
   const header = '[codex-context-diet evidence]\nCommand: ' + clip((input.toolName + ' ' + input.inputLine).trim(), 200);
   const facts = (found.facts ?? []).map((fact) => clip(fact, 200)).join('\n');
-  const body = found.lines.map((line) => clip(line, 400)).filter((line) => line.trim().length > 0);
+  // Deterministic evidence first, then the selected chunks. When the budget
+  // runs out the loop drops from the end, so chunks give way before evidence.
+  const body = [
+    ...found.lines.map((line) => clip(line, 400)),
+    ...extras.map((line) => clip(line, 2000)),
+  ].filter((line) => line.trim().length > 0);
   const omitted = Math.max(0, input.resultText.length - found.retainedChars);
   const tail = omitted.toLocaleString('en-US') + ' chars omitted.';
   const render = (): string =>
@@ -54,4 +59,3 @@ export function renderCapsule(input: CapsuleInput, budgets: CapsuleBudgets): Cap
   if (text.length > budgets.maxChars) text = text.slice(0, budgets.maxChars);
   return { kind: found.kind, text, omittedChars: omitted };
 }
-

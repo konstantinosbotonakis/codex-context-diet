@@ -208,7 +208,12 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "capsuleMaxErrorLines": 20,
   "capsuleMaxStackFrames": 10,
   "capsuleMaxSummaryLines": 8,
-  "dedupe": true
+  "dedupe": true,
+  "chunkRelevance": true,
+  "chunkMinChars": 20000,
+  "chunkMaxChars": 24000,
+  "chunkMaxChunks": 12,
+  "chunkMaxInclude": 3
 }
 ```
 
@@ -237,6 +242,11 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
 | `capsuleMaxStackFrames` | maximum stack frames kept in a capsule |
 | `capsuleMaxSummaryLines` | maximum summary lines kept in a capsule |
 | `dedupe` | drop a result that is identical to one the session already holds, with no Jev call |
+| `chunkRelevance` | ask Jev which chunks of an exceptionally large result belong in the capsule |
+| `chunkMinChars` | result size below which chunk relevance is not attempted |
+| `chunkMaxChars` | sampled characters sent to the chunk request |
+| `chunkMaxChunks` | maximum chunks in one chunk request |
+| `chunkMaxInclude` | maximum chunks that can end up in the capsule |
 
 Reading Codex's own transcript is deliberately not implemented. The format is documented as unstable for hooks, so the plugin keeps its own state. A transcript reader sits on the roadmap as an opt-in enrichment.
 
@@ -278,6 +288,8 @@ node dist/cli.js stats --all    # every store under ~/.codex/plugins/data
 The table counts sessions, results judged, results replaced, the replaced share, characters dropped and a token estimate for each window. With `debug: true` it adds Jev calls, prompt guard runs and key warnings. Nothing in the table comes from tool output, prompts or commands. The event log behind those last rows rotates daily and keeps 30 days by default; change `logRetentionDays` to move that, or set it to 0 to keep everything.
 
 Repeated commands are handled before Jev is asked: a result that is byte-identical to one the session already holds is replaced with a short note, counted as a deterministic drop rather than a Jev call. A file read stops counting as a duplicate once something writes to that file.
+
+For output above `chunkMinChars` that is already being dropped, one extra request splits a bounded sample into chunks and asks whether each one still matters. The chunks that matter ride along in the capsule, and only the clearly unnecessary ones are left out, so uncertainty keeps evidence. The request never changes the keep or drop decision.
 
 Every Jev response reports token usage, so the table also adds up input tokens and prices them at `pricePerMillionInputTokens`, 0.042 USD per million input tokens by default, which is the published Jev input price. Output tokens are free. Calls recorded before usage was kept make the cost a lower bound, and the table says so when that applies.
 

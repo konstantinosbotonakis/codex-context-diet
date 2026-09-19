@@ -19,6 +19,11 @@ export const DEFAULT_CONFIG = {
     capsuleMaxStackFrames: 10,
     capsuleMaxSummaryLines: 8,
     dedupe: true,
+    chunkRelevance: true,
+    chunkMinChars: 20_000,
+    chunkMaxChars: 24_000,
+    chunkMaxChunks: 12,
+    chunkMaxInclude: 3,
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -80,6 +85,11 @@ export function resolveConfig(raw) {
         capsuleMaxStackFrames: num(o.capsuleMaxStackFrames, DEFAULT_CONFIG.capsuleMaxStackFrames),
         capsuleMaxSummaryLines: num(o.capsuleMaxSummaryLines, DEFAULT_CONFIG.capsuleMaxSummaryLines),
         dedupe: bool(o.dedupe, DEFAULT_CONFIG.dedupe),
+        chunkRelevance: bool(o.chunkRelevance, DEFAULT_CONFIG.chunkRelevance),
+        chunkMinChars: num(o.chunkMinChars, DEFAULT_CONFIG.chunkMinChars),
+        chunkMaxChars: num(o.chunkMaxChars, DEFAULT_CONFIG.chunkMaxChars, 1),
+        chunkMaxChunks: Math.floor(num(o.chunkMaxChunks, DEFAULT_CONFIG.chunkMaxChunks, 1)),
+        chunkMaxInclude: Math.floor(num(o.chunkMaxInclude, DEFAULT_CONFIG.chunkMaxInclude)),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;

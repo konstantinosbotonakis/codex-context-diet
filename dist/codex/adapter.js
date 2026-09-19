@@ -33,6 +33,7 @@ function logEvent(env, config, outcome) {
         chars: outcome.entry.chars,
         blocked: outcome.blocked,
         inputTokens: outcome.inputTokens,
+        chunks: outcome.chunkIds.length > 0 ? outcome.chunkIds : undefined,
     });
 }
 /** Reads one hook payload and returns at most one stdout object. Never throws. */
