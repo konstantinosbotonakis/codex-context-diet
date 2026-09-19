@@ -19,6 +19,8 @@ jobs:
       - run: npm run typecheck
       - run: npm run build
       - run: node dist/cli.js eval
+      - run: node dist/cli.js doctor
+      - run: npm run eval:prompts
       - run: npm test
       - name: dist must match src
         run: git diff --exit-code -- dist

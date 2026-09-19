@@ -24,6 +24,15 @@ Long sessions fill up with tool output. Test logs, build noise, large file reads
 
 An injection verdict never blocks and never edits. It forces the result to be kept and adds one line of developer context. A false positive must not change what the model can see.
 
+### What kind of behaviour is this
+
+Every feature is one of four things, and the text below labels which:
+
+- **Deterministic**: code on this machine. Same input, same decision, no network. Size gates, duplicate detection, redaction, capsules, recovery scoring, statistics, doctor.
+- **Jev judgement**: one semantic signal from TypeSafe. It never acts on its own; deterministic code decides what to do with it.
+- **Codex behaviour**: what the host does with the hook output, such as replacing a tool result or adding developer context.
+- **Experimental**: ships off by default or behind an explicit flag. The prompt guard and the Stop quality guard are the two today.
+
 ### The three stdout shapes
 
 The tool-result adapter writes exactly three shapes, and nothing else:
@@ -150,7 +159,7 @@ Both runs got the same prompt, and that prompt's backticks were expanded by the 
 
 ## Install
 
-The plugin needs Node 18 or newer on `PATH~, because the hooks are Node processes.
+The plugin needs Node 18 or newer on `PATH`, because the hooks are Node processes.
 
 ```bash
 codex plugin marketplace add konstantinosbotonakis/codex-context-diet
@@ -175,6 +184,16 @@ codex plugin marketplace upgrade context-diet
 ```
 
 That refreshes both the marketplace clone and the installed copy. Your config, decision log and session caches live in `$PLUGIN_DATA` and survive. If a release changed `hooks/hooks.json`, trust the hooks again in `/hooks`.
+
+### Rollback
+
+Three levels, from smallest to largest:
+
+- Set `"enabled": false` in `$PLUGIN_DATA/config.json`. Every hook exits before reading anything, and your caches and logs stay where they are.
+- Untrust the hooks in `/hooks`. Codex then skips them and no file changes.
+- Remove the plugin the same way you installed it.
+
+A single diet decision is reversible too: the note in a replaced result names the command that ran, so the model can re-run it and get the full output back.
 
 There is no build step at install time. `dist/` is committed, because a plugin installed from git cannot run `npm run build`.
 
@@ -299,6 +318,12 @@ Before any Jev request, and before any cache or log write, a deterministic local
 printf %s "$YOUR_KEY" > ~/.typesafe_key && chmod 600 ~/.typesafe_key
 ```
 
+### What leaves the machine
+
+One Jev request carries a bounded, sampled and redacted view of the result under judgement, the tool name, the one-line input, the recent goal, and short digests of earlier results rather than their text. Raw tool output is never sent in full and never appears in the log at all.
+
+Everything else stays local: full results, `neverSendPaths` matches, `neverSendTools` results, your key, and the event log. [docs/security.md](docs/security.md) has the whole trust boundary.
+
 ## What is never dieted
 
 - `apply_patch` and its `Edit` / `Write` aliases. Patch output is the record of what changed, and it is small.
@@ -307,6 +332,19 @@ printf %s "$YOUR_KEY" > ~/.typesafe_key && chmod 600 ~/.typesafe_key
 - Hosted tools such as web search, which never reach the PostToolUse hook path.
 
 Hooks are a guardrail, not an enforcement boundary. Some specialised tool paths can opt out of the default hook path, and this plugin does not try to prevent that.
+
+## What replaces a dropped result
+
+A replacement is not a truncation. The plugin builds an evidence capsule from the result it is dropping:
+
+- the head, capped by `truncateHeadChars`
+- error and failure lines, up to `capsuleMaxErrorLines`
+- stack frames, up to `capsuleMaxStackFrames`
+- summary lines, up to `capsuleMaxSummaryLines`
+- for an exceptionally large result, the chunks Jev scored as still needed, up to `chunkMaxInclude`
+- a one-line note naming what ran, how much was dropped, and that re-running restores it
+
+The capsule is capped by `capsuleMaxChars`, 1,200 by default, so a 2 MB log can become a 450-byte replacement that still names the failure. Chunk selection only ever adds evidence to a drop that was already decided; it never changes the keep or drop decision. Deterministic evidence wins the budget race: when the capsule is too small for everything, chunk extras go before error lines.
 
 ## Measuring the effect
 
@@ -320,7 +358,21 @@ node dist/cli.js stats --json   # the same numbers as JSON
 node dist/cli.js stats --all    # every store under ~/.codex/plugins/data
 ```
 
-The table counts sessions, results judged, results replaced, the replaced share, characters dropped and a token estimate for each window. With `debug: true` it adds Jev calls, prompt guard runs and key warnings. Nothing in the table comes from tool output, prompts or commands. The event log behind those last rows rotates daily and keeps 30 days by default; change `logRetentionDays` to move that, or set it to 0 to keep everything.
+Other commands, all offline except the last:
+
+```bash
+node dist/cli.js status       # config path, key source, data directory
+node dist/cli.js policy       # the size gate and thresholds each tool would get
+node dist/cli.js eval         # the decision corpus, 26 cases, one false drop fails the run
+node dist/cli.js benchmark    # local pipeline, command-hook and MCP latency
+node dist/cli.js doctor       # install, key, storage, hooks and MCP health
+node dist/cli.js verify       # eight checks over the decision path
+node dist/cli.js test         # one real request to Jev, needs a key
+```
+
+The table answers two different questions and keeps them apart. Quantity: sessions, results seen, results skipped, results judged, results replaced and the replaced share, keeps split into uncertain, irreplaceable and hazard, deterministic drops against semantic drops, characters dropped, original tokens, capsule tokens and net tokens avoided. Cost: Jev calls, Jev input tokens, estimated cost, and the diet's own p50 and p95 latency. Quality: recovery reruns, recovery rate, net useful replacements, secret redactions, prompt guard runs and flags, key warnings, quality interventions, and subagent checks and revisions.
+
+Context tokens and Jev tokens are never combined into one number, because they are different resources: context tokens are what the session no longer re-sends, Jev tokens are what the decision consumed. The log rows need `debug: true`. Nothing in the table comes from tool output, prompts or commands. The event log rotates daily and keeps 30 days by default; change `logRetentionDays` to move that, or set it to 0 to keep everything.
 
 Repeated commands are handled before Jev is asked: a result that is byte-identical to one the session already holds is replaced with a short note, counted as a deterministic drop rather than a Jev call. A file read stops counting as a duplicate once something writes to that file.
 
@@ -384,6 +436,35 @@ They enforce a 120,000-character state limit, redact secrets before the request,
 
 Nothing here reads the transcript, and the snapshot holds no raw results, only the shape of what happened. It is capped by `snapshotMaxChars` and can be switched off with `compactionResurrection: false`. If the state is empty, nothing is written.
 
+## Performance
+
+Measured on the development machine (macOS arm64, Node 24.11.1), medians, reproducible offline:
+
+| stage | 200,000 chars | 2,000,000 chars |
+|---|---|---|
+| full hook, local only | 4.3 ms | 34.8 ms |
+| secret scan | 0.3 ms | 3.0 ms |
+| signal sample | 1.0 ms | 9.8 ms |
+
+| transport | p50 | p95 |
+|---|---|---|
+| command hook, one process per call | 42.2 ms | 44.8 ms |
+| MCP tool call, one shared process | 2.8 ms | 3.5 ms |
+
+Scaling is linear, and a 2 MB result becomes a 450-byte replacement. Jev network time is reported separately by `node dist/cli.js benchmark --live`; one measured reachability request took 630 ms, and earlier live decision runs recorded 267 to 1296 ms. The 5 s deadline fails open, so a slow model costs an opportunity rather than a stall. [docs/performance.md](docs/performance.md) has the full table, the memory bounds and the commands that reproduce every number.
+
+## Troubleshooting
+
+| symptom | first thing to check |
+|---|---|
+| The plugin never seems to act | `node dist/cli.js doctor`, then confirm the hooks are trusted in `/hooks` |
+| Results are replaced rarely | most results sit below `minTokens`, and the first result of a session is always kept. `stats` shows results seen against results judged |
+| Nothing appears in `stats` | the table reads caches and, for the cost and guard rows, the event log, which needs `debug: true` |
+| "Jev was skipped" appears | the key is missing or rejected. `doctor` names the source it checked, and the line appears at most once an hour |
+| A session feels slower | `node dist/cli.js benchmark` separates local cost from network cost. MCP hooks remove roughly 40 ms per qualifying call |
+| The MCP hooks do not run | copy `hooks/hooks.command.json` over `hooks/hooks.json` and trust the hooks again. The plugin works without the MCP server |
+| A replacement lost something you needed | re-run the command named in the note. That also counts as a recovery, which is the quality signal the plugin watches |
+
 ## Development
 
 ```bash
@@ -420,7 +501,7 @@ Loop safety is layered: a subagent that Codex already continued is never asked a
 
 It cannot loop: `stop_hook_active` is respected, each turn has an intervention cap, and any failure lets the turn finish. Enable it only after running the evaluation corpus against your own workload.
 
-[docs/architecture.md](docs/architecture.md) has the decision path, the module map and the storage layout.
+[docs/architecture.md](docs/architecture.md) has the pipeline, the module map and the storage layout. [docs/configuration.md](docs/configuration.md) is the full field reference with the accepted aliases and the migration notes. [docs/security.md](docs/security.md) is the trust boundary and what the plugin is not. [docs/performance.md](docs/performance.md) holds every measured number and the commands that reproduce them. [docs/releases.md](docs/releases.md) maps the 1.0 capability set onto versions.
 
 
 ### Evaluation tooling
@@ -438,6 +519,20 @@ The report covers cases, correct decisions, false keeps, false drops and the wro
 Nothing needs migrating by hand. Every configuration field added after 0.5.1 is additive with a safe default, so an existing `config.json` keeps working. Older cache lines simply miss the newer fields, which means duplicate detection, recovery scoring and policy matching start fresh from the next call.
 
 One thing does change. The hooks now run through the bundled MCP server, so trust them again in `/hooks` after updating: Codex skips plugin hooks until the current definition is reviewed. If your Codex build cannot use MCP tool hooks, copy `hooks/hooks.command.json` over `hooks/hooks.json` and trust them again; that is the same behaviour as 0.x.
+
+## Security model
+
+Context Diet is an optimisation and semantic policy layer. It is not a sandbox, not a complete prompt-injection defence, not a secret-management system and not an authorisation system. Injection detection warns and forces a keep; it never blocks and never claims the session is safe. The privacy layer is deterministic and local, and no candidate secret is ever sent to a model to ask whether it is a secret. [docs/security.md](docs/security.md) has the full model, including what an attacker could still do.
+
+## Known limitations
+
+- Context pressure is an estimate. Hook payloads carry no token usage, so the plugin measures what the session still carries from its own digests. The stages are a heuristic, and they only ever lower the size gate.
+- Recovery detection is inference. A deliberate re-run looks like a recovery, so the recovery rate is an upper bound.
+- The plugin sees the tool results the host routes to `PostToolUse`. Hosted tools and specialised paths that bypass hooks are invisible to it.
+- The transcript is never read, by design: the format is documented as unstable for hooks, so plugin state is its own.
+- Jev answers are probabilistic. The offline corpus proves the deterministic pipeline, and `--live` shows model behaviour on 26 cases, not on a large private workload.
+- The cost line is a lower bound for calls recorded before usage was kept.
+- The MCP hook path is measured offline and works in real sessions, but a Codex build that cannot use `mcp_tool` handlers needs the command fallback in `hooks/hooks.command.json`.
 
 ## Attribution
 

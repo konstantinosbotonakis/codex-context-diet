@@ -129,6 +129,113 @@ function validateCompanion(root, manifest, errors) {
   }
 }
 
+/** The three version carriers, the MCP manifest, the hook wiring and the corpus. */
+function validateVersions(root, manifest, errors) {
+  const pkg = loadJson(join(root, 'package.json'));
+  if (!isObject(pkg)) errors.push('package.json must exist and be valid JSON');
+  else if (pkg.version !== manifest.version) {
+    errors.push('package.json version (' + pkg.version + ') must match plugin.json version (' + manifest.version + ')');
+  }
+}
+
+function validateMcp(root, manifest, errors) {
+  const companion = loadJson(join(root, '.mcp.json'));
+  if (!isObject(companion) || !isObject(companion.mcpServers)) return;
+  for (const [name, server] of Object.entries(companion.mcpServers)) {
+    if (!isObject(server)) { errors.push('.mcp.json server `' + name + '` must be an object'); continue; }
+    if (!nonEmptyString(server.command)) errors.push('.mcp.json server `' + name + '` needs a command');
+    if (!Array.isArray(server.args) || !server.args.every((value) => typeof value === 'string')) {
+      errors.push('.mcp.json server `' + name + '` needs a string args array');
+    } else if (!server.args.join(' ').includes('$PLUGIN_ROOT')) {
+      errors.push('.mcp.json server `' + name + '` must resolve through $PLUGIN_ROOT so any install path works');
+    }
+  }
+  // Every server the MCP hooks call must exist in the manifest. The local
+  // alias is the plugin's choice, so this checks the link, not the name.
+  const hooks = loadJson(join(root, 'hooks', 'hooks.json'));
+  const referenced = new Set();
+  const walk = (value) => {
+    if (Array.isArray(value)) {
+      for (const item of value) walk(item);
+      return;
+    }
+    if (!isObject(value)) return;
+    if (value.type === 'mcp_tool' && nonEmptyString(value.server)) referenced.add(value.server);
+    for (const item of Object.values(value)) walk(item);
+  };
+  walk(hooks);
+  for (const name of referenced) {
+    if (!(name in companion.mcpServers)) {
+      errors.push('hooks/hooks.json calls MCP server `' + name + '` which .mcp.json does not define');
+    }
+  }
+}
+
+const HOOK_TYPES = new Set(['command', 'mcp_tool']);
+
+function validateHooks(root, errors) {
+  for (const relative of ['hooks/hooks.json', 'hooks/hooks.command.json']) {
+    const file = loadJson(join(root, relative));
+    if (!isObject(file) || !isObject(file.hooks)) {
+      errors.push(relative + ' must exist and carry a hooks object');
+      continue;
+    }
+    for (const [event, entries] of Object.entries(file.hooks)) {
+      if (!Array.isArray(entries) || entries.length === 0) {
+        errors.push(relative + ' event `' + event + '` must be a non-empty array');
+        continue;
+      }
+      for (const entry of entries) {
+        if (!isObject(entry) || !Array.isArray(entry.hooks)) {
+          errors.push(relative + ' event `' + event + '` needs a hooks array');
+          continue;
+        }
+        for (const hook of entry.hooks) {
+          if (!isObject(hook) || !HOOK_TYPES.has(hook.type)) {
+            errors.push(relative + ' event `' + event + '` has a hook without a supported type');
+            continue;
+          }
+          if (hook.type === 'command' && !nonEmptyString(hook.command)) {
+            errors.push(relative + ' `' + event + '` command hook needs a command');
+          }
+          if (hook.type === 'mcp_tool' && (!nonEmptyString(hook.server) || !nonEmptyString(hook.tool))) {
+            errors.push(relative + ' `' + event + '` mcp_tool hook needs a server and a tool');
+          }
+          if (hook.timeout !== undefined && !(typeof hook.timeout === 'number' && hook.timeout > 0)) {
+            errors.push(relative + ' `' + event + '` timeout must be a positive number');
+          }
+        }
+      }
+    }
+  }
+}
+
+function validateEvalCorpus(root, errors) {
+  const corpus = loadJson(join(root, 'evals', 'cases.json'));
+  if (!isObject(corpus) || !Array.isArray(corpus.cases)) {
+    errors.push('evals/cases.json must exist and carry a cases array');
+    return;
+  }
+  const ids = new Set();
+  for (const [index, item] of corpus.cases.entries()) {
+    const label = 'evals/cases.json case ' + index;
+    if (!isObject(item)) { errors.push(label + ' must be an object'); continue; }
+    for (const key of ['id', 'category', 'goal', 'tool', 'input', 'fixture', 'expectedAction', 'reason']) {
+      if (!nonEmptyString(item[key])) errors.push(label + ' needs a string `' + key + '`');
+    }
+    if (item.expectedAction !== 'keep' && item.expectedAction !== 'drop') {
+      errors.push(label + ' expectedAction must be keep or drop');
+    }
+    if (typeof item.id === 'string') {
+      if (ids.has(item.id)) errors.push(label + ' repeats id ' + item.id);
+      ids.add(item.id);
+    }
+    if (nonEmptyString(item.fixture) && !existsSync(join(root, 'evals', 'fixtures', item.fixture))) {
+      errors.push(label + ' fixture ' + item.fixture + ' is missing');
+    }
+  }
+}
+
 export function validatePlugin(root) {
   const errors = [];
   const manifest = loadJson(join(root, '.codex-plugin', 'plugin.json'));
@@ -158,6 +265,10 @@ export function validatePlugin(root) {
   else if (JSON.stringify(canonical(legacy)) !== JSON.stringify(canonical(manifest))) {
     errors.push('plugin.json and .codex-plugin/plugin.json must stay identical');
   }
+  validateVersions(root, manifest, errors);
+  validateMcp(root, manifest, errors);
+  validateHooks(root, errors);
+  validateEvalCorpus(root, errors);
   return errors;
 }
 
@@ -172,4 +283,3 @@ if (invokedDirectly) {
   }
   console.log('plugin manifest validation passed: ' + root);
 }
-

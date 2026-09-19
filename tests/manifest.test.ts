@@ -29,6 +29,19 @@ const makeRoot = (manifest: unknown, legacy: unknown = manifest): string => {
   mkdirSync(join(root, '.codex-plugin'), { recursive: true });
   writeFileSync(join(root, '.codex-plugin', 'plugin.json'), JSON.stringify(manifest, null, 2));
   writeFileSync(join(root, 'plugin.json'), JSON.stringify(legacy, null, 2));
+  // A valid root also carries the version, the hook wiring and the corpus the
+  // validator now checks, so the fixture has to represent all of it.
+  const version = (manifest as { version?: string }).version ?? '0.0.0';
+  writeFileSync(join(root, 'package.json'), JSON.stringify({ name: 'sample-plugin', version }, null, 2));
+  mkdirSync(join(root, 'hooks'), { recursive: true });
+  const hook = { hooks: { PostToolUse: [{ matcher: '.*', hooks: [{ type: 'command', command: 'node "$PLUGIN_ROOT/dist/x.js"', timeout: 10 }] }] } };
+  writeFileSync(join(root, 'hooks', 'hooks.json'), JSON.stringify(hook, null, 2));
+  writeFileSync(join(root, 'hooks', 'hooks.command.json'), JSON.stringify(hook, null, 2));
+  mkdirSync(join(root, 'evals', 'fixtures'), { recursive: true });
+  writeFileSync(join(root, 'evals', 'cases.json'), JSON.stringify({ description: 'fixture', cases: [
+    { id: 'one', category: 'one', goal: 'goal', tool: 'Bash', input: 'npm test', fixture: 'one.txt', expectedAction: 'keep', reason: 'reason' },
+  ] }, null, 2));
+  writeFileSync(join(root, 'evals', 'fixtures', 'one.txt'), 'output');
   return root;
 };
 

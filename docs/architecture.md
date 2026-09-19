@@ -9,6 +9,69 @@ Two rules hold everywhere:
 1. Models provide signals. Deterministic code owns policy and side effects.
 2. Every failure path keeps the original result. The plugin can lose an optimisation, never a session.
 
+## The full pipeline
+
+```text
+                   Codex tool result
+                          |
+                          v
+                Local privacy boundary
+                 redact / block sending
+                          |
+                          v
+                 Deterministic filters
+                   size / exclusions
+                    duplicates
+                    invalidation
+                          |
+                          v
+                    Signal sampler
+                          |
+                          v
+                  Output classifier
+                          |
+              +-----------+-----------+
+              |                       |
+              v                       v
+       normal decision        very large result
+                                      |
+                                      v
+                            chunk relevance pass
+              |                       |
+              +-----------+-----------+
+                          |
+                          v
+                     Jev signals
+                          |
+                          v
+                deterministic policy
+                          |
+              +-----------+-----------+
+              |                       |
+              v                       v
+            KEEP              Evidence Capsule
+                                      |
+                                      v
+                                  telemetry
+                                      |
+                                      v
+                             recovery detection
+                                      |
+                                      v
+                              adaptive policy
+```
+
+The session lifecycle that feeds it:
+
+```text
+SessionStart -> goal/state capture
+UserPromptSubmit -> optional prompt guard, resurrection snapshot
+PostToolUse -> the pipeline above
+SubagentStart/SubagentStop -> the result contract and its verdict
+Stop -> optional completion guard, recovery advisory
+PreCompact/PostCompact -> snapshot and its one-time injection
+```
+
 ## The decision path
 
 ```text
@@ -56,10 +119,17 @@ injects the snapshot once. `Stop` reports repeated recoveries once per session.
 | `src/pressure.ts` | the retained-context estimate and its stages |
 | `src/stats.ts` | the usage table over caches and the event log |
 | `src/mcp-server.ts` | the stdio MCP server: hook ops plus the Jev primitives |
+| `src/codex/subagent.ts` | the subagent result contract and its four-question verdict |
+| `src/codex/qualityGuard.ts` | the optional Stop guard and its continuation reasons |
+| `src/codex/log.ts` | the redacted event log and its daily rotation |
+| `src/codex/keyWarning.ts` | the once-per-hour "Jev was skipped" line |
+| `src/eval.ts` and `evals/` | the offline decision corpus and its report |
+| `src/doctor.ts` | the offline install health check |
+| `src/bench.ts` | the local latency benchmark behind `benchmark` |
 
-Command entry points (`adapter-main.ts`, `session-main.ts`, `compaction-main.ts`) exist so the plugin
-works on Codex builds that cannot use MCP tool hooks. `hooks/hooks.json` uses the MCP server;
-`hooks/hooks.command.json` is the fallback.
+Command entry points (`adapter-main.ts`, `session-main.ts`, `compaction-main.ts`, `subagent-main.ts`,
+`quality-guard-main.ts`) exist so the plugin works on Codex builds that cannot use MCP tool hooks.
+`hooks/hooks.json` uses the MCP server; `hooks/hooks.command.json` is the fallback.
 
 ## Storage
 
@@ -95,6 +165,9 @@ bounded and already redacted.
 ## Verification
 
 `npm test` covers the decision path, the hook entry points, the MCP protocol and the storage formats.
-`node dist/cli.js verify` runs eight offline checks over the decision path. `npm run validate:plugin`
-mirrors the plugin ingestion schema, and `npm run bench:hooks` measures the two transports.
-
+`node dist/cli.js verify` runs eight offline checks over the decision path, `node dist/cli.js eval`
+runs the 26-case decision corpus with one false drop failing the run, and `node dist/cli.js doctor`
+checks the install, the key, the storage, the hooks and the MCP runtime without sending anything.
+`npm run validate:plugin` mirrors the plugin ingestion schema. `node dist/cli.js benchmark` and
+`npm run bench:hooks` measure the transports, and `node scripts/bench-stages.mjs` measures each local
+stage. Numbers live in [performance.md](performance.md).
