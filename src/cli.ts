@@ -13,7 +13,7 @@ import { renderEvalReport, runEvaluation } from './eval.js';
 import { doctorExitCode, renderDoctor, runDoctor } from './doctor.js';
 import { renderBenchmark, runBenchmark } from './bench.js';
 import { fakeAsker, throwingAsker, verifyCompaction } from './verify.js';
-import { layaPaths, layaStatus, resolveLayaPython, warmLaya } from './providers/laya.js';
+import { layaHeadPath, layaPaths, layaStatus, resolveLayaPython, warmLaya } from './providers/laya.js';
 import { createAsker } from './codex/transport.js';
 
 const USAGE = [
@@ -84,6 +84,13 @@ async function live(): Promise<number> {
   }
   const started = Date.now();
   try {
+    if (config.provider === 'laya') {
+      // A cold checkpoint load is far longer than one answer, so this
+      // diagnostic warms the daemon first and then measures a real answer.
+      const reply = await warmLaya(config, env);
+      process.stdout.write('laya: checkpoint ready (' + (reply.model ?? config.layaModel) +
+        ' on ' + (reply.device ?? 'auto') + ')\n');
+    }
     const asker = createAsker(config, key ?? 'test-key', env);
     const response = await asker.ask(
       { ping: 'ok' },
@@ -260,6 +267,8 @@ async function providerCommand(): Promise<number> {
       'worker:     ' + paths.worker,
       'socket:     ' + paths.socket,
     );
+    const head = layaHeadPath(config, env);
+    lines.push('head:       ' + (head.length > 0 ? head : 'none for this checkpoint; Laya answers raw'));
     const status = await layaStatus(config, env);
     lines.push(
       'daemon:     ' + (status === null

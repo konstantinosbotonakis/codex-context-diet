@@ -6,8 +6,17 @@ export interface LayaPaths {
     log: string;
     worker: string;
     venvPython: string;
+    headDir: string;
+    head: string;
 }
 export declare function layaPaths(env: NodeJS.ProcessEnv): LayaPaths;
+/**
+ * The head trained for the configured checkpoint, or an empty string.
+ *
+ * Heads are fitted per checkpoint, so a subfolder without a measured head
+ * falls back to Laya's own answers rather than reading a mismatched probe.
+ */
+export declare function layaHeadPath(config: DietConfig, env: NodeJS.ProcessEnv): string;
 /** Config first, then the managed venv, then whatever python3 is on PATH. */
 export declare function resolveLayaPython(config: DietConfig, env: NodeJS.ProcessEnv): string;
 interface LayaAnswer {
@@ -30,7 +39,24 @@ interface LayaReply {
     laya?: string;
     loaded?: boolean;
     subfolder?: string | null;
+    head?: LayaHeadScores | null;
+    workerMtime?: number | null;
+    headMtime?: number | null;
 }
+export interface LayaHeadScores {
+    drop: number;
+    hazard: number;
+    dropThreshold: number;
+    hazardThreshold: number;
+}
+/**
+ * The head's verdict, written in the policy's own language.
+ *
+ * The trained head decides drop or keep from the state itself, because Laya's
+ * own question heads carry almost no signal on this task. The deterministic
+ * policy still makes the call: these answers are just what it reads.
+ */
+export declare function headAnswers(head: LayaHeadScores): Record<string, JevAnswer>;
 /**
  * The daemon, started on demand. A cold start loads a checkpoint, so the wait
  * is the warm timeout, not the per-answer timeout.

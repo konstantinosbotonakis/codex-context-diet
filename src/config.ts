@@ -22,6 +22,8 @@ export interface DietConfig {
   layaSubfolder: string;
   /** torch device: empty means auto (mps or cuda when available). */
   layaDevice: string;
+  /** Use the trained decision head in calibration/laya-head.json when it exists. */
+  layaHead: boolean;
   /** How long one Laya answer may take once the model is loaded. */
   layaTimeoutMs: number;
   /** How long the first call may take while the model loads. */
@@ -91,6 +93,7 @@ export const DEFAULT_CONFIG: DietConfig = {
   layaModel: 'convaiinnovations/laya',
   layaSubfolder: 'multilingual',
   layaDevice: '',
+  layaHead: true,
   layaTimeoutMs: 20_000,
   layaWarmTimeoutMs: 120_000,
   minTokens: 2000, keepThreshold: 0.5, dropThreshold: 0.25, truncateHeadChars: 300,
@@ -193,6 +196,7 @@ export function resolveConfig(raw: unknown): DietConfig {
     layaModel: str(o.layaModel, DEFAULT_CONFIG.layaModel),
     layaSubfolder: typeof o.layaSubfolder === 'string' ? o.layaSubfolder : DEFAULT_CONFIG.layaSubfolder,
     layaDevice: typeof o.layaDevice === 'string' ? o.layaDevice : DEFAULT_CONFIG.layaDevice,
+    layaHead: bool(o.layaHead, DEFAULT_CONFIG.layaHead),
     layaTimeoutMs: num(o.layaTimeoutMs, DEFAULT_CONFIG.layaTimeoutMs, 1),
     layaWarmTimeoutMs: num(o.layaWarmTimeoutMs, DEFAULT_CONFIG.layaWarmTimeoutMs, 1),
     mode: o.mode === 'observe' ? 'observe' : 'diet',

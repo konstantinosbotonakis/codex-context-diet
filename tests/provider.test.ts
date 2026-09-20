@@ -7,7 +7,7 @@ import { appendCache, type CacheEntry } from '../src/cache.js';
 import { configPath, DEFAULT_CONFIG, loadConfig, resolveConfig, saveConfig } from '../src/config.js';
 import { main as adapterMain } from '../src/codex/adapter.js';
 import { logPath } from '../src/codex/log.js';
-import { layaPaths, mapLayaAnswers, resolveLayaPython } from '../src/providers/laya.js';
+import { headAnswers, layaHeadPath, layaPaths, mapLayaAnswers, resolveLayaPython } from '../src/providers/laya.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -97,6 +97,36 @@ describe('answer mapping', () => {
     );
     expect(mapped.a).toEqual({ type: 'noul', noul: 1 });
     expect(mapped.b).toBeUndefined();
+  });
+});
+
+describe('the decision head', () => {
+  const noul = (answer: ReturnType<typeof headAnswers>[string]): number =>
+    answer.type === 'noul' ? answer.noul : Number.NaN;
+
+  it('reads the head trained for the configured checkpoint', () => {
+    const env = tempEnv();
+    expect(layaHeadPath({ ...DEFAULT_CONFIG, layaSubfolder: '' }, env))
+      .toBe(join(repoRoot, 'calibration', 'laya-head.json'));
+    expect(layaHeadPath({ ...DEFAULT_CONFIG, layaSubfolder: 'multilingual' }, env))
+      .toBe(join(repoRoot, 'calibration', 'laya-head-multilingual.json'));
+    // No head was fitted for this checkpoint, so Laya answers it raw.
+    expect(layaHeadPath({ ...DEFAULT_CONFIG, layaSubfolder: 'typed-decisions' }, env)).toBe('');
+    expect(layaHeadPath({ ...DEFAULT_CONFIG, layaSubfolder: '', layaHead: false }, env)).toBe('');
+  });
+
+  it('writes the head verdict in the policy language', () => {
+    const drop = headAnswers({ drop: 0.9, hazard: 0.1, dropThreshold: 0.1, hazardThreshold: 0.84 });
+    expect(noul(drop.needs_contents)).toBeLessThan(0.5);
+    expect(noul(drop.replaceable)).toBeGreaterThan(0.5);
+    expect(noul(drop.agent_directed)).toBeLessThan(0.5);
+
+    const keep = headAnswers({ drop: 0.02, hazard: 0.99, dropThreshold: 0.1, hazardThreshold: 0.84 });
+    expect(noul(keep.needs_contents)).toBeGreaterThan(0.5);
+    expect(noul(keep.replaceable)).toBeLessThan(0.5);
+    // A hazard caps the answers at keep, whatever the drop head wants.
+    expect(noul(keep.agent_directed)).toBeGreaterThan(0.9);
+    expect(noul(keep.behaviour_change)).toBeGreaterThan(0.9);
   });
 });
 

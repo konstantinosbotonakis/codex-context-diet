@@ -21,6 +21,15 @@ and evaluation gaps against the design document, and its live evaluation is publ
 `docs/evals/`.
 
 ## Cutting a release
+### 0.7.1
+
+The local provider gets a decision head. Laya's own heads keep every result, so a small ridge
+probe fitted on this machine against Jev, one per shipped checkpoint, now reads the checkpoint's
+encoder instead. Both daemon faults found while measuring are fixed: a stale worker is retired
+when the plugin or the head changes, and a caller that gives up no longer kills the worker. The
+measured tables and the training pipeline are in `docs/providers.md`, and the release numbers
+are in `docs/release-notes-0.7.1.md`.
+
 ### 0.7.0
 
 Pluggable decision-model providers. `provider` selects TypeSafe's Jev (default) or a local open

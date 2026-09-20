@@ -225,6 +225,7 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "layaModel": "convaiinnovations/laya",
   "layaSubfolder": "multilingual",
   "layaDevice": "",
+  "layaHead": true,
   "layaTimeoutMs": 20000,
   "layaWarmTimeoutMs": 120000,
   "neverDietTools": [],
@@ -341,11 +342,14 @@ node dist/cli.js provider warm                   # load the checkpoint once, abo
 
 The local provider is ConvAI Innovations' [Laya](https://laya.convaiinnovations.com/) (Apache 2.0),
 a non-autoregressive decision model with the same three primitives this plugin asks for. It runs
-through a Python worker that holds the checkpoint and answers over a unix socket. On the 112-case
-corpus its stock checkpoints keep every result, so it is a base to fine-tune rather than a
-replacement for Jev's judgement today; the measured table, the calibration script and the setup
-requirements are in [docs/providers.md](docs/providers.md). Every provider failure keeps the tool
-result, so switching cannot lose a session.
+through a Python worker that holds the checkpoint and answers over a unix socket. Its own heads
+keep every result, so the plugin ships a small linear head, fitted on this machine against Jev as
+the teacher, that reads the checkpoint's encoder instead. Head mode takes the clear cases and
+nothing else: on the 112-case corpus it replaced 11 results, every one of them a result Jev also
+drops, at 28 ms per decision and no cost. Jev stays the default because it still judges the whole
+range. The measured tables, the training pipeline and the setup requirements are in
+[docs/providers.md](docs/providers.md). Every provider failure keeps the tool result, so switching
+cannot lose a session.
 
 ### Secrets
 

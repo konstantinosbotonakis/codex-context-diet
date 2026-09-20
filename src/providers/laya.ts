@@ -11,7 +11,7 @@
  * keeps the tool result rather than guessing a decision.
  */
 import { spawn } from 'node:child_process';
-import { closeSync, existsSync, mkdirSync, openSync } from 'node:fs';
+import { closeSync, existsSync, mkdirSync, openSync, statSync } from 'node:fs';
 import { connect } from 'node:net';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,17 +26,37 @@ export interface LayaPaths {
   log: string;
   worker: string;
   venvPython: string;
+  headDir: string;
+  head: string;
 }
 
 export function layaPaths(env: NodeJS.ProcessEnv): LayaPaths {
   const dir = join(pluginDataDir(env), 'providers', 'laya');
+  const headDir = join(pluginRoot, 'calibration');
   return {
     dir,
     socket: join(dir, 'worker.sock'),
     log: join(dir, 'worker.log'),
     worker: join(pluginRoot, 'providers', 'laya_worker.py'),
     venvPython: join(dir, 'venv', 'bin', 'python'),
+    headDir,
+    head: join(headDir, 'laya-head.json'),
   };
+}
+
+/**
+ * The head trained for the configured checkpoint, or an empty string.
+ *
+ * Heads are fitted per checkpoint, so a subfolder without a measured head
+ * falls back to Laya's own answers rather than reading a mismatched probe.
+ */
+export function layaHeadPath(config: DietConfig, env: NodeJS.ProcessEnv): string {
+  if (!config.layaHead) return '';
+  const paths = layaPaths(env);
+  const file = config.layaSubfolder.length > 0
+    ? join(paths.headDir, 'laya-head-' + config.layaSubfolder.replace(/[^a-z0-9-]/gi, '-') + '.json')
+    : paths.head;
+  return existsSync(file) ? file : '';
 }
 
 /** Config first, then the managed venv, then whatever python3 is on PATH. */
@@ -66,9 +86,39 @@ interface LayaReply {
   laya?: string;
   loaded?: boolean;
   subfolder?: string | null;
+  head?: LayaHeadScores | null;
+  workerMtime?: number | null;
+  headMtime?: number | null;
 }
 
 const clamp01 = (value: number): number => Math.min(1, Math.max(0, value));
+
+export interface LayaHeadScores {
+  drop: number;
+  hazard: number;
+  dropThreshold: number;
+  hazardThreshold: number;
+}
+
+/**
+ * The head's verdict, written in the policy's own language.
+ *
+ * The trained head decides drop or keep from the state itself, because Laya's
+ * own question heads carry almost no signal on this task. The deterministic
+ * policy still makes the call: these answers are just what it reads.
+ */
+export function headAnswers(head: LayaHeadScores): Record<string, JevAnswer> {
+  const drop = head.drop > head.dropThreshold;
+  const hazard = head.hazard > head.hazardThreshold;
+  const hazardProbability = hazard ? 0.99 : 0.02;
+  return {
+    needs_contents: { type: 'noul', noul: drop ? 0.05 : 0.9 },
+    replaceable: { type: 'noul', noul: drop ? 0.9 : 0.1 },
+    keep_call: { type: 'noul', noul: 0.5 },
+    agent_directed: { type: 'noul', noul: hazardProbability },
+    behaviour_change: { type: 'noul', noul: hazardProbability },
+  };
+}
 
 function connectOnce(socket: string, timeoutMs: number): Promise<import('node:net').Socket> {
   return new Promise((resolve, reject) => {
@@ -135,6 +185,8 @@ function spawnDaemon(config: DietConfig, env: NodeJS.ProcessEnv): void {
     '--subfolder', config.layaSubfolder,
   ];
   if (config.layaDevice.length > 0) args.push('--device', config.layaDevice);
+  const head = layaHeadPath(config, env);
+  if (head.length > 0) args.push('--head', head);
   let logFd: number | null = null;
   try {
     mkdirSync(paths.dir, { recursive: true });
@@ -157,11 +209,22 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Whether a file's modification time matches what the running daemon reported. */
+function fresh(reported: number | null | undefined, file: string): boolean {
+  if (file.length === 0) return true;
+  try {
+    return Math.abs(statSync(file).mtimeMs / 1000 - (reported ?? 0)) < 0.01;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * The daemon, started on demand. A cold start loads a checkpoint, so the wait
  * is the warm timeout, not the per-answer timeout.
  */
 export async function ensureLayaDaemon(config: DietConfig, env: NodeJS.ProcessEnv): Promise<void> {
+  const paths = layaPaths(env);
   try {
     const running = await request(config, env, { op: 'ping' }, 1_000);
     // One worker serves one checkpoint, so a different model or subfolder
@@ -170,7 +233,12 @@ export async function ensureLayaDaemon(config: DietConfig, env: NodeJS.ProcessEn
     const runningSub = running.subfolder ?? '';
     const sameSub = runningSub === (config.layaSubfolder.length > 0 ? config.layaSubfolder : null) ||
       (runningSub === '' && config.layaSubfolder.length === 0);
-    if (sameModel && sameSub) return;
+    const wantedHead = layaHeadPath(config, env);
+    const sameHead = (running.head ?? '') === wantedHead && fresh(running.headMtime, wantedHead);
+    // The worker script and the head ship with the plugin, so an updated
+    // plugin retires the old daemon instead of keeping its decisions.
+    const sameWorker = fresh(running.workerMtime, paths.worker);
+    if (sameModel && sameSub && sameHead && sameWorker) return;
     try {
       await request(config, env, { op: 'stop' }, 2_000);
     } catch {
@@ -180,7 +248,6 @@ export async function ensureLayaDaemon(config: DietConfig, env: NodeJS.ProcessEn
   } catch {
     // not running, or not started yet
   }
-  const paths = layaPaths(env);
   if (!existsSync(paths.worker)) throw new Error('laya worker script is missing: ' + paths.worker);
   spawnDaemon(config, env);
   const deadline = Date.now() + config.layaWarmTimeoutMs;
@@ -262,9 +329,14 @@ export function createLayaAsker(config: DietConfig, env: NodeJS.ProcessEnv) {
   return {
     async ask(state: JevState, questions: JevQuestions): Promise<JevResponse> {
       await ensureLayaDaemon(config, env);
-      const reply = await request(config, env, { op: 'ask', state, questions }, config.layaTimeoutMs);
+      // The state travels as the exact text the head was trained on.
+      const stateText = typeof state === 'string' ? state : JSON.stringify(state);
+      const reply = await request(config, env, { op: 'ask', state: stateText, questions }, config.layaTimeoutMs);
       if (reply.error !== undefined) throw new Error('laya: ' + reply.error);
-      const answers = mapLayaAnswers(questions, reply.answers ?? {});
+      const head = reply.head ?? null;
+      const answers = head === null
+        ? mapLayaAnswers(questions, reply.answers ?? {})
+        : headAnswers(head);
       return {
         answers,
         model: reply.model ?? 'laya/' + config.layaModel,

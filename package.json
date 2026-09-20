@@ -14,6 +14,7 @@
   "files": [
     "dist",
     "hooks",
+    "calibration",
     "skills",
     "schemas",
     "assets",

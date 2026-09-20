@@ -19,6 +19,8 @@ export interface DietConfig {
     layaSubfolder: string;
     /** torch device: empty means auto (mps or cuda when available). */
     layaDevice: string;
+    /** Use the trained decision head in calibration/laya-head.json when it exists. */
+    layaHead: boolean;
     /** How long one Laya answer may take once the model is loaded. */
     layaTimeoutMs: number;
     /** How long the first call may take while the model loads. */

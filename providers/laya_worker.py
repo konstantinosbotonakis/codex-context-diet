@@ -32,12 +32,65 @@ class Engine:
     """Loads the checkpoint once and answers with it."""
 
     def __init__(self, model, subfolder, device):
-        self.model_id = model
-        self.subfolder = subfolder or None
-        self.device = device or None
-        self.agent = None
-        self.loaded_at = None
+      self.model_id = model
+      self.subfolder = subfolder or None
+      self.device = device or None
+      self.agent = None
+      self.loaded_at = None
+      self.head = None
+      self.head_path = None
+      # Captured when this process starts, so a plugin update or a retrained
+      # head retires the daemon instead of keeping its stale decisions.
+      self.worker_mtime = None
+      self.head_mtime = None
 
+    def load_head(self, path):
+      """A small linear head fitted on this machine to match the teacher model."""
+      import json
+
+      with open(path, 'r', encoding='utf-8') as handle:
+        document = json.load(handle)
+      self.head = {
+        'drop': document['drop']['weights'],
+        'drop_threshold': document['drop']['threshold'],
+        'hazard': document['hazard']['weights'],
+        'hazard_threshold': document['hazard']['threshold'],
+        'feature_dim': document['featureDim'],
+        'lambda': document['lambda'],
+      }
+      self.head_path = path
+      try:
+          self.head_mtime = os.path.getmtime(path)
+      except OSError:
+          pass
+
+    def _features(self, state):
+        """Mean-pooled, normalised encoder state: the head's only input."""
+        import torch
+
+        encoder = self.agent.model.encoder.eval()
+        tokenizer = self.agent.tok
+        encoded = tokenizer([state], return_tensors='pt', padding=True, truncation=True, max_length=512)
+        encoded = {key: value.to(self.agent.device) for key, value in encoded.items()}
+        with torch.no_grad():
+            hidden = encoder(**encoded).last_hidden_state
+        mask = encoded['attention_mask'].unsqueeze(-1).float()
+        pooled = (hidden * mask).sum(1) / mask.sum(1).clamp(min=1e-6)
+        pooled = torch.nn.functional.normalize(pooled, dim=-1).float().cpu().numpy()[0]
+        return pooled
+
+    def head_scores(self, state):
+        if self.head is None:
+            return None
+        features = list(self._features(state)) + [1.0]
+        drop = sum(weight * value for weight, value in zip(self.head['drop'], features))
+        hazard = sum(weight * value for weight, value in zip(self.head['hazard'], features))
+        return {
+            'drop': round(float(drop), 4),
+            'hazard': round(float(hazard), 4),
+            'dropThreshold': self.head['drop_threshold'],
+            'hazardThreshold': self.head['hazard_threshold'],
+        }
     def load(self):
         if self.agent is not None:
             return
@@ -62,15 +115,27 @@ class Engine:
             'subfolder': self.subfolder,
             'device': str(self.agent.device) if self.agent is not None else self.device,
             'loaded': self.agent is not None,
+            'head': self.head_path,
+            'workerMtime': self.worker_mtime,
+            'headMtime': self.head_mtime,
         }
 
     def ask(self, state, questions):
         self.load()
+        if self.head is not None:
+            # Head mode answers from the encoder alone, so the question path is skipped.
+            return {
+                'answers': {},
+                'usage': {'input_tokens': 0},
+                'model': 'laya/' + self.model_id + (('/' + self.subfolder) if self.subfolder else '') + '+head',
+                'head': self.head_scores(state),
+            }
         result = self.agent.system_one(state, questions)
         return {
             'answers': result.get('answers', {}),
             'usage': result.get('usage', {}),
             'model': 'laya/' + self.model_id + (('/' + self.subfolder) if self.subfolder else ''),
+            'head': None,
         }
 
 
@@ -79,7 +144,10 @@ def handle(engine, request):
     if op == 'ping':
         return {'ok': True, **engine.info()}
     if op == 'warm':
-        engine.load()
+        try:
+            engine.load()
+        except Exception as error:  # noqa: BLE001 - a bad checkpoint must not kill the daemon
+            return {'error': str(error)[:400]}
         return {'ok': True, **engine.info()}
     if op == 'stop':
         return {'ok': True, 'stopping': True}
@@ -124,16 +192,28 @@ def serve(engine, socket_path, preload):
                         writer.flush()
                         continue
                     response = handle(engine, request)
-                    writer.write(json.dumps(response) + '\n')
-                    writer.flush()
+                    # A caller that gave up waiting closes its side first, and
+                    # the write then raises. That must not take the daemon
+                    # down: a killed daemon means a cold model load next time.
+                    try:
+                        writer.write(json.dumps(response) + '\n')
+                        writer.flush()
+                    except OSError:
+                        break
                     if response.get('stopping'):
                         stop = True
                         break
+            except OSError:
+                # A dropped connection is normal; keep serving.
+                pass
             finally:
                 # makefile duplicates the descriptor, so closing the socket is
                 # not enough: the peer would never see the connection close.
-                reader.close()
-                writer.close()
+                for stream in (reader, writer):
+                    try:
+                        stream.close()
+                    except OSError:
+                        pass
         if stop:
             break
     server.close()
@@ -149,9 +229,19 @@ def main():
     parser.add_argument('--subfolder', default='multilingual')
     parser.add_argument('--device', default='')
     parser.add_argument('--preload', action='store_true')
+    parser.add_argument('--head', default='')
     args = parser.parse_args()
 
     engine = Engine(args.model, args.subfolder, args.device)
+    try:
+        engine.worker_mtime = os.path.getmtime(__file__)
+    except OSError:
+        pass
+    if args.head:
+        try:
+            engine.load_head(args.head)
+        except Exception as error:  # noqa: BLE001 - a bad head falls back to raw answers
+            log('laya: head not loaded: ' + str(error)[:200])
     if args.mode == 'ask':
         request = json.loads(sys.stdin.read() or '{}')
         response = handle(engine, {**request, 'op': request.get('op', 'ask')})

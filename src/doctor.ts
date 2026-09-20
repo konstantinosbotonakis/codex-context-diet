@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { cachePath, countSessions, sessionsDir } from './cache.js';
 import { configPath, loadConfig, pluginDataDir } from './config.js';
 import { keyFilePath, resolveApiKey } from './key.js';
-import { layaPaths, resolveLayaPython } from './providers/laya.js';
+import { layaHeadPath, layaPaths, resolveLayaPython } from './providers/laya.js';
 
 export type CheckStatus = 'ok' | 'warn' | 'fail';
 
@@ -121,6 +121,7 @@ export function runDoctor(env: NodeJS.ProcessEnv): Check[] {
   if (config.provider === 'laya') {
     const paths = layaPaths(env);
     const python = resolveLayaPython(config, env);
+    const head = layaHeadPath(config, env);
     const workerReady = existsSync(paths.worker);
     const pythonReady = existsSync(python);
     checks.push({
@@ -129,6 +130,7 @@ export function runDoctor(env: NodeJS.ProcessEnv): Check[] {
       detail: workerReady
         ? (pythonReady
             ? 'laya ' + config.layaModel + '/' + config.layaSubfolder + ' via ' + python +
+              '. Head: ' + (head.length > 0 ? head : 'none for this checkpoint, so Laya answers raw') +
               '. Live status: `context-diet provider`. Warm it: `context-diet provider warm`.'
             : 'laya configured but python is missing at ' + python +
               '. Run `context-diet setup --provider laya --install`.')
