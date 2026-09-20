@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "codex-context-diet",
-  "version": "0.7.0",
+  "version": "0.7.1",
   "description": "Asks TypeSafe's Jev which bulky tool results the session still needs, and replaces the rest with a bounded head plus a note.",
   "author": {
     "name": "Konstantinos Botonakis",
