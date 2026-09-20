@@ -35,7 +35,34 @@ export function parseJevResponse(status, ok, text) {
         typeof parsed.answers !== 'object') {
         throw new Error('Jev response is missing answers');
     }
-    return parsed;
+    return normaliseAnswers(parsed);
+}
+/**
+ * Score answers arrive keyed by level index, with the labels in a legend
+ * beside them ("0": "quiet"). Callers reason in labels, so the distribution is
+ * re-keyed from the legend when it is present and left untouched when it is
+ * not. Live jev-1.13 answers carry the legend; a fake asker need not.
+ */
+function normaliseScoreAnswer(answer) {
+    if (answer.type !== 'score')
+        return answer;
+    const legend = answer.legend;
+    const probabilities = answer.probabilities;
+    if (legend === undefined || probabilities === undefined)
+        return answer;
+    const relabelled = {};
+    for (const [key, value] of Object.entries(probabilities)) {
+        relabelled[legend[key] ?? key] = value;
+    }
+    return { ...answer, probabilities: relabelled };
+}
+/** One pass over the answers, so every consumer reads the same shape. */
+function normaliseAnswers(response) {
+    const answers = {};
+    for (const [id, answer] of Object.entries(response.answers)) {
+        answers[id] = normaliseScoreAnswer(answer);
+    }
+    return { ...response, answers };
 }
 /** The input-token count the API reports for a call, or null when it is absent. */
 export function inputTokensOf(response) {

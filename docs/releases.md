@@ -21,6 +21,15 @@ and evaluation gaps against the design document, and its live evaluation is publ
 `docs/evals/`.
 
 ## Cutting a release
+### 0.8.0
+
+The judgement tools grow up. `jev_ask` asks up to eight independent questions over one state in
+a single request, every replacement note and log line names the model that judged it, and the
+skills carry the delegation policy and the question design rules. Two live-only bugs are fixed:
+score answers from real Jev were rejected because the distribution is keyed by level index with a
+legend beside it, and the local head answered questions outside the five diet questions. The
+numbers are in `docs/release-notes-0.8.0.md`.
+
 ### 0.7.1
 
 The local provider gets a decision head. Laya's own heads keep every result, so a small ridge

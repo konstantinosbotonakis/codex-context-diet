@@ -11,7 +11,17 @@ handlers. `hooks/hooks.command.json` holds the command-hook fallback: copy it ov
 
 The plugin judges every bulky tool result at PostToolUse and replaces the ones
 the session no longer needs. Replaced results keep a bounded head and a note
-saying what was dropped, so the model can re-run the tool.
+saying what was dropped and which model judged it, so the model can re-run the
+tool and a reader can tell what was a System One judgement and what was code.
+
+## Delegate the narrow judgements
+
+Complex reasoning stays with Codex. Classification, filtering, routing, ranking and simple
+judgements go to the configured provider, Jev by default or a local checkpoint, through the
+judgement tools this server exposes (`jev_boolean`, `jev_choice`, `jev_score`, and
+`jev_ask` for several questions over one state in a single request). Name the steps that were
+model judgements when a task mixed both. The `$codex-context-diet:jev` skill has the question
+design rules and the cases that should stay in code.
 
 ## Configure
 

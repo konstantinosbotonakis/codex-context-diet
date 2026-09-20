@@ -22,6 +22,8 @@ export interface CacheEntry {
         replaceable: number;
         injection: number | null;
     };
+    /** The provider model that judged this result, when a model was used at all. */
+    model?: string;
     /** Ordinal of this call within the session, as the cache counted it. */
     callIndex?: number;
     /** What the model actually kept for this call, when it differs from chars. */

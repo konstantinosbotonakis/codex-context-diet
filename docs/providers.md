@@ -117,6 +117,11 @@ The thresholds are the lowest score that produced no false drop in 5-fold cross-
 they are conservative by construction. The head writes its verdict in the same answer shape Laya
 uses, and the same deterministic policy decides.
 
+The head is fitted for the five diet questions only, and the calibration file lists them. A
+direct question outside that set, such as one asked through the judgement tools, goes to the
+checkpoint's own heads instead, and the answer says which path answered: the model name carries
+`+head` when the probe decided, and the plain name when the checkpoint did.
+
 Training data: 512 real tool results, 400 mined from local Codex session logs and 112 from the
 labelled corpus, each labelled by Jev as the teacher. The pipeline is in the repository:
 

@@ -460,15 +460,16 @@ The server also backs the hooks with `stop_guard`, which reports once per sessio
 
 Command hooks remain in `hooks/hooks.command.json`. To fall back, copy it over `hooks/hooks.json` and trust the hooks again in `/hooks`. Both transports call the same implementation functions, including both Stop guards, so the fallback behaves like the MCP path. If the MCP server is unavailable, hooks do nothing and the session continues unchanged: MCP tool hooks never block an operation.
 
-### Direct Jev tools
+### Direct judgement tools
 
-The same server exposes three typed Jev primitives for the assistant itself:
+The same server exposes four typed primitives for the assistant itself:
 
 - `jev_boolean(state, question)` returns the probability that the answer is yes.
 - `jev_choice(state, question, options)` returns the chosen option with its full probability distribution.
 - `jev_score(state, question, levels)` returns the probability-weighted score across the ordered levels.
+- `jev_ask(state, questions)` asks up to eight independent questions over one state in a single request, which is how classification, filtering and routing should be asked: the questions run in parallel and cannot see one another.
 
-They enforce a 120,000-character state limit, redact secrets before the request, validate every answer, use the configured model and timeout, and fail with a readable error instead of throwing. Reach for them when one calibrated judgement over a bounded piece of text is cheaper than a reasoning model, for example classifying a fixture, choosing between named options, or scoring noise. The `$codex-context-diet:jev` skill documents the cases.
+They enforce a 120,000-character state limit, redact secrets before the request, validate every answer, use the configured provider and timeout, and fail with a readable error instead of throwing. With `provider: laya` they answer from the local checkpoint instead of Jev, and every response names the model that answered. Reach for them when one calibrated judgement over a bounded piece of text is cheaper than a reasoning model, for example classifying a fixture, choosing between named options, or scoring noise. The `$codex-context-diet:jev` skill documents the cases, and every replacement note names the model that judged it.
 
 
 ### After a compaction

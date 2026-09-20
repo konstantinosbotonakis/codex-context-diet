@@ -65,9 +65,27 @@ const TOOLS = [
     }, []),
     tool('pre_compact', 'Snapshot compact plugin-owned session state before Codex compacts the chat.', { session_id: { type: 'string' }, trigger: { type: 'string' } }, ['session_id']),
     tool('post_compact', 'Record that compaction finished so the next prompt can carry the snapshot.', { session_id: { type: 'string' }, trigger: { type: 'string' } }, ['session_id']),
-    tool('jev_boolean', 'Ask Jev a yes/no question about a state and return the probability. Cheaper than a reasoning model for one calibrated judgement.', { state: {}, question: { type: 'string' } }, ['state', 'question']),
-    tool('jev_choice', 'Ask Jev to pick one option for a state and return the choice with its probability distribution.', { state: {}, question: { type: 'string' }, options: { type: 'array', items: { type: 'string' } } }, ['state', 'question', 'options']),
-    tool('jev_score', 'Ask Jev to rate a state along an ordered list of levels and return the probability-weighted score. Provide the levels from lowest to highest.', { state: {}, question: { type: 'string' }, levels: { type: 'array', items: { type: 'string' } } }, ['state', 'question', 'levels']),
+    tool('jev_boolean', 'Ask the configured System One provider a yes/no question about a state and return the probability. Cheaper than a reasoning model for one calibrated judgement. Answers from Jev by default, or from a local checkpoint when one is configured.', { state: {}, question: { type: 'string' } }, ['state', 'question']),
+    tool('jev_choice', 'Ask the configured System One provider to pick one option for a state and return the choice with its probability distribution. Include a no-match option when nothing may fit.', { state: {}, question: { type: 'string' }, options: { type: 'array', items: { type: 'string' } } }, ['state', 'question', 'options']),
+    tool('jev_score', 'Ask the configured System One provider to rate a state along an ordered list of levels and return the probability-weighted score. Provide the levels from lowest to highest, each one able to stand alone.', { state: {}, question: { type: 'string' }, levels: { type: 'array', items: { type: 'string' } } }, ['state', 'question', 'levels']),
+    tool('jev_ask', 'Ask the configured System One provider several independent questions about one state in a single request. The questions run in parallel and cannot see one another, so state every speculative premise explicitly. Use it for classification, filtering, routing and other simple judgements over the same text.', {
+        state: {},
+        questions: {
+            type: 'array',
+            items: {
+                type: 'object',
+                properties: {
+                    id: { type: 'string' },
+                    type: { type: 'string' },
+                    question: { type: 'string' },
+                    options: { type: 'array', items: { type: 'string' } },
+                    levels: { type: 'array', items: { type: 'string' } },
+                },
+                required: ['id', 'type', 'question'],
+                additionalProperties: false,
+            },
+        },
+    }, ['state', 'questions']),
 ];
 function jevSetup(env) {
     const config = loadConfig(env);
@@ -205,6 +223,94 @@ async function callTool(name, args, env) {
         if (score === null)
             return fail('Jev returned a score outside 0..1');
         return ok(JSON.stringify({ score, probabilities, confidence, model: response.model ?? null, input_tokens: inputTokens(response) }));
+    }
+    if (name === 'jev_ask') {
+        const setup = jevSetup(env);
+        if ('error' in setup)
+            return fail(setup.error);
+        const { config, asker } = setup;
+        const state = stateOf(args, config);
+        if (typeof state !== 'string')
+            return fail(state.error);
+        const entries = Array.isArray(args.questions) ? args.questions : [];
+        if (entries.length === 0)
+            return fail('questions must be a non-empty array');
+        if (entries.length > 8)
+            return fail('at most 8 questions are accepted in one request');
+        const questions = {};
+        const kindById = {};
+        const itemsById = {};
+        for (const entry of entries) {
+            if (!entry || typeof entry !== 'object' || Array.isArray(entry))
+                return fail('every question must be an object');
+            const record = entry;
+            const id = text(record.id).trim();
+            const kind = text(record.type).trim();
+            const prompt = text(record.question).trim();
+            if (id.length === 0)
+                return fail('every question needs a non-empty id');
+            if (Object.prototype.hasOwnProperty.call(questions, id))
+                return fail('duplicate question id: ' + id);
+            if (prompt.trim().length === 0)
+                return fail('question ' + id + ' has no text');
+            if (kind === 'boolean' || kind === 'noul') {
+                questions[id] = { type: 'noul', instructions: prompt };
+                kindById[id] = 'noul';
+                continue;
+            }
+            if (kind !== 'choice' && kind !== 'score') {
+                return fail('question ' + id + ' has an unknown type: ' + kind + ' (boolean, choice or score)');
+            }
+            const values = list(kind === 'choice' ? record.options : record.levels);
+            const noun = kind === 'choice' ? 'options' : 'levels';
+            if (values.length < 2)
+                return fail('question ' + id + ' needs at least two ' + noun);
+            if (values.length > 20)
+                return fail('question ' + id + ' has more than 20 ' + noun);
+            itemsById[id] = values;
+            questions[id] = kind === 'choice'
+                ? { type: 'choice', instructions: prompt, criteria: Object.fromEntries(values.map((item) => [item, null])) }
+                : { type: 'score', instructions: prompt, criteria: values };
+            kindById[id] = kind;
+        }
+        const response = await asker.ask(state, questions);
+        const answers = {};
+        for (const id of Object.keys(questions)) {
+            const answer = (response.answers[id] ?? {});
+            const items = itemsById[id];
+            if (kindById[id] === 'noul') {
+                const probability = noulAnswer(response.answers, id);
+                if (!Number.isFinite(probability) || probability < 0 || probability > 1) {
+                    return fail('question ' + id + ' returned a probability outside 0..1');
+                }
+                answers[id] = { probability, answer: probability >= 0.5 };
+                continue;
+            }
+            const rawProbabilities = answer.probabilities;
+            const probabilities = rawProbabilities === undefined ? null : probabilitiesOf(rawProbabilities);
+            if (rawProbabilities !== undefined && probabilities === null) {
+                return fail('question ' + id + ' returned malformed probabilities');
+            }
+            if (probabilities !== null && Object.keys(probabilities).some((key) => !items.includes(key))) {
+                return fail('question ' + id + ' returned probabilities for entries that were not supplied');
+            }
+            const confidence = typeof answer.confidence === 'number' && Number.isFinite(answer.confidence) ? answer.confidence : null;
+            if (kindById[id] === 'choice') {
+                const choice = typeof answer.choice === 'string' ? answer.choice : null;
+                if (choice === null || !items.includes(choice)) {
+                    return fail('question ' + id + ' returned a choice that is not one of the supplied options');
+                }
+                answers[id] = { choice, probabilities, confidence };
+                continue;
+            }
+            const score = typeof answer.score === 'number' && Number.isFinite(answer.score) && answer.score >= 0 && answer.score <= 1
+                ? answer.score
+                : null;
+            if (score === null)
+                return fail('question ' + id + ' returned a score outside 0..1');
+            answers[id] = { score, probabilities, confidence };
+        }
+        return ok(JSON.stringify({ answers, model: response.model ?? null, input_tokens: inputTokens(response) }));
     }
     return fail('unknown tool: ' + name);
 }

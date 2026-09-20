@@ -48,6 +48,8 @@ export interface DietOutcome {
     entry: CacheEntry;
     /** Input tokens the API billed for this call, when it reported usage. */
     inputTokens: number | null;
+    /** The provider model that judged this result, when a model was used at all. */
+    model: string | null;
     /** One-based chunk numbers the capsule kept, when chunk relevance ran. */
     chunkIds: number[];
 }
@@ -78,6 +80,6 @@ export declare const FAILURE_DROP_BAR = 0.1;
 export declare function decideDiet(answers: DietAnswers, config: DietConfig, options?: {
     failureBar?: boolean;
 }): DietDecision;
-export declare function buildNote(input: DietInput, decision: DietDecision, config: DietConfig, extras?: string[]): string | null;
-export declare function cacheEntryOf(input: DietInput, decision: DietDecision, at: string, callIndex?: number, keptChars?: number): CacheEntry;
+export declare function buildNote(input: DietInput, decision: DietDecision, config: DietConfig, extras?: string[], model?: string | null): string | null;
+export declare function cacheEntryOf(input: DietInput, decision: DietDecision, at: string, callIndex?: number, keptChars?: number, model?: string | null): CacheEntry;
 export declare function runDiet(deps: DietDeps): Promise<DietOutcome>;

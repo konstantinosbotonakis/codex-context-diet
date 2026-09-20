@@ -7,6 +7,13 @@
   "featureDim": 768,
   "lambda": 0.01,
   "samples": 512,
+  "questions": [
+    "needs_contents",
+    "replaceable",
+    "keep_call",
+    "agent_directed",
+    "behaviour_change"
+  ],
   "drop": {
     "weights": [
       3.291755,

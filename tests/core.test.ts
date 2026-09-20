@@ -325,6 +325,32 @@ describe('HTTP client', () => {
     expect(() => parseJevResponse(200, true, 'not json')).toThrow(/malformed/);
     expect(() => parseJevResponse(200, true, '{}')).toThrow(/missing answers/);
     expect(parseJevResponse(200, true, '{"answers":{}}')).toEqual({ answers: {} });
+
+    // Live Jev keys a score distribution by level index and sends the labels
+    // beside it, so the parser re-keys it before any caller reads it.
+    const scored = parseJevResponse(
+      200,
+      true,
+      JSON.stringify({
+        model: 'jev-1.13.0',
+        answers: {
+          noise: {
+            type: 'score',
+            score: 0.02,
+            confidence: 0.97,
+            legend: { '0': 'quiet', '1': 'chatty', '2': 'unusable' },
+            probabilities: { '0': 0.98, '1': 0.02, '2': 0 },
+          },
+        },
+      }),
+    );
+    expect(scored.answers.noise).toEqual({
+      type: 'score',
+      score: 0.02,
+      confidence: 0.97,
+      legend: { '0': 'quiet', '1': 'chatty', '2': 'unusable' },
+      probabilities: { quiet: 0.98, chatty: 0.02, unusable: 0 },
+    });
   });
 
   it('asks over fetch and refuses to run without a key', async () => {

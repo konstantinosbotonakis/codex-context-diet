@@ -39,6 +39,10 @@ class Engine:
       self.loaded_at = None
       self.head = None
       self.head_path = None
+      # The question ids the head was fitted for. Anything else must go to the
+      # checkpoint's own heads: the probe answers the diet questions, and using
+      # it for another question would return a verdict about the wrong thing.
+      self.head_questions = None
       # Captured when this process starts, so a plugin update or a retrained
       # head retires the daemon instead of keeping its stale decisions.
       self.worker_mtime = None
@@ -58,6 +62,8 @@ class Engine:
         'feature_dim': document['featureDim'],
         'lambda': document['lambda'],
       }
+      covered = document.get('questions')
+      self.head_questions = [str(name) for name in covered] if isinstance(covered, list) else []
       self.head_path = path
       try:
           self.head_mtime = os.path.getmtime(path)
@@ -122,7 +128,12 @@ class Engine:
 
     def ask(self, state, questions):
         self.load()
-        if self.head is not None:
+        covered = (
+            self.head is not None
+            and self.head_questions is not None
+            and all(name in self.head_questions for name in questions)
+        )
+        if covered:
             # Head mode answers from the encoder alone, so the question path is skipped.
             return {
                 'answers': {},

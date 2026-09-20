@@ -19,6 +19,9 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 LAMBDA = 0.01
+# The question ids the probe is fitted for. The plugin falls back to the
+# checkpoint's own heads for anything outside this list.
+DIET_QUESTIONS = ['needs_contents', 'replaceable', 'keep_call', 'agent_directed', 'behaviour_change']
 
 
 def folds_of(n, folds=5, seed=0):
@@ -113,7 +116,7 @@ def main():
     }
 
     document = {
-        'version': 2,
+      'version': 2,
         'trainedAt': time.strftime('%Y-%m-%dT%H:%M:%SZ', time.gmtime()),
         'teacher': 'jev',
         'student': 'convaiinnovations/laya' + (('/' + args.subfolder) if args.subfolder else ''),
@@ -121,6 +124,7 @@ def main():
         'featureDim': int(X.shape[1]),
         'lambda': LAMBDA,
         'samples': len(rows),
+        'questions': DIET_QUESTIONS,
         'drop': {'weights': [round(float(v), 6) for v in fit(X, drop_labels)], 'threshold': round(drop_threshold, 4), 'cv': drop_cv},
         'hazard': {'weights': [round(float(v), 6) for v in fit(X, hazard_labels)], 'threshold': round(hazard_threshold, 4), 'cv': hazard_cv},
     }
@@ -136,4 +140,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-

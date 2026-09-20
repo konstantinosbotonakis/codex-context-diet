@@ -37,6 +37,9 @@ function logEvent(env, config, outcome, policy, ms) {
         chars: outcome.entry.chars,
         blocked: outcome.blocked,
         inputTokens: outcome.inputTokens,
+        // Which provider model made the judgement, so the log can attribute a
+        // decision to Jev, to a local checkpoint, or to no model at all.
+        model: outcome.model ?? undefined,
         chunks: outcome.chunkIds.length > 0 ? outcome.chunkIds : undefined,
         policy: policy.source,
         pressure: policy.pressure,

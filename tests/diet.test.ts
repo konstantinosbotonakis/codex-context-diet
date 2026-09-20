@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { CacheEntry } from '../src/cache.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
 import { buildNote, decideDiet, runDiet, type DietAnswers, type DietInput } from '../src/codex/diet.js';
+import { DUPLICATE_REASON } from '../src/dedupe.js';
 import { looksLikeFailure } from '../src/sample.js';
 import { fakeAsker, throwingAsker } from '../src/verify.js';
 
@@ -193,5 +194,46 @@ describe('the failure and redaction bars', () => {
       firstResult: false,
     } as never);
     expect(outcome.decision.action).toBe('keep');
+  });
+});
+
+describe('decision attribution', () => {
+  const named = (model: string) => {
+    const inner = fakeAsker({
+      needs_contents: 0.05, replaceable: 0.9, keep_call: 0.9, agent_directed: 0.02, behaviour_change: 0.02,
+    });
+    return {
+      async ask(state: Parameters<typeof inner.ask>[0], questions: Parameters<typeof inner.ask>[1]) {
+        return { ...(await inner.ask(state, questions)), model };
+      },
+    };
+  };
+
+  it('names the provider model in the note, the outcome and the cache entry', async () => {
+    const outcome = await runDiet(deps({ asker: named('jev-1.13.0') }) as never);
+    expect(outcome.decision.action).toBe('drop_result');
+    expect(outcome.note).toContain('Judged by jev-1.13.0.');
+    expect(outcome.model).toBe('jev-1.13.0');
+    expect(outcome.entry.model).toBe('jev-1.13.0');
+  });
+
+  it('attributes a local checkpoint the same way', async () => {
+    const outcome = await runDiet(deps({ asker: named('laya/convaiinnovations/laya+head') }) as never);
+    expect(outcome.note).toContain('Judged by laya/convaiinnovations/laya+head.');
+  });
+
+  it('leaves the note unlabelled when no model judged the result', async () => {
+    const outcome = await runDiet(deps() as never);
+    expect(outcome.decision.action).toBe('drop_result');
+    expect(outcome.note).not.toContain('Judged by');
+    expect(outcome.model).toBeNull();
+    expect(outcome.entry.model).toBeUndefined();
+  });
+
+  it('keeps the deterministic duplicate path unlabelled', async () => {
+    const outcome = await runDiet(deps({ duplicate: true }) as never);
+    expect(outcome.decision.reason).toBe(DUPLICATE_REASON);
+    expect(outcome.note).not.toContain('Judged by');
+    expect(outcome.model).toBeNull();
   });
 });

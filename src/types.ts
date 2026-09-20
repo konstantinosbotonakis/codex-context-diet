@@ -182,6 +182,8 @@ export interface ScoreAnswer {
   score: number;
   confidence: number;
   probabilities: Record<string, number>;
+  /** Level labels by index, as live Jev reports them beside the distribution. */
+  legend?: Record<string, string>;
 }
 
 export type JevAnswer = NoulAnswer | ChoiceAnswer | ScoreAnswer;

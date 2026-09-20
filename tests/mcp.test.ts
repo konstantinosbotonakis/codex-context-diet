@@ -92,6 +92,7 @@ describe('the Context Diet MCP server', () => {
       'quality_guard',
       'pre_compact', 'post_compact',
       'jev_boolean', 'jev_choice', 'jev_score',
+      'jev_ask',
     ]);
   });
 
@@ -147,6 +148,63 @@ describe('the Context Diet MCP server', () => {
     });
     expect(isError(response)).toBe(true);
     expect(toolText(response)).toContain('over the');
+  });
+
+  it('answers several questions over one state through jev_ask', async () => {
+    const spec = JSON.stringify({
+      layer: { choice: 'backend', confidence: 0.9, probabilities: { frontend: 0.1, backend: 0.9 } },
+      urgent: 0.8,
+      severity: { score: 0.75, confidence: 0.6, probabilities: { low: 0.1, medium: 0.3, high: 0.6 } },
+    });
+    const { call } = await start({ CONTEXT_DIET_TEST_ANSWERS: spec });
+    const response = await call('tools/call', {
+      name: 'jev_ask',
+      arguments: {
+        state: 'the payout job failed in backend/src/queues.ts',
+        questions: [
+          { id: 'layer', type: 'choice', question: 'Which layer does this originate in?', options: ['frontend', 'backend'] },
+          { id: 'urgent', type: 'boolean', question: 'Does this need attention today?' },
+          { id: 'severity', type: 'score', question: 'How severe is it?', levels: ['low', 'medium', 'high'] },
+        ],
+      },
+    });
+    const parsed = JSON.parse(toolText(response)) as {
+      answers: Record<string, Record<string, unknown>>;
+    };
+    expect(Object.keys(parsed.answers)).toEqual(['layer', 'urgent', 'severity']);
+    expect(parsed.answers.layer.choice).toBe('backend');
+    expect(parsed.answers.urgent.probability).toBe(0.8);
+    expect(parsed.answers.severity.score).toBe(0.75);
+  });
+
+  it('rejects a malformed batch instead of asking', async () => {
+    const { call } = await start({ CONTEXT_DIET_TEST_ANSWERS: '{"a":0.5}' });
+    const oneOption = await call('tools/call', {
+      name: 'jev_ask',
+      arguments: { state: 'x', questions: [{ id: 'a', type: 'choice', question: 'pick', options: ['only'] }] },
+    });
+    expect(isError(oneOption)).toBe(true);
+    expect(toolText(oneOption)).toContain('at least two options');
+
+    const duplicate = await call('tools/call', {
+      name: 'jev_ask',
+      arguments: {
+        state: 'x',
+        questions: [
+          { id: 'a', type: 'boolean', question: 'first' },
+          { id: 'a', type: 'boolean', question: 'second' },
+        ],
+      },
+    });
+    expect(isError(duplicate)).toBe(true);
+    expect(toolText(duplicate)).toContain('duplicate question id');
+
+    const unknown = await call('tools/call', {
+      name: 'jev_ask',
+      arguments: { state: 'x', questions: [{ id: 'a', type: 'ranking', question: 'which' }] },
+    });
+    expect(isError(unknown)).toBe(true);
+    expect(toolText(unknown)).toContain('unknown type');
   });
 
 
