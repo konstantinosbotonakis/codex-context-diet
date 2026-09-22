@@ -11,8 +11,9 @@ plugin.json                    portable manifest, authoritative
 mcp.json                       portable MCP config, authoritative
 .codex-plugin/plugin.json      legacy overlay, generated
 .mcp.json                      legacy MCP config, generated
-hooks/hooks.json               MCP hook wiring
-hooks/hooks.command.json       command-hook fallback
+hooks/hooks.json               command hook wiring selected by the plugin manifest
+hooks/hooks.command.json       command-hook parity/fallback file
+hooks/hooks.mcp.json           optional MCP-tool hook wiring
 skills/                        skills, discovered from the folder
 schemas/agent-plugins/1.0.0/   vendored official schemas the validator uses
 dist/                          committed build output
@@ -90,4 +91,3 @@ codex mcp list
 
 Version changes touch `package.json`, `plugin.json` and the generated
 `.codex-plugin/plugin.json`; the validator fails when they disagree.
-

@@ -79,9 +79,23 @@ const mcp = run(['mcp', 'list']);
 check('MCP server registers from the plugin manifest', /context-diet/.test(mcp));
 
 const installedRoot = join(cacheRoot, marketplaceName, pluginName, entry?.version ?? '0.0.0');
-for (const relative of ['plugin.json', 'mcp.json', '.codex-plugin/plugin.json', '.mcp.json', 'hooks/hooks.json', 'skills/context-diet/SKILL.md']) {
+for (const relative of ['plugin.json', 'mcp.json', '.codex-plugin/plugin.json', '.mcp.json', 'hooks/hooks.json', 'hooks/hooks.mcp.json', 'skills/context-diet/SKILL.md']) {
   check('installed copy carries ' + relative, existsSync(join(installedRoot, relative)));
 }
+
+const portable = JSON.parse(readFileSync(join(installedRoot, 'plugin.json'), 'utf8'));
+const hookReference = portable.extensions?.['com.openai']?.hooks;
+check('portable manifest selects the default Codex hook file', hookReference === './hooks/hooks.json', hookReference ?? 'missing');
+const selectedHooksPath = hookReference === './hooks/hooks.json' ? join(installedRoot, 'hooks', 'hooks.json') : null;
+const selectedHooks = selectedHooksPath && existsSync(selectedHooksPath)
+  ? JSON.parse(readFileSync(selectedHooksPath, 'utf8'))
+  : null;
+const selectedHandlers = selectedHooks && typeof selectedHooks.hooks === 'object'
+  ? Object.values(selectedHooks.hooks).flatMap((entries) => Array.isArray(entries)
+    ? entries.flatMap((entry) => Array.isArray(entry.hooks) ? entry.hooks : [])
+    : [])
+  : [];
+check('plugin-discovered lifecycle handlers use commands', selectedHandlers.length > 0 && selectedHandlers.every((handler) => handler.type === 'command'));
 
 console.log('');
 if (failures.length > 0) {
@@ -89,4 +103,3 @@ if (failures.length > 0) {
   process.exit(1);
 }
 console.log('install check passed');
-

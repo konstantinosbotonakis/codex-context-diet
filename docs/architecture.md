@@ -128,9 +128,9 @@ injects the snapshot once. `Stop` reports repeated recoveries once per session.
 | `src/bench.ts` | the local latency benchmark behind `benchmark` |
 
 Command entry points (`adapter-main.ts`, `session-main.ts`, `compaction-main.ts`, `subagent-main.ts`,
-`stop-main.ts`, `quality-guard-main.ts`) exist so the plugin works on Codex builds that cannot use MCP
-tool hooks.
-`hooks/hooks.json` uses the MCP server; `hooks/hooks.command.json` is the fallback.
+`stop-main.ts`, `quality-guard-main.ts`) back the plugin-discovered `hooks/hooks.json` file, matching
+Codex plugins that use command hooks. `hooks/hooks.mcp.json` retains the optional MCP-tool transport;
+`hooks/hooks.command.json` stays as a parity/fallback copy.
 
 Both transports call the same functions, and a parity test keeps it that way:
 

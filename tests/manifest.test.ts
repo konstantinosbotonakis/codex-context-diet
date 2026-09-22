@@ -62,8 +62,10 @@ const makeRoot = (options: RootOptions = {}): string => {
   write(root, '.mcp.json', legacyMcp(mcp));
   write(root, 'package.json', options.packageJson ?? { name: 'sample-plugin', version: '1.2.3', files: packageFiles });
   const hook = { hooks: { PostToolUse: [{ matcher: '.*', hooks: [{ type: 'command', command: 'node "$PLUGIN_ROOT/dist/x.js"', timeout: 10 }] }] } };
+  const mcpHook = { hooks: { PostToolUse: [{ matcher: '.*', hooks: [{ type: 'mcp_tool', server: 'sample-plugin', tool: 'post_tool_use', input: {}, timeout: 10 }] }] } };
   write(root, 'hooks/hooks.json', hook);
   write(root, 'hooks/hooks.command.json', hook);
+  write(root, 'hooks/hooks.mcp.json', mcpHook);
   write(root, 'dist/cli.js', '// built');
   write(root, 'dist/mcp-server.js', '// built');
   write(root, 'skills/sample/SKILL.md', '---\nname: sample\ndescription: sample\n---\n');

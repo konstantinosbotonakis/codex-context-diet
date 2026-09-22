@@ -10,8 +10,9 @@ below is reproducible from a clean checkout.
 | upgrade from 0.6.0 | `tests/install-scenarios.test.ts`: a full 0.6.0 config keeps working unchanged |
 | missing TypeSafe key | `tests/install-scenarios.test.ts`: every result is kept, the session gets one warning line, the log records `key_missing`, and a second call stays silent |
 | invalid key | `tests/install-scenarios.test.ts`: a 401 keeps every result, warns once and records `key_rejected` |
-| MCP unavailable | `hooks/hooks.command.json` is validated by `npm run validate:plugin` (every referenced entry point must exist in `dist/`), and the command mains are exercised end to end by `tests/parity.test.ts`. Copy the file over `hooks/hooks.json` and trust the hooks again |
-| command fallback parity | `tests/parity.test.ts`: the static matrix plus identical output from both transports for SessionStart and both Stop guards |
+| MCP unavailable | the plugin-discovered command hooks remain usable without the MCP server; the optional MCP handlers live in `hooks/hooks.mcp.json` |
+| hook transport parity | `tests/parity.test.ts`: the static matrix plus identical output from both transports for SessionStart and both Stop guards |
+| installed hook selection | `scripts/install-check.mjs`: a fresh Codex install selects `hooks/hooks.json` and verifies its handlers use the command transport |
 | plugin disabled | `tests/install-scenarios.test.ts` and `tests/adapter.test.ts`: no decision, no session record, no network |
 | `stateSource: off` | `tests/install-scenarios.test.ts` and `tests/adapter.test.ts`: results are still judged in single-turn mode and nothing is read from or written to disk |
 | strict privacy | `tests/privacy.test.ts`: excluded paths and excluded tools never reach the model, the cache or the log, and the full-surface sweep finds no seeded secret in any file |
@@ -32,4 +33,3 @@ node dist/cli.js test          # needs a key, costs a fraction of a cent
 
 GitHub CI runs the offline part of that list. `install-check` and the live
 commands are local only: the runner has no Codex desktop build and no key.
-

@@ -287,7 +287,7 @@ function validateVersions(root, errors) {
 }
 
 function validateHooks(root, errors) {
-  for (const relative of ['hooks/hooks.json', 'hooks/hooks.command.json']) {
+  for (const relative of ['hooks/hooks.json', 'hooks/hooks.command.json', 'hooks/hooks.mcp.json']) {
     const file = loadJson(join(root, relative));
     if (!isObject(file) || !isObject(file.hooks)) {
       errors.push(relative + ' must exist and carry a hooks object');
@@ -322,7 +322,7 @@ function validateHooks(root, errors) {
     }
   }
   const mcpManifest = loadJson(join(root, 'mcp.json'));
-  const hooks = loadJson(join(root, 'hooks', 'hooks.json'));
+  const hooks = loadJson(join(root, 'hooks', 'hooks.mcp.json'));
   const referenced = new Set();
   const walk = (value) => {
     if (Array.isArray(value)) {
@@ -395,7 +395,7 @@ function validatePackageFiles(root, errors) {
   }
   const required = [
     'plugin.json', 'mcp.json', '.codex-plugin/plugin.json', '.mcp.json',
-    'hooks/hooks.json', 'hooks/hooks.command.json', 'dist/cli.js', 'dist/mcp-server.js',
+    'hooks/hooks.json', 'hooks/hooks.command.json', 'hooks/hooks.mcp.json', 'dist/cli.js', 'dist/mcp-server.js',
   ];
   for (const relative of required) {
     if (!existsSync(join(root, relative))) errors.push('required file ' + relative + ' is missing');
