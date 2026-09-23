@@ -8,8 +8,8 @@
  *   npm run release -- patch --dry-run
  *   npm run release -- patch --skip-github
  *
- * The version lives in three places and they drift apart when a human edits
- * them one at a time. This script owns all three, and refuses to run at all
+ * The version lives in four places and they drift apart when a human edits
+ * them one at a time. This script owns all four, and refuses to run at all
  * unless they agree to begin with.
  */
 import { execFileSync } from 'node:child_process';
@@ -19,7 +19,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
-const MANIFESTS = ['package.json', 'plugin.json', '.codex-plugin/plugin.json'];
+const MANIFESTS = ['package.json', 'plugin.portable.json', 'plugin.json', '.codex-plugin/plugin.json'];
 const LOCKFILE = 'package-lock.json';
 
 const fail = (message) => {

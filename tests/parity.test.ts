@@ -120,8 +120,15 @@ const seedRecoveries = (env: NodeJS.ProcessEnv): void => {
 };
 
 describe('hook parity matrix', () => {
+  it('uses command hooks for the plugin-discovered hook file', () => {
+    const plugin = hookTargets('hooks.json');
+    for (const [event, expected] of Object.entries(EXPECTED)) {
+      expect(plugin[event], 'plugin ' + event).toEqual(expected.command);
+    }
+  });
+
   it('wires every lifecycle event on both transports', () => {
-    const mcp = hookTargets('hooks.json');
+    const mcp = hookTargets('hooks.mcp.json');
     const command = hookTargets('hooks.command.json');
     for (const [event, expected] of Object.entries(EXPECTED)) {
       expect(mcp[event], 'mcp ' + event).toEqual(expected.mcp);
@@ -130,6 +137,7 @@ describe('hook parity matrix', () => {
   });
 
   it('keeps the two hook files on the same event list', () => {
+    expect(Object.keys(hookTargets('hooks.mcp.json')).sort()).toEqual(Object.keys(hookTargets('hooks.command.json')).sort());
     expect(Object.keys(hookTargets('hooks.json')).sort()).toEqual(Object.keys(hookTargets('hooks.command.json')).sort());
   });
 });

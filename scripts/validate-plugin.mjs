@@ -4,12 +4,11 @@
  *
  * Two contracts are in play and this repository ships both:
  *
- * 1. Portable Agent Plugins: root plugin.json validated against the vendored
- *    official schema, and root mcp.json against the official MCP schema.
- *    These files are authoritative.
- * 2. Legacy Codex overlay: .codex-plugin/plugin.json and .mcp.json, kept for
- *    Codex builds that predate the portable manifest. Those rules mirror the
- *    ingestion contract enforced by the installed plugin-creator validator.
+ * 1. Portable sources: plugin.portable.json and mcp.json are validated against
+ *    the vendored official schemas and remain authoritative.
+ * 2. Codex compatibility: root plugin.json and .codex-plugin/plugin.json are
+ *    generated in the legacy shape so current Codex builds discover hooks.
+ *    .mcp.json is generated for builds using the legacy MCP manifest.
  *
  * It also checks that the legacy mirrors are generated from the portable
  * source, that every version carrier agrees, and that package.json lists the
@@ -209,20 +208,20 @@ function validateInterface(manifest, label, errors) {
 }
 
 function validatePortable(root, errors) {
-  validateAgainstSchema(root, 'plugin.json', 'plugin.schema.json', errors);
+  validateAgainstSchema(root, 'plugin.portable.json', 'plugin.schema.json', errors);
   validateAgainstSchema(root, 'mcp.json', 'mcp.schema.json', errors);
-  const manifest = loadJson(join(root, 'plugin.json'));
+  const manifest = loadJson(join(root, 'plugin.portable.json'));
   if (!isObject(manifest)) return;
   const openai = manifest.extensions?.['com.openai'];
   if (!isObject(openai)) {
-    errors.push('plugin.json field `extensions.com.openai` is required for the Codex overlay');
+    errors.push('plugin.portable.json field `extensions.com.openai` is required for the Codex overlay');
     return;
   }
   if (openai.hooks !== undefined) {
-    if (!nonEmptyString(openai.hooks)) errors.push('plugin.json field `extensions.com.openai.hooks` must be a non-empty path');
-    else checkArchivePath(root, openai.hooks, 'plugin.json field `extensions.com.openai.hooks`', errors);
+    if (!nonEmptyString(openai.hooks)) errors.push('plugin.portable.json field `extensions.com.openai.hooks` must be a non-empty path');
+    else checkArchivePath(root, openai.hooks, 'plugin.portable.json field `extensions.com.openai.hooks`', errors);
   }
-  if (isObject(openai.interface)) validateInterface({ interface: openai.interface }, 'plugin.json', errors);
+  if (isObject(openai.interface)) validateInterface({ interface: openai.interface }, 'plugin.portable.json', errors);
 }
 
 function validateLegacy(root, errors) {
@@ -274,20 +273,21 @@ function validateMirrors(root, errors) {
 
 function validateVersions(root, errors) {
   const pkg = loadJson(join(root, 'package.json'));
-  const portable = loadJson(join(root, 'plugin.json'));
+  const portable = loadJson(join(root, 'plugin.portable.json'));
+  const codex = loadJson(join(root, 'plugin.json'));
   const legacy = loadJson(join(root, '.codex-plugin', 'plugin.json'));
   if (!isObject(pkg)) {
     errors.push('package.json must exist and be valid JSON');
     return;
   }
-  const versions = [pkg.version, portable?.version, legacy?.version];
+  const versions = [pkg.version, portable?.version, codex?.version, legacy?.version];
   if (!versions.every((value) => value === versions[0])) {
-    errors.push('package.json, plugin.json and .codex-plugin/plugin.json versions must agree, found ' + versions.join(', '));
+    errors.push('package.json, plugin.portable.json, plugin.json and .codex-plugin/plugin.json versions must agree, found ' + versions.join(', '));
   }
 }
 
 function validateHooks(root, errors) {
-  for (const relative of ['hooks/hooks.json', 'hooks/hooks.command.json']) {
+  for (const relative of ['hooks/hooks.json', 'hooks/hooks.command.json', 'hooks/hooks.mcp.json']) {
     const file = loadJson(join(root, relative));
     if (!isObject(file) || !isObject(file.hooks)) {
       errors.push(relative + ' must exist and carry a hooks object');
@@ -322,7 +322,7 @@ function validateHooks(root, errors) {
     }
   }
   const mcpManifest = loadJson(join(root, 'mcp.json'));
-  const hooks = loadJson(join(root, 'hooks', 'hooks.json'));
+  const hooks = loadJson(join(root, 'hooks', 'hooks.mcp.json'));
   const referenced = new Set();
   const walk = (value) => {
     if (Array.isArray(value)) {
@@ -394,8 +394,8 @@ function validatePackageFiles(root, errors) {
     if (!existsSync(join(root, entry))) errors.push('package.json files entry `' + entry + '` does not exist');
   }
   const required = [
-    'plugin.json', 'mcp.json', '.codex-plugin/plugin.json', '.mcp.json',
-    'hooks/hooks.json', 'hooks/hooks.command.json', 'dist/cli.js', 'dist/mcp-server.js',
+    'plugin.portable.json', 'plugin.json', 'mcp.json', '.codex-plugin/plugin.json', '.mcp.json',
+    'hooks/hooks.json', 'hooks/hooks.command.json', 'hooks/hooks.mcp.json', 'dist/cli.js', 'dist/mcp-server.js',
   ];
   for (const relative of required) {
     if (!existsSync(join(root, relative))) errors.push('required file ' + relative + ' is missing');

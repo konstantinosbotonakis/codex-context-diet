@@ -444,7 +444,9 @@ Context pressure is the plugin's own estimate of what the session is still carry
 
 ### The persistent MCP server
 
-The plugin ships a stdio MCP server in `.mcp.json` and points its lifecycle hooks at it with `mcp_tool` handlers. One long-lived Node process handles every qualifying tool result, so the per-call process spawn is gone and the HTTP connection pool is reused between Jev requests.
+The plugin ships a stdio MCP server in `.mcp.json` for direct judgement tools. Its plugin-discovered `hooks/hooks.json` uses command handlers and dispatches into the same local Node entry points as `hooks/hooks.command.json`, so lifecycle hooks do not depend on the MCP server starting first.
+
+`hooks/hooks.mcp.json` retains the optional MCP-tool transport for hosts that can invoke an existing MCP connection from a hook. That path uses one long-lived Node process for qualifying tool results, avoiding per-call process spawns and reusing the HTTP connection pool between Jev requests.
 
 Measured on the development machine with the test asker standing in for Jev, 30 iterations against one session and a 52,806-character result:
 
@@ -456,9 +458,9 @@ Measured on the development machine with the test asker standing in for Jev, 30 
 
 `npm run bench:hooks` reproduces this. It is offline on purpose: Jev network time is excluded, and a real Jev call costs hundreds of milliseconds to a couple of seconds, so the local saving shows up as latency removed from every qualifying call rather than as a different end-to-end shape.
 
-The server also backs the hooks with `stop_guard`, which reports once per session when several dropped results were re-run within 15 minutes.
+The MCP hook transport also uses the server's `stop_guard`, which reports once per session when several dropped results were re-run within 15 minutes.
 
-Command hooks remain in `hooks/hooks.command.json`. To fall back, copy it over `hooks/hooks.json` and trust the hooks again in `/hooks`. Both transports call the same implementation functions, including both Stop guards, so the fallback behaves like the MCP path. If the MCP server is unavailable, hooks do nothing and the session continues unchanged: MCP tool hooks never block an operation.
+Both hook transports call the same implementation functions, including both Stop guards. The plugin uses command hooks by default; `hooks/hooks.mcp.json` is optional and requires the MCP server to be available. If that server is down, direct MCP tools and the optional MCP hook path are unavailable, while the default command hooks continue to work.
 
 ### Direct judgement tools
 
@@ -504,7 +506,8 @@ Scaling is linear, and a 2 MB result becomes a 450-byte replacement. Jev network
 | Nothing appears in `stats` | the table reads caches and, for the cost and guard rows, the event log, which needs `debug: true` |
 | "Jev was skipped" appears | the key is missing or rejected. `doctor` names the source it checked, and the line appears at most once an hour |
 | A session feels slower | `node dist/cli.js benchmark` separates local cost from network cost. MCP hooks remove roughly 40 ms per qualifying call |
-| The MCP hooks do not run | copy `hooks/hooks.command.json` over `hooks/hooks.json` and trust the hooks again. The plugin works without the MCP server |
+| Direct MCP tools do not run | check the MCP handshake with `node dist/cli.js doctor`; the default command hooks do not depend on the MCP server |
+| Automatic plugin hooks do not run | check that Context Diet is listed in `/hooks`, then review/trust its current definition and start a new session |
 | A replacement lost something you needed | re-run the command named in the note. That also counts as a recovery, which is the quality signal the plugin watches |
 
 ## Development
@@ -525,7 +528,7 @@ npm run release -- 0.4.0            # explicit version
 npm run release -- patch --dry-run  # show the plan, change nothing
 ```
 
-The script refuses to start unless the tree is clean and you are on `main`, and it checks that `package.json` and `plugin.json` already agree before it touches anything. It then runs the tests, the typecheck, the build and the offline verification. Only after all of that passes does it write the new version to both manifests, sync `package-lock.json`, commit, tag `vX.Y.Z`, push, and publish a GitHub release listing the commit subjects since the previous tag.
+The script refuses to start unless the tree is clean and you are on `main`, and it checks that `package.json`, `plugin.portable.json`, and both Codex manifests already agree before it touches anything. It then runs the tests, the typecheck, the build and the offline verification. Only after all of that passes does it write the new version to all four files, sync `package-lock.json`, commit, tag `vX.Y.Z`, push, and publish a GitHub release listing the commit subjects since the previous tag.
 
 Add `--skip-github` to stop once the tag is pushed.
 
@@ -563,7 +566,7 @@ The report covers cases, correct decisions, false keeps, false drops, the drop r
 
 Nothing needs migrating by hand. Every configuration field added after 0.5.1 is additive with a safe default, so an existing `config.json` keeps working. Older cache lines simply miss the newer fields, which means duplicate detection, recovery scoring and policy matching start fresh from the next call.
 
-One thing does change. The hooks now run through the bundled MCP server, so trust them again in `/hooks` after updating: Codex skips plugin hooks until the current definition is reviewed. If your Codex build cannot use MCP tool hooks, copy `hooks/hooks.command.json` over `hooks/hooks.json` and trust them again; that is the same behaviour as 0.x.
+One thing does change. The plugin-discovered hooks now use command handlers, so review/trust the current definition in `/hooks` after updating. The optional MCP hook transport remains in `hooks/hooks.mcp.json`; direct MCP tools continue to use the bundled server.
 
 ## Security model
 
@@ -577,7 +580,7 @@ Context Diet is an optimisation and semantic policy layer. It is not a sandbox, 
 - The transcript is never read, by design: the format is documented as unstable for hooks, so plugin state is its own.
 - Jev answers are probabilistic, and the live corpus is 112 cases against one model version. The measured live run matched 91 of the 112 labels, and the exact 95% upper bound on the false-drop rate is 10.3%, not zero.
 - The cost line is a lower bound for calls recorded before usage was kept.
-- The MCP hook path is measured offline and works in real sessions, but a Codex build that cannot use `mcp_tool` handlers needs the command fallback in `hooks/hooks.command.json`.
+- The optional MCP hook path has parity coverage, but depends on an available MCP connection. The plugin-discovered default uses local command handlers.
 
 ## Attribution
 

@@ -5,19 +5,9 @@
         "matcher": ".*",
         "hooks": [
           {
-            "type": "mcp_tool",
-            "server": "context-diet",
-            "tool": "post_tool_use",
-            "input": {
-              "session_id": "${session_id}",
-              "tool_name": "${tool_name}",
-              "tool_input": "${tool_input}",
-              "tool_response": "${tool_response}",
-              "tool_use_id": "${tool_use_id}",
-              "cwd": "${cwd}"
-            },
-            "timeout": 10,
-            "statusMessage": "Judging tool output"
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/dist/codex/adapter-main.js\"",
+            "timeout": 10
           }
         ]
       }
@@ -27,14 +17,8 @@
         "matcher": ".*",
         "hooks": [
           {
-            "type": "mcp_tool",
-            "server": "context-diet",
-            "tool": "session_event",
-            "input": {
-              "session_id": "${session_id}",
-              "event": "SessionStart",
-              "cwd": "${cwd}"
-            },
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/dist/codex/session-main.js\"",
             "timeout": 5
           }
         ]
@@ -44,14 +28,8 @@
       {
         "hooks": [
           {
-            "type": "mcp_tool",
-            "server": "context-diet",
-            "tool": "prompt_guard",
-            "input": {
-              "session_id": "${session_id}",
-              "prompt": "${prompt}",
-              "cwd": "${cwd}"
-            },
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/dist/codex/session-main.js\"",
             "timeout": 5
           }
         ]
@@ -62,13 +40,8 @@
         "matcher": ".*",
         "hooks": [
           {
-            "type": "mcp_tool",
-            "server": "context-diet",
-            "tool": "subagent_start",
-            "input": {
-              "agent_id": "${agent_id}",
-              "agent_type": "${agent_type}"
-            },
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/dist/codex/subagent-main.js\"",
             "timeout": 10
           }
         ]
@@ -79,15 +52,8 @@
         "matcher": ".*",
         "hooks": [
           {
-            "type": "mcp_tool",
-            "server": "context-diet",
-            "tool": "subagent_stop",
-            "input": {
-              "agent_id": "${agent_id}",
-              "agent_type": "${agent_type}",
-              "last_assistant_message": "${last_assistant_message}",
-              "stop_hook_active": "${stop_hook_active}"
-            },
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/dist/codex/subagent-main.js\"",
             "timeout": 10
           }
         ]
@@ -98,13 +64,8 @@
         "matcher": ".*",
         "hooks": [
           {
-            "type": "mcp_tool",
-            "server": "context-diet",
-            "tool": "pre_compact",
-            "input": {
-              "session_id": "${session_id}",
-              "trigger": "${trigger}"
-            },
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/dist/codex/compaction-main.js\"",
             "timeout": 10
           }
         ]
@@ -115,13 +76,8 @@
         "matcher": ".*",
         "hooks": [
           {
-            "type": "mcp_tool",
-            "server": "context-diet",
-            "tool": "post_compact",
-            "input": {
-              "session_id": "${session_id}",
-              "trigger": "${trigger}"
-            },
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/dist/codex/compaction-main.js\"",
             "timeout": 10
           }
         ]
@@ -131,12 +87,8 @@
       {
         "hooks": [
           {
-            "type": "mcp_tool",
-            "server": "context-diet",
-            "tool": "stop_guard",
-            "input": {
-              "session_id": "${session_id}"
-            },
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/dist/codex/stop-main.js\"",
             "timeout": 5
           }
         ]
@@ -144,14 +96,8 @@
       {
         "hooks": [
           {
-            "type": "mcp_tool",
-            "server": "context-diet",
-            "tool": "quality_guard",
-            "input": {
-              "turn_id": "${turn_id}",
-              "last_assistant_message": "${last_assistant_message}",
-              "stop_hook_active": "${stop_hook_active}"
-            },
+            "type": "command",
+            "command": "node \"$PLUGIN_ROOT/dist/codex/quality-guard-main.js\"",
             "timeout": 10
           }
         ]

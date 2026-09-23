@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -35,7 +35,7 @@ const portableMcp = (over: Record<string, unknown> = {}) => ({
   ...over,
 });
 
-const packageFiles = ['dist', 'hooks', 'skills', 'schemas', 'evals', 'assets', 'plugin.json', 'mcp.json', '.codex-plugin', '.mcp.json', 'README.md', 'LICENSE'];
+const packageFiles = ['dist', 'hooks', 'skills', 'schemas', 'evals', 'assets', 'plugin.portable.json', 'plugin.json', 'mcp.json', '.codex-plugin', '.mcp.json', 'README.md', 'LICENSE'];
 
 const write = (root: string, relative: string, content: unknown): void => {
   const path = join(root, relative);
@@ -56,14 +56,17 @@ const makeRoot = (options: RootOptions = {}): string => {
   const portable = options.portable ?? portableManifest();
   const mcp = options.mcp ?? portableMcp();
   const legacy = options.legacy ?? legacyPlugin(portable);
-  write(root, 'plugin.json', portable);
+  write(root, 'plugin.portable.json', portable);
+  write(root, 'plugin.json', legacyPlugin(portable));
   write(root, 'mcp.json', mcp);
   write(root, '.codex-plugin/plugin.json', legacy);
   write(root, '.mcp.json', legacyMcp(mcp));
   write(root, 'package.json', options.packageJson ?? { name: 'sample-plugin', version: '1.2.3', files: packageFiles });
   const hook = { hooks: { PostToolUse: [{ matcher: '.*', hooks: [{ type: 'command', command: 'node "$PLUGIN_ROOT/dist/x.js"', timeout: 10 }] }] } };
+  const mcpHook = { hooks: { PostToolUse: [{ matcher: '.*', hooks: [{ type: 'mcp_tool', server: 'sample-plugin', tool: 'post_tool_use', input: {}, timeout: 10 }] }] } };
   write(root, 'hooks/hooks.json', hook);
   write(root, 'hooks/hooks.command.json', hook);
+  write(root, 'hooks/hooks.mcp.json', mcpHook);
   write(root, 'dist/cli.js', '// built');
   write(root, 'dist/mcp-server.js', '// built');
   write(root, 'skills/sample/SKILL.md', '---\nname: sample\ndescription: sample\n---\n');
@@ -140,6 +143,12 @@ describe('portable Agent Plugins manifest', () => {
 });
 
 describe('legacy overlay', () => {
+  it('ships a Codex-compatible root manifest for hook discovery', () => {
+    const root = JSON.parse(readFileSync(join(repoRoot, 'plugin.json'), 'utf8'));
+    const legacy = JSON.parse(readFileSync(join(repoRoot, '.codex-plugin/plugin.json'), 'utf8'));
+    expect(root).toEqual(legacy);
+  });
+
   it('rejects $schema on the legacy manifest', () => {
     const legacy = { ...legacyPlugin(portableManifest()), $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json' };
     const errors = validatePlugin(makeRoot({ legacy }));
@@ -151,6 +160,13 @@ describe('legacy overlay', () => {
     legacy.version = '9.9.9';
     const errors = validatePlugin(makeRoot({ legacy }));
     expect(anyError(errors, '.codex-plugin/plugin.json is not generated from the portable source')).toBe(true);
+  });
+
+  it('rejects a portable root manifest that shadows hook discovery', () => {
+    const root = makeRoot();
+    write(root, 'plugin.json', portableManifest());
+    const errors = validatePlugin(root);
+    expect(anyError(errors, 'plugin.json is not generated from the portable source')).toBe(true);
   });
 
   it('rejects version drift between carriers', () => {

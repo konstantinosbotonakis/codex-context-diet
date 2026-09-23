@@ -158,6 +158,6 @@ accepted as aliases, and the canonical name wins when both are present:
 Nothing needs migrating by hand. Every field added after 0.5.1 is additive with a safe
 default, so an existing `config.json` keeps working, and unknown fields from a newer version
 are ignored rather than rejected. The aliases above cover a config written against the 1.0
-design document. The only operational change is the hook transport: after updating, trust
-the hooks again in `/hooks`, and use `hooks/hooks.command.json` on a Codex build without MCP
-tool hooks.
+design document. After updating the plugin hook definition, review/trust it again in `/hooks`.
+The default command hooks do not depend on the MCP server; `hooks/hooks.mcp.json` is an optional
+MCP-tool transport.

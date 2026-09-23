@@ -23,7 +23,7 @@ live MCP stdio handshake. Nothing leaves the machine. Exit code 1 means a hard f
 | `jev key` warns | Jev never runs. Set `TYPESAFE_API_KEY`, write `~/.typesafe_key`, or use the `apiKey` config field. Results stay in full and the session says so once an hour |
 | `data directory` fails | nothing can be written, so decisions still happen but nothing is recorded and stats stay empty |
 | `build` fails | `dist/` is missing an entry point the hooks reference. Run `npm run build` and reinstall or re-copy the plugin |
-| `mcp` fails | the MCP hooks cannot run. Copy `hooks/hooks.command.json` over `hooks/hooks.json` and trust the hooks again |
+| `mcp` fails | direct MCP tools and the optional MCP hooks are unavailable; the default command hooks can still run |
 | `hooks` fails | the hook file is unreadable, which usually means a broken install |
 
 ## When everything is `ok` but nothing happens
@@ -35,4 +35,3 @@ live MCP stdio handshake. Nothing leaves the machine. Exit code 1 means a hard f
 - `observe` mode and `dryRun: true` record decisions and replace nothing. Check
   `node dist/cli.js status`.
 - The cost, guard and recovery rows need `debug: true` in the config before they appear.
-
