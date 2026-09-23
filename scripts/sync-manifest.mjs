@@ -2,10 +2,10 @@
 /**
  * Generate the legacy compatibility manifests from the portable source.
  *
- * The portable root plugin.json and mcp.json are the single source of truth.
- * Codex builds that predate the portable manifest still read the legacy
- * overlay, so the overlay is generated rather than hand-edited, and CI fails
- * when the two drift apart.
+ * plugin.portable.json and mcp.json are the single source of truth. Current
+ * Codex builds do not discover lifecycle hooks when the root plugin.json uses
+ * the portable schema, so both Codex manifests are generated in the legacy
+ * shape. CI fails when either mirror drifts from its source.
  *
  *   node scripts/sync-manifest.mjs          # write the mirrors
  *   node scripts/sync-manifest.mjs --check  # exit 1 when they are stale
@@ -21,7 +21,7 @@ const render = (value) => JSON.stringify(value, null, 2) + '\n';
 /** The legacy overlay carries the OpenAI-specific fields the portable schema has no place for. */
 export function legacyPlugin(portable) {
   const openai = (portable.extensions ?? {})['com.openai'] ?? {};
-  if (!openai.interface) throw new Error('portable plugin.json has no extensions.com.openai.interface');
+  if (!openai.interface) throw new Error('plugin.portable.json has no extensions.com.openai.interface');
   return {
     name: portable.name,
     version: portable.version,
@@ -50,10 +50,12 @@ export function legacyMcp(portable) {
 }
 
 export function mirrorFiles(rootDir = root) {
-  const portable = read('plugin.json', rootDir);
+  const portable = read('plugin.portable.json', rootDir);
   const mcp = read('mcp.json', rootDir);
+  const legacy = render(legacyPlugin(portable));
   return [
-    ['.codex-plugin/plugin.json', render(legacyPlugin(portable))],
+    ['plugin.json', legacy],
+    ['.codex-plugin/plugin.json', legacy],
     ['.mcp.json', render(legacyMcp(mcp))],
   ];
 }

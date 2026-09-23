@@ -12,7 +12,7 @@ below is reproducible from a clean checkout.
 | invalid key | `tests/install-scenarios.test.ts`: a 401 keeps every result, warns once and records `key_rejected` |
 | MCP unavailable | the plugin-discovered command hooks remain usable without the MCP server; the optional MCP handlers live in `hooks/hooks.mcp.json` |
 | hook transport parity | `tests/parity.test.ts`: the static matrix plus identical output from both transports for SessionStart and both Stop guards |
-| installed hook selection | `scripts/install-check.mjs`: a fresh Codex install selects `hooks/hooks.json` and verifies its handlers use the command transport |
+| installed hook registration | `scripts/install-check.mjs`: a fresh Codex install selects command handlers and the real app-server `hooks/list` reports all nine plugin hooks |
 | plugin disabled | `tests/install-scenarios.test.ts` and `tests/adapter.test.ts`: no decision, no session record, no network |
 | `stateSource: off` | `tests/install-scenarios.test.ts` and `tests/adapter.test.ts`: results are still judged in single-turn mode and nothing is read from or written to disk |
 | strict privacy | `tests/privacy.test.ts`: excluded paths and excluded tools never reach the model, the cache or the log, and the full-surface sweep finds no seeded secret in any file |

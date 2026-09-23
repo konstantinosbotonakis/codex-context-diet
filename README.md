@@ -528,7 +528,7 @@ npm run release -- 0.4.0            # explicit version
 npm run release -- patch --dry-run  # show the plan, change nothing
 ```
 
-The script refuses to start unless the tree is clean and you are on `main`, and it checks that `package.json` and `plugin.json` already agree before it touches anything. It then runs the tests, the typecheck, the build and the offline verification. Only after all of that passes does it write the new version to both manifests, sync `package-lock.json`, commit, tag `vX.Y.Z`, push, and publish a GitHub release listing the commit subjects since the previous tag.
+The script refuses to start unless the tree is clean and you are on `main`, and it checks that `package.json`, `plugin.portable.json`, and both Codex manifests already agree before it touches anything. It then runs the tests, the typecheck, the build and the offline verification. Only after all of that passes does it write the new version to all four files, sync `package-lock.json`, commit, tag `vX.Y.Z`, push, and publish a GitHub release listing the commit subjects since the previous tag.
 
 Add `--skip-github` to stop once the tag is pushed.
 

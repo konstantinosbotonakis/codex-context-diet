@@ -1,15 +1,18 @@
 # Packaging
 
-Context Diet ships two manifests on purpose. The portable Agent Plugins
-manifest is authoritative; the legacy Codex overlay is generated from it for
-builds that predate the portable format.
+Context Diet keeps the portable Agent Plugins manifest as its source, but
+installs a legacy-shaped root manifest for Codex. In the Codex builds tested
+below, a portable root manifest registers the MCP server but hides every
+plugin lifecycle hook. The two Codex manifests are generated from the portable
+source so their metadata cannot drift.
 
 ## Layout
 
 ```text
-plugin.json                    portable manifest, authoritative
+plugin.portable.json           portable manifest source, not loaded by Codex
+plugin.json                    Codex-compatible root manifest, generated
 mcp.json                       portable MCP config, authoritative
-.codex-plugin/plugin.json      legacy overlay, generated
+.codex-plugin/plugin.json      Codex compatibility manifest, generated
 .mcp.json                      legacy MCP config, generated
 hooks/hooks.json               command hook wiring selected by the plugin manifest
 hooks/hooks.command.json       command-hook parity/fallback file
@@ -19,45 +22,38 @@ schemas/agent-plugins/1.0.0/   vendored official schemas the validator uses
 dist/                          committed build output
 ```
 
-`plugin.json` and `mcp.json` are the only files a maintainer edits. Everything
-else in the list is either generated or discovered by convention. `npm run
-sync:manifest` rewrites the two legacy files, and `npm run validate:plugin`
-fails when they drift from the portable source.
+`plugin.portable.json` and `mcp.json` are the manifest sources a maintainer
+edits. `npm run sync:manifest` writes `plugin.json`,
+`.codex-plugin/plugin.json`, and `.mcp.json`; `npm run validate:plugin`
+fails when those generated files drift.
 
 ## What the host actually does
 
-Measured against Codex Desktop 0.155.0 with throwaway `CODEX_HOME` roots:
+Measured with throwaway `CODEX_HOME` roots against Codex CLI 0.153.4 and
+the ChatGPT app's Codex 0.155.0-alpha.9.2:
 
 | layout | result |
 |---|---|
-| portable only | installs; version read from `plugin.json`; MCP server registers from `mcp.json` |
-| legacy only | installs; MCP server registers from `.mcp.json` |
-| both | installs; portable version wins; portable `mcp.json` wins over `.mcp.json`; no duplicate servers |
+| portable root `plugin.json` | installs; MCP server registers, but `hooks/list` returns zero Context Diet hooks |
+| legacy-shaped root `plugin.json` with portable `mcp.json` | installs; MCP server registers and `hooks/list` returns all nine handlers |
+| legacy-only | installs; MCP server and all nine handlers register |
 
-Two consequences shaped the layout. First, the portable MCP schema requires a
-`type` on every server; without it the host logs `ignoring invalid executor
-plugin MCP server` and silently skips the server. Second, because both files
-can define the same server, they are generated from one source so the choice
-between them cannot change behaviour.
+The portable MCP schema requires a `type` on every server; without it the host
+logs `ignoring invalid executor plugin MCP server` and skips that server.
+The generated `.mcp.json` keeps the legacy fallback equivalent.
 
-The legacy overlay stays because the hook wiring is keyed to the plugin root
-and its `hooks/hooks.json` path, and because a Codex build that predates the
-portable manifest still reads the overlay. Removing it would trade a working
-installation for a smaller file tree.
+The portable root format was introduced in commit `cecaf78`. The last
+recorded hook event predates that commit, and the current clean-install
+check reproduces the failure. Changing the handler transport alone does
+not restore hook registration while the portable root manifest is present.
 
 ## The one documented deviation
 
-The `plugin-creator` skill shipped with Codex validates `.codex-plugin/plugin.json`
-and rejects `$schema` and `extensions` as unsupported top-level fields. That is
-the legacy contract. The 0.155.0 runtime itself validates the portable manifest
-against `https://agent-plugins.org/schemas/1.0.0/plugin.schema.json`, reads the
-`com.openai` extension namespace in `core-plugins/src/agent_plugin_manifest.rs`,
-and ignores unknown top-level fields with a log line.
-
-`npm run validate:plugin` therefore checks both contracts: the portable files
-against the vendored official schemas, and the legacy overlay against the
-ingestion rules the skill enforces. A file that satisfies only one of them
-fails the run.
+The `plugin-creator` skill shipped with Codex validates the legacy
+`.codex-plugin/plugin.json` shape. `npm run validate:plugin` checks
+`plugin.portable.json` and `mcp.json` against vendored portable schemas,
+then checks the installed Codex manifests against the legacy contract and
+their generated content.
 
 ## Clean-install procedure
 
@@ -65,11 +61,11 @@ fails the run.
 node scripts/install-check.mjs
 ```
 
-That copies the working tree into a temporary marketplace, installs it into a
-throwaway `CODEX_HOME`, and asserts that the plugin is enabled, that its MCP
-server is registered, and that the installed copy carries both manifests and
-the hooks. It never touches the real Codex home, and because the cache is
-fresh, a globally cached copy cannot make it pass. It is not part of CI:
+That copies the working tree into a temporary marketplace and installs it into
+a throwaway `CODEX_HOME`. It checks that the plugin and MCP server register,
+the installed manifests match, and the app-server's `hooks/list` reports all
+nine lifecycle handlers. It never touches the real Codex home, and the fresh
+cache prevents an older global copy from making it pass. It is not part of CI:
 GitHub runners have no Codex desktop build.
 
 The same steps by hand, with `CODEX_BIN` pointing at the Codex binary:
@@ -84,10 +80,10 @@ codex mcp list
 
 ## Changing the manifest
 
-1. Edit `plugin.json` or `mcp.json`.
+1. Edit `plugin.portable.json` or `mcp.json`.
 2. Run `npm run sync:manifest`.
 3. Run `npm run validate:plugin`.
 4. Run `node scripts/install-check.mjs` before a release.
 
-Version changes touch `package.json`, `plugin.json` and the generated
-`.codex-plugin/plugin.json`; the validator fails when they disagree.
+Version changes touch `package.json`, `plugin.portable.json`, and both
+generated Codex manifests; the validator fails when they disagree.
