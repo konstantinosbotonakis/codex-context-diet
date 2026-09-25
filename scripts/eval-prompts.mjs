@@ -13,9 +13,8 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../dist/config.js';
-import { resolveApiKey } from '../dist/key.js';
 import { assessPrompt } from '../dist/codex/promptGuard.js';
-import { createAsker } from '../dist/codex/transport.js';
+import { configuredAsker } from '../dist/codex/transport.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const fixture = JSON.parse(readFileSync(join(root, 'examples', 'eval-prompts.json'), 'utf8'));
@@ -32,12 +31,11 @@ if (!live) {
 }
 
 const config = loadConfig(process.env);
-const { key } = resolveApiKey(config, process.env);
-if (key === null) {
+const asker = configuredAsker({ ...config, requestTimeoutMs: config.promptGuardTimeoutMs }, process.env);
+if (asker === null) {
   console.error('no TypeSafe API key: set TYPESAFE_API_KEY or write ~/.typesafe_key');
   process.exit(1);
 }
-const asker = createAsker({ ...config, requestTimeoutMs: config.promptGuardTimeoutMs }, key, process.env);
 
 let correct = 0;
 let falsePositives = 0;
@@ -57,4 +55,3 @@ for (const entry of prompts) {
 console.log('');
 console.log('accuracy: ' + correct + '/' + prompts.length + ', false positives: ' + falsePositives + ', false negatives: ' + falseNegatives + ', input tokens: ' + tokens);
 process.exit(correct === prompts.length ? 0 : 1);
-

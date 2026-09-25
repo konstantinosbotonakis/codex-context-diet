@@ -2,6 +2,20 @@ import type { DietConfig } from '../config.js';
 
 const PATCH_ALIASES = new Set(['apply_patch', 'Edit', 'Write']);
 
+/** Replacing the whole response would discard media that a text model cannot judge. */
+function containsMedia(value: unknown): boolean {
+  if (typeof value === 'string') return /^data:(?:image|audio|video)\//i.test(value);
+  if (!value || typeof value !== 'object') return false;
+  if (Array.isArray(value)) return value.some(containsMedia);
+  const record = value as Record<string, unknown>;
+  if (['image', 'image_url', 'input_image', 'audio', 'input_audio', 'video'].includes(String(record.type))) return true;
+  if (typeof record.blob === 'string') return true;
+  if (typeof record.image_url === 'string' || typeof record.imageUrl === 'string') return true;
+  const mime = record.mimeType ?? record.mime_type;
+  if (typeof mime === 'string' && /^(image|audio|video)\//i.test(mime)) return true;
+  return Object.values(record).some(containsMedia);
+}
+
 function oneLine(text: string, limit: number): string {
   const collapsed = text.replace(/\s+/g, ' ').trim();
   return collapsed.length <= limit ? collapsed : collapsed.slice(0, limit - 1) + '…';
@@ -21,7 +35,8 @@ function textBlocks(value: unknown): string | null {
 }
 
 /** tool_response -> text. Returns null when there is nothing worth judging. */
-export function toolResultText(_toolName: string, toolResponse: unknown): string | null {
+export function toolResultText(toolName: string, toolResponse: unknown): string | null {
+  if (toolName === 'view_image' || containsMedia(toolResponse)) return null;
   if (toolResponse === null || toolResponse === undefined) return null;
   if (typeof toolResponse === 'string') return toolResponse.length > 0 ? toolResponse : null;
   if (typeof toolResponse === 'object') {

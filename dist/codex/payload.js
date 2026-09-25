@@ -1,4 +1,24 @@
 const PATCH_ALIASES = new Set(['apply_patch', 'Edit', 'Write']);
+/** Replacing the whole response would discard media that a text model cannot judge. */
+function containsMedia(value) {
+    if (typeof value === 'string')
+        return /^data:(?:image|audio|video)\//i.test(value);
+    if (!value || typeof value !== 'object')
+        return false;
+    if (Array.isArray(value))
+        return value.some(containsMedia);
+    const record = value;
+    if (['image', 'image_url', 'input_image', 'audio', 'input_audio', 'video'].includes(String(record.type)))
+        return true;
+    if (typeof record.blob === 'string')
+        return true;
+    if (typeof record.image_url === 'string' || typeof record.imageUrl === 'string')
+        return true;
+    const mime = record.mimeType ?? record.mime_type;
+    if (typeof mime === 'string' && /^(image|audio|video)\//i.test(mime))
+        return true;
+    return Object.values(record).some(containsMedia);
+}
 function oneLine(text, limit) {
     const collapsed = text.replace(/\s+/g, ' ').trim();
     return collapsed.length <= limit ? collapsed : collapsed.slice(0, limit - 1) + '…';
@@ -19,7 +39,9 @@ function textBlocks(value) {
     return parts.length > 0 ? parts.join('\n') : null;
 }
 /** tool_response -> text. Returns null when there is nothing worth judging. */
-export function toolResultText(_toolName, toolResponse) {
+export function toolResultText(toolName, toolResponse) {
+    if (toolName === 'view_image' || containsMedia(toolResponse))
+        return null;
     if (toolResponse === null || toolResponse === undefined)
         return null;
     if (typeof toolResponse === 'string')

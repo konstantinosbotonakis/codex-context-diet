@@ -3,9 +3,8 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig, type DietConfig } from './config.js';
 import { runDiet } from './codex/diet.js';
-import { createAsker, testAsker } from './codex/transport.js';
+import { configuredAsker, testAsker } from './codex/transport.js';
 import type { CacheEntry } from './cache.js';
-import { resolveApiKey } from './key.js';
 import { redactText } from './privacy.js';
 import type { JevAsker } from './types.js';
 
@@ -125,9 +124,9 @@ export async function runEvaluation(options: EvalOptions = {}): Promise<EvalRepo
   const cases = loadCases(root);
   let asker: JevAsker;
   if (live) {
-    const { key } = resolveApiKey(config, env);
-    if (key === null) throw new Error('no TypeSafe API key: set TYPESAFE_API_KEY or write ~/.typesafe_key');
-    asker = createAsker(config, key, env);
+    const configured = configuredAsker(config, env);
+    if (configured === null) throw new Error('no TypeSafe API key: set TYPESAFE_API_KEY or write ~/.typesafe_key');
+    asker = configured;
   } else {
     asker = testAsker({ '*': 0.5 });
   }

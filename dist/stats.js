@@ -19,6 +19,28 @@ function timestamp(record) {
     const value = Date.parse(String(record.at ?? ''));
     return Number.isFinite(value) ? value : null;
 }
+function decisionKey(sessionId, toolUseId, at) {
+    return JSON.stringify([sessionId, toolUseId, at]);
+}
+/** New logs retain decision identity and capsule size after the cache rolls over. */
+function retainedDecisions(input) {
+    const logged = new Map();
+    for (const event of input.events) {
+        if (event.kind !== 'diet' || typeof event.sessionId !== 'string' ||
+            typeof event.toolUseId !== 'string' || timestamp(event) === null ||
+            typeof event.blocked !== 'boolean' || !['keep', 'drop_result'].includes(String(event.action)))
+            continue;
+        logged.set(decisionKey(event.sessionId, event.toolUseId, event.at), {
+            sessionId: event.sessionId,
+            entries: [{ ...event, decision: event.blocked ? 'drop_result' : 'keep' }],
+        });
+    }
+    return [
+        ...input.sessions.map((session) => ({ ...session, entries: session.entries.filter((entry) => !logged.has(decisionKey(session.sessionId, entry.tool_use_id, entry.at))),
+        })),
+        ...logged.values(),
+    ];
+}
 export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMillionInputTokens = JEV_INPUT_PRICE_PER_MTOK) {
     const now = input.now ?? new Date();
     const end = now.getTime();
@@ -27,6 +49,8 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
         start: localMidnight(now, Math.max(0, spec.days - 1)),
         sessions: 0,
         judged: 0,
+        loggedDecisions: 0,
+        loggedReplacements: 0,
         replaced: 0,
         charsDropped: 0,
         jevCalls: 0,
@@ -70,7 +94,7 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
                 apply(window, index);
         });
     };
-    for (const session of input.sessions) {
+    for (const session of retainedDecisions(input)) {
         for (const entry of session.entries) {
             const when = timestamp(entry);
             if (when === null)
@@ -111,10 +135,16 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
             continue;
         const kind = String(event.kind ?? 'diet');
         const reason = String(event.reason ?? '');
+        const hosted = event.provider !== 'laya' && !String(event.model ?? '').startsWith('laya/');
         const tokens = typeof event.inputTokens === 'number' && Number.isFinite(event.inputTokens) ? event.inputTokens : null;
         bump(when, (window, index) => {
-            if (tokens !== null)
+            if (hosted && tokens !== null)
                 window.jevTokens += tokens;
+            if (kind === 'diet' && (event.action === 'keep' || event.action === 'drop_result')) {
+                window.loggedDecisions += 1;
+                if (event.blocked === true)
+                    window.loggedReplacements += 1;
+            }
             if (kind === 'recovery') {
                 window.recoveryReruns += 1;
                 if (event.classification === 'likely_recovery')
@@ -154,14 +184,14 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
                     window.subagentRevisions += 1;
                 return;
             }
-            if (typeof event.ms === 'number' && Number.isFinite(event.ms)) {
+            if (kind === 'diet' && typeof event.ms === 'number' && Number.isFinite(event.ms)) {
                 latencies[index].push(event.ms);
             }
             if (kind === 'prompt_guard') {
                 window.guardRuns += 1;
                 if (event.flagged === true)
                     window.guardFlags += 1;
-                if (event.asked === true) {
+                if (hosted && event.asked === true) {
                     window.jevCalls += 1;
                     if (tokens !== null)
                         window.jevMeasured += 1;
@@ -172,7 +202,7 @@ export function summarizeUsage(input, jevReasons, specs = WINDOWS, pricePerMilli
                 window.keyWarnings += 1;
                 return;
             }
-            if (jevReasons.includes(reason)) {
+            if (hosted && jevReasons.includes(reason)) {
                 window.jevCalls += 1;
                 if (tokens !== null)
                     window.jevMeasured += 1;
@@ -243,7 +273,7 @@ export function renderUsage(report, options) {
         ['  net tokens avoided', (w) => '~' + formatNumber(Math.round(Math.max(0, w.charsDropped - w.capsuleChars) / 4))],
     ];
     if (report.logLines > 0) {
-        rows.push(['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['  recovery reruns', (w) => formatNumber(w.recoveryReruns)], ['  recovery rerun rate', (w) => (w.replaced === 0 ? '0%' : Math.round((w.recoveryReruns / w.replaced) * 100) + '%')], ['  likely recoveries', (w) => formatNumber(w.recoveryLikely)], ['  net useful replacements', (w) => formatNumber(Math.max(0, w.replaced - w.recoveryReruns))], ['  recovery tokens', (w) => '~' + formatNumber(Math.round(w.recoveryChars / 4))], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)], ['secret redactions', (w) => formatNumber(w.redactions)], ['quality interventions', (w) => formatNumber(w.qualityInterventions)], ['subagent checks', (w) => formatNumber(w.subagentChecks)], ['  subagent revisions', (w) => formatNumber(w.subagentRevisions)], ['diet p50', (w) => (w.dietP50 === 0 ? '0 ms' : w.dietP50 + ' ms')], ['  diet p95', (w) => (w.dietP95 === 0 ? '0 ms' : w.dietP95 + ' ms')]);
+        rows.push(['logged decisions', (w) => formatNumber(w.loggedDecisions)], ['  logged replacements', (w) => formatNumber(w.loggedReplacements)], ['Jev calls', (w) => formatNumber(w.jevCalls)], ['prompt guard runs', (w) => formatNumber(w.guardRuns)], ['  prompts flagged', (w) => formatNumber(w.guardFlags)], ['key warnings', (w) => formatNumber(w.keyWarnings)], ['  recovery reruns', (w) => formatNumber(w.recoveryReruns)], ['  recovery rerun rate', (w) => (w.replaced === 0 ? '0%' : Math.round((w.recoveryReruns / w.replaced) * 100) + '%')], ['  likely recoveries', (w) => formatNumber(w.recoveryLikely)], ['  net useful replacements', (w) => formatNumber(Math.max(0, w.replaced - w.recoveryReruns))], ['  recovery tokens', (w) => '~' + formatNumber(Math.round(w.recoveryChars / 4))], ['Jev input tokens', (w) => formatNumber(w.jevTokens)], ['  estimated cost', (w) => formatCost(w.costUsd)], ['secret redactions', (w) => formatNumber(w.redactions)], ['quality interventions', (w) => formatNumber(w.qualityInterventions)], ['subagent checks', (w) => formatNumber(w.subagentChecks)], ['  subagent revisions', (w) => formatNumber(w.subagentRevisions)], ['diet p50', (w) => (w.dietP50 === 0 ? '0 ms' : w.dietP50 + ' ms')], ['  diet p95', (w) => (w.dietP95 === 0 ? '0 ms' : w.dietP95 + ' ms')]);
     }
     const labelWidth = Math.max(...rows.map(([label]) => label.length));
     const cells = rows.map(([, value]) => report.windows.map(value));
@@ -259,6 +289,10 @@ export function renderUsage(report, options) {
         lines.push('Jev calls, prompt guard runs and key warnings need debug: true in the plugin config.');
     }
     const widest = report.windows[report.windows.length - 1];
+    if (widest !== undefined && widest.loggedReplacements > widest.replaced) {
+        lines.push('');
+        lines.push('Older logs lack decision identity and capsule sizes. Logged replacements include evicted cache entries; historical context savings are incomplete.');
+    }
     if (widest !== undefined && widest.jevCalls > 0) {
         lines.push('');
         lines.push('Cost uses ' + report.pricePerMillionInputTokens + ' USD per million input tokens, the published Jev input price; output tokens are free.');
@@ -366,7 +400,9 @@ export function readUsageInput(env, options = {}) {
         }
         const prefix = unique.length > 1 ? basename(root) + '/' : '';
         merged.sessions.push(...part.sessions.map((s) => ({ ...s, sessionId: prefix + s.sessionId })));
-        merged.events.push(...part.events);
+        merged.events.push(...part.events.map((event) => typeof event.sessionId === 'string'
+            ? { ...event, sessionId: prefix + event.sessionId }
+            : event));
     }
     merged.stores = unique.map((root) => basename(root));
     return merged;

@@ -3,8 +3,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from './config.js';
 import { runDiet } from './codex/diet.js';
-import { createAsker, testAsker } from './codex/transport.js';
-import { resolveApiKey } from './key.js';
+import { configuredAsker, testAsker } from './codex/transport.js';
 import { redactText } from './privacy.js';
 /**
  * The decision evaluation framework.
@@ -55,10 +54,10 @@ export async function runEvaluation(options = {}) {
     const cases = loadCases(root);
     let asker;
     if (live) {
-        const { key } = resolveApiKey(config, env);
-        if (key === null)
+        const configured = configuredAsker(config, env);
+        if (configured === null)
             throw new Error('no TypeSafe API key: set TYPESAFE_API_KEY or write ~/.typesafe_key');
-        asker = createAsker(config, key, env);
+        asker = configured;
     }
     else {
         asker = testAsker({ '*': 0.5 });

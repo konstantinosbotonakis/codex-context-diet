@@ -415,6 +415,8 @@ The table answers two different questions and keeps them apart. Quantity: sessio
 
 Context tokens and Jev tokens are never combined into one number, because they are different resources: context tokens are what the session no longer re-sends, Jev tokens are what the decision consumed. The log rows need `debug: true`. Nothing in the table comes from tool output, prompts or commands. The event log rotates daily and keeps 30 days by default; change `logRetentionDays` to move that, or set it to 0 to keep everything.
 
+New decision logs retain identifiers and capsule sizes, so totals survive cache compaction without counting a decision twice. `logged replacements` also counts older events whose cache entries have expired; their exact net savings cannot be reconstructed. Local Laya usage is excluded from Jev billing, and diet latency excludes prompt-guard checks.
+
 Repeated commands are handled before Jev is asked: a result that is byte-identical to one the session already holds is replaced with a short note, counted as a deterministic drop rather than a Jev call. A file read stops counting as a duplicate once something writes to that file.
 
 For output above `chunkMinChars` that is already being dropped, one extra request splits a bounded sample into chunks and asks whether each one still matters. The chunks that matter ride along in the capsule, and only the clearly unnecessary ones are left out, so uncertainty keeps evidence. The request never changes the keep or drop decision.
@@ -577,6 +579,7 @@ Context Diet is an optimisation and semantic policy layer. It is not a sandbox, 
 - Context pressure is an estimate. Hook payloads carry no token usage, so the plugin measures what the session still carries from its own digests. The stages are a heuristic, and they only ever lower the size gate.
 - Recovery detection is inference. A deliberate re-run looks like a recovery, so the recovery rate is an upper bound.
 - The plugin sees the tool results the host routes to `PostToolUse`. Hosted tools and specialised paths that bypass hooks are invisible to it.
+- Image, audio, video and binary-resource responses are kept intact, including mixed text/media responses. A text decision cannot assess the media, and replacing the response would discard it.
 - The transcript is never read, by design: the format is documented as unstable for hooks, so plugin state is its own.
 - Jev answers are probabilistic, and the live corpus is 112 cases against one model version. The measured live run matched 91 of the 112 labels, and the exact 95% upper bound on the false-drop rate is 10.3%, not zero.
 - The cost line is a lower bound for calls recorded before usage was kept.

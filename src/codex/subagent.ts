@@ -1,12 +1,11 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig, pluginDataDir, type DietConfig } from '../config.js';
-import { resolveApiKey } from '../key.js';
 import { redactText } from '../privacy.js';
 import { inputTokensOf, noulAnswer } from '../request.js';
 import type { JevQuestions } from '../types.js';
 import { appendEvent } from './log.js';
-import { createAsker } from './transport.js';
+import { configuredAsker } from './transport.js';
 
 /**
  * Subagent context management.
@@ -166,11 +165,7 @@ export async function handleSubagent(payload: Record<string, unknown>, env: Node
     // to be worth judging.
     if (payload.stop_hook_active === true || message.length < MIN_MESSAGE_CHARS) return '';
     if ((readLedger(env).agents[agentId] ?? 0) >= config.subagentGuardMaxInterventions) return '';
-    const { key } = resolveApiKey(config, env);
-    const asker =
-      key !== null || env.CONTEXT_DIET_TEST_ANSWERS
-        ? createAsker(config, key ?? 'test-key', env)
-        : null;
+    const asker = configuredAsker(config, env);
     if (asker === null) return '';
     let answers: Record<string, number>;
     let tokens: number | null = null;
@@ -196,6 +191,7 @@ export async function handleSubagent(payload: Record<string, unknown>, env: Node
     const verdict = decideSubagentVerdict(answers, config);
     appendEvent(env, config, {
       kind: 'subagent_verdict',
+      provider: config.provider,
       agent: agentId,
       action: verdict.action,
       scores: verdict.scores,
@@ -208,4 +204,3 @@ export async function handleSubagent(payload: Record<string, unknown>, env: Node
     return '';
   }
 }
-

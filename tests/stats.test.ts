@@ -1,9 +1,10 @@
-import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { JEV_REASONS, JEV_REASON_VALUES } from '../src/codex/diet.js';
 import { DUPLICATE_REASON } from '../src/dedupe.js';
+import { main as adapterMain } from '../src/codex/adapter.js';
 import { localMidnight, readUsageInput, renderUsage, summarizeUsage, WINDOWS } from '../src/stats.js';
 
 const NOW = new Date('2026-09-18T12:00:00Z');
@@ -22,6 +23,39 @@ const usage = (over: Record<string, unknown> = {}) => ({
 });
 
 describe('usage windows', () => {
+  it('keeps logged decisions after the rolling cache evicts them, without double counting', () => {
+    const event = { at: at(0), kind: 'diet', sessionId: 's1', toolUseId: 't1', action: 'drop_result',
+      blocked: true, chars: 1000, keptChars: 120, reason: JEV_REASONS.stale };
+    for (const entries of [[], [cacheEntry(0, 'drop_result', 1000, { tool_use_id: 't1', keptChars: 120 })]]) {
+      const report = summarizeUsage(usage({ sessions: [{ sessionId: 's1', entries }], events: [event] }), JEV_REASON_VALUES);
+      expect(report.windows[0]).toMatchObject({ judged: 1, replaced: 1, charsDropped: 1000, capsuleChars: 120, sessions: 1 });
+    }
+  });
+
+  it('does not count an observed but unapplied drop as savings', () => {
+    const report = summarizeUsage(usage({
+      sessions: [{ sessionId: 's1', entries: [cacheEntry(0, 'drop_result', 1000, { tool_use_id: 't1' })] }],
+      events: [{ at: at(0), kind: 'diet', sessionId: 's1', toolUseId: 't1', action: 'drop_result', blocked: false, chars: 1000 }],
+    }), JEV_REASON_VALUES);
+    expect(report.windows[0]).toMatchObject({ judged: 1, keeps: 1, replaced: 0, charsDropped: 0 });
+  });
+
+  it('never bills local-provider tokens as Jev usage', () => {
+    const report = summarizeUsage(usage({ events: [
+      { at: at(0), kind: 'diet', provider: 'laya', model: 'laya/local', reason: JEV_REASONS.needed, inputTokens: 1000 },
+      { at: at(0), kind: 'prompt_guard', provider: 'laya', asked: true, inputTokens: 500 },
+    ] }), JEV_REASON_VALUES);
+    expect(report.windows[0]).toMatchObject({ jevCalls: 0, jevTokens: 0, costUsd: 0, guardRuns: 1 });
+  });
+
+  it('measures diet latency independently of prompt checks', () => {
+    const report = summarizeUsage(usage({ events: [
+      { at: at(0), kind: 'diet', ms: 100, reason: JEV_REASONS.needed },
+      { at: at(0), kind: 'prompt_guard', asked: true, ms: 3500 },
+    ] }), JEV_REASON_VALUES);
+    expect(report.windows[0]).toMatchObject({ dietP50: 100, dietP95: 100 });
+  });
+
   it('starts each window at local midnight, counting today as one day', () => {
     const today = new Date(localMidnight(NOW, 0));
     expect(today.getHours()).toBe(0);
@@ -192,6 +226,46 @@ describe('usage table', () => {
 });
 
 describe('reading stores', () => {
+  it('retains real hook totals through byte-limit cache compaction', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'cd-stats-rollover-'));
+    const env = { PLUGIN_DATA: root, CONTEXT_DIET_TEST_ANSWERS: JSON.stringify({
+      needs_contents: 0, replaceable: 1, keep_call: 1, agent_directed: 0, behaviour_change: 0,
+    }) };
+    try {
+      writeFileSync(join(root, 'config.json'), JSON.stringify({ debug: true, minTokens: 10, cacheMaxBytes: 4096 }));
+      for (let i = 0; i < 12; i++) await adapterMain(JSON.stringify({
+        hook_event_name: 'PostToolUse', session_id: 's1', tool_use_id: 't' + i, tool_name: 'Bash',
+        tool_input: { command: 'npm test ' + i }, tool_response: { output: ('passed test ' + i + '\n').repeat(150) },
+      }), env);
+      const input = readUsageInput(env);
+      expect(input.sessions[0]?.entries.length).toBeLessThan(12);
+      expect(summarizeUsage(input, JEV_REASON_VALUES).windows[0]).toMatchObject({
+        judged: 12, replaced: 11, loggedReplacements: 11, sessions: 1,
+      });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('keeps event identities distinct when two stores contain the same session and tool ids', () => {
+    const root = mkdtempSync(join(tmpdir(), 'cd-stats-stores-'));
+    try {
+      for (const name of ['codex-context-diet-a', 'codex-context-diet-b']) {
+        const store = join(root, name);
+        mkdirSync(join(store, 'sessions'), { recursive: true });
+        mkdirSync(join(store, 'log'), { recursive: true });
+        writeFileSync(join(store, 'sessions', 's1.results.jsonl'), JSON.stringify(cacheEntry(0, 'drop_result', 1000, { tool_use_id: 't1' })) + '\n');
+        writeFileSync(join(store, 'log', 'events.jsonl'), JSON.stringify({
+          at: at(0), kind: 'diet', sessionId: 's1', toolUseId: 't1', action: 'drop_result', blocked: true, chars: 1000,
+        }) + '\n');
+      }
+      const input = readUsageInput({ PLUGIN_DATA: join(root, 'codex-context-diet-a') }, { all: true });
+      expect(summarizeUsage({ ...input, now: NOW }, JEV_REASON_VALUES).windows[0]).toMatchObject({ judged: 2, replaced: 2, sessions: 2 });
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
   it('reads session caches and the event log', () => {
     const root = mkdtempSync(join(tmpdir(), 'cd-stats-'));
     mkdirSync(join(root, 'sessions'), { recursive: true });

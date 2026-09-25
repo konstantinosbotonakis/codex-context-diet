@@ -1,6 +1,7 @@
 import { buildJevRequest, parseJevResponse } from '../request.js';
 import { createLayaAsker } from '../providers/laya.js';
 import type { DietConfig } from '../config.js';
+import { resolveApiKey } from '../key.js';
 import type { JevAnswer, JevAsker, JevQuestions, JevResponse } from '../types.js';
 
 type TestAnswer =
@@ -43,6 +44,13 @@ export function testAsker(spec: string | Record<string, TestAnswer>): JevAsker {
       };
     },
   };
+}
+
+/** Credentials belong to the hosted provider; local and test transports need none. */
+export function configuredAsker(config: DietConfig, env: NodeJS.ProcessEnv): JevAsker | null {
+  if (config.provider === 'laya' || env.CONTEXT_DIET_TEST_ANSWERS) return createAsker(config, '', env);
+  const { key } = resolveApiKey(config, env);
+  return key === null ? null : createAsker(config, key, env);
 }
 
 /** The real asker: one POST, hard deadline, no retries. */

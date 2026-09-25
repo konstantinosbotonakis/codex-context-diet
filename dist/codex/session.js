@@ -2,12 +2,11 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sessionKey, sessionsDir } from '../cache.js';
 import { loadConfig } from '../config.js';
-import { resolveApiKey } from '../key.js';
 import { keyWarning, problemFromError } from './keyWarning.js';
 import { appendEvent } from './log.js';
 import { assessPrompt } from './promptGuard.js';
 import { redactText } from '../privacy.js';
-import { createAsker } from './transport.js';
+import { configuredAsker } from './transport.js';
 import { takeResurrection } from './compaction.js';
 const MAX_GOALS = 3;
 const MAX_PROMPT_CHARS = 500;
@@ -58,14 +57,12 @@ export function readGoal(env, sessionId) {
  * warning when Jev could not be asked at all, or nothing.
  */
 async function promptGuardOutput(env, config, sessionId, context) {
-    const { key } = resolveApiKey(config, env);
-    const asker = key !== null || env.CONTEXT_DIET_TEST_ANSWERS
-        ? createAsker({ ...config, requestTimeoutMs: config.promptGuardTimeoutMs }, key ?? 'test-key', env)
-        : null;
+    const asker = configuredAsker({ ...config, requestTimeoutMs: config.promptGuardTimeoutMs }, env);
     const started = Date.now();
     const assessment = await assessPrompt(context, asker, config);
     appendEvent(env, config, {
         kind: 'prompt_guard',
+        provider: config.provider,
         asked: asker !== null,
         flagged: assessment.risk !== null && assessment.risk.hazards.length > 0,
         hazards: assessment.risk?.hazards ?? [],
