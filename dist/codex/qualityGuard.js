@@ -1,11 +1,10 @@
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { loadConfig, pluginDataDir } from '../config.js';
-import { resolveApiKey } from '../key.js';
 import { redactText } from '../privacy.js';
 import { inputTokensOf, noulAnswer } from '../request.js';
 import { appendEvent } from './log.js';
-import { createAsker } from './transport.js';
+import { configuredAsker } from './transport.js';
 /**
  * Optional completion-quality guard for the Stop event.
  *
@@ -146,10 +145,7 @@ export async function handleStop(payload, env) {
             return '';
         if ((readLedger(env).turns[turnId] ?? 0) >= config.qualityGuardMaxInterventions)
             return '';
-        const { key } = resolveApiKey(config, env);
-        const asker = key !== null || env.CONTEXT_DIET_TEST_ANSWERS
-            ? createAsker(config, key ?? 'test-key', env)
-            : null;
+        const asker = configuredAsker(config, env);
         if (asker === null)
             return '';
         let answers;
@@ -170,6 +166,7 @@ export async function handleStop(payload, env) {
         const verdict = decideQualityVerdict(answers, config);
         appendEvent(env, config, {
             kind: 'quality_verdict',
+            provider: config.provider,
             turn: turnId,
             action: verdict.action,
             scores: verdict.scores,

@@ -76,4 +76,16 @@ describe('diet state', () => {
       }),
     ).toThrow(/too large/);
   });
+
+  it('retains a failure in the middle when a long history exhausts the budget', () => {
+    const resultText = 'routine build output\n'.repeat(400) +
+      'ERROR: migration failed: duplicate invoice identifier\n' + 'routine build output\n'.repeat(400);
+    const history = Array.from({ length: 40 }, (_, n) => ({
+      ...entry(n), input: 'npm run build --workspace=' + 'workspace'.repeat(18), head: 'previous build succeeded '.repeat(8),
+    }));
+    const fitted = buildDietState({ ...input, history, resultText }, { maxStateTokens: 2000, resultCapChars: 4000 });
+    expect(fitted.state.current.result).toContain('ERROR: migration failed: duplicate invoice identifier');
+    expect(fitted.state.goal).toBe(input.goal);
+    expect(fitted.tokens).toBeLessThanOrEqual(2000);
+  });
 });

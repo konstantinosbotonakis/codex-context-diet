@@ -2,12 +2,11 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { sessionKey, sessionsDir } from '../cache.js';
 import { loadConfig, type DietConfig } from '../config.js';
-import { resolveApiKey } from '../key.js';
 import { keyWarning, problemFromError, type KeyProblem } from './keyWarning.js';
 import { appendEvent } from './log.js';
 import { assessPrompt, type PromptContext } from './promptGuard.js';
 import { redactText } from '../privacy.js';
-import { createAsker } from './transport.js';
+import { configuredAsker } from './transport.js';
 import { takeResurrection } from './compaction.js';
 
 export interface SessionRecord {
@@ -74,15 +73,12 @@ async function promptGuardOutput(
   sessionId: string,
   context: PromptContext,
 ): Promise<Record<string, unknown> | null> {
-  const { key } = resolveApiKey(config, env);
-  const asker =
-    key !== null || env.CONTEXT_DIET_TEST_ANSWERS
-      ? createAsker({ ...config, requestTimeoutMs: config.promptGuardTimeoutMs }, key ?? 'test-key', env)
-      : null;
+  const asker = configuredAsker({ ...config, requestTimeoutMs: config.promptGuardTimeoutMs }, env);
   const started = Date.now();
   const assessment = await assessPrompt(context, asker, config);
   appendEvent(env, config, {
     kind: 'prompt_guard',
+    provider: config.provider,
     asked: asker !== null,
     flagged: assessment.risk !== null && assessment.risk.hazards.length > 0,
     hazards: assessment.risk?.hazards ?? [],

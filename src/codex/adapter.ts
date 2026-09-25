@@ -1,7 +1,6 @@
-import { appendCache, appendTouch, readCache, readTouches } from '../cache.js';
+import { appendCache, appendTouch, readCache, readTouches, sessionKey } from '../cache.js';
 import { appendRecovery, readRecoveries } from '../cache.js';
 import { loadConfig, type DietConfig } from '../config.js';
-import { resolveApiKey } from '../key.js';
 import { estimateTokens } from '../state.js';
 import { capturePayload } from './capture.js';
 import { runDiet, type DietOutcome } from './diet.js';
@@ -9,7 +8,7 @@ import { keyWarning, problemFromError, type KeyProblem } from './keyWarning.js';
 import { appendEvent } from './log.js';
 import { inputLine, isSkippedTool, toolResultText } from './payload.js';
 import { readGoal } from './session.js';
-import { createAsker } from './transport.js';
+import { configuredAsker } from './transport.js';
 import { isNeverSendInput, redactText } from '../privacy.js';
 import { DUPLICATE_REASON, findDuplicate, touchedPaths } from '../dedupe.js';
 import { classifyRecovery, detectRecovery, inputKey } from '../recovery.js';
@@ -29,12 +28,17 @@ function isErrorResponse(toolResponse: unknown): boolean {
 function logEvent(
   env: NodeJS.ProcessEnv,
   config: DietConfig,
+  sessionId: string,
   outcome: DietOutcome,
   policy: { source: string; pressure: string; minTokens: number },
   ms: number,
 ): void {
   appendEvent(env, config, {
     kind: 'diet',
+    at: outcome.entry.at,
+    sessionId: sessionKey(sessionId),
+    toolUseId: outcome.entry.tool_use_id,
+    provider: config.provider,
     tool: outcome.entry.tool_name,
     action: outcome.decision.action,
     reason: outcome.decision.reason,
@@ -43,6 +47,7 @@ function logEvent(
     replaceable: outcome.decision.replaceable,
     injection: outcome.decision.injection,
     chars: outcome.entry.chars,
+    keptChars: outcome.blocked ? outcome.entry.keptChars : undefined,
     blocked: outcome.blocked,
     inputTokens: outcome.inputTokens,
     // Which provider model made the judgement, so the log can attribute a
@@ -174,19 +179,14 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
         tool: toolName,
         of: recovery.entry.tool_use_id,
         reason: recovery.entry.reason ?? recovery.entry.decision,
+        chars: recovery.entry.chars,
         afterMs: recovery.afterMs,
         afterCalls: recovery.afterCalls,
         classification: verdict.classification,
       });
     }
     const { goal, goalIndex } = readGoal(env, sessionId);
-    const { key } = resolveApiKey(config, env);
-    // CONTEXT_DIET_TEST_ANSWERS is a tests-only transport: it never reaches the
-    // network, so it may stand in for a missing key.
-    const asker =
-      key !== null || env.CONTEXT_DIET_TEST_ANSWERS
-        ? createAsker(config, key ?? 'test-key', env)
-        : null;
+    const asker = configuredAsker(config, env);
 
     const startedAt = performance.now();
     const outcome = await runDiet({
@@ -208,7 +208,7 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
     });
 
     if (!singleTurn) appendCache(env, sessionId, outcome.entry, config);
-    logEvent(env, config, outcome, policy, performance.now() - startedAt);
+    logEvent(env, config, sessionId, outcome, policy, performance.now() - startedAt);
 
     // A missing or rejected key means Jev never ran. Say so once per session
     // rather than failing silently.

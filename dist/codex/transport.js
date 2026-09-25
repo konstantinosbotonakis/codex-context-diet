@@ -1,5 +1,6 @@
 import { buildJevRequest, parseJevResponse } from '../request.js';
 import { createLayaAsker } from '../providers/laya.js';
+import { resolveApiKey } from '../key.js';
 /** Deterministic asker for tests and offline runs. '*' is the fallback score. */
 export function testAsker(spec) {
     const scores = typeof spec === 'string' ? JSON.parse(spec) : spec;
@@ -36,6 +37,13 @@ export function testAsker(spec) {
             };
         },
     };
+}
+/** Credentials belong to the hosted provider; local and test transports need none. */
+export function configuredAsker(config, env) {
+    if (config.provider === 'laya' || env.CONTEXT_DIET_TEST_ANSWERS)
+        return createAsker(config, '', env);
+    const { key } = resolveApiKey(config, env);
+    return key === null ? null : createAsker(config, key, env);
 }
 /** The real asker: one POST, hard deadline, no retries. */
 export function createAsker(config, key, env) {

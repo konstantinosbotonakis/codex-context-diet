@@ -19,6 +19,9 @@ export interface UsageWindow {
     start: number;
     sessions: number;
     judged: number;
+    /** Event-log counts also cover decisions evicted from legacy rolling caches. */
+    loggedDecisions: number;
+    loggedReplacements: number;
     replaced: number;
     charsDropped: number;
     jevCalls: number;

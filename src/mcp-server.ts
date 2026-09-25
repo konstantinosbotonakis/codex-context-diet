@@ -25,10 +25,9 @@ import { handleCompaction } from './codex/compaction.js';
 import { handleSubagent } from './codex/subagent.js';
 import { handleStop } from './codex/qualityGuard.js';
 import { handleStopGuard } from './codex/stopGuard.js';
-import { createAsker } from './codex/transport.js';
+import { configuredAsker } from './codex/transport.js';
 import { loadConfig, pluginDataDir } from './config.js';
 import type { DietConfig } from './config.js';
-import { resolveApiKey } from './key.js';
 import { redactText } from './privacy.js';
 import { noulAnswer } from './request.js';
 import type { JevAsker, JevQuestions } from './types.js';
@@ -167,11 +166,11 @@ type JevSetup = { error: string } | { config: DietConfig; asker: JevAsker };
 
 function jevSetup(env: NodeJS.ProcessEnv): JevSetup {
   const config = loadConfig(env);
-  const { key } = resolveApiKey(config, env);
-  if (key === null && !env.CONTEXT_DIET_TEST_ANSWERS) {
+  const asker = configuredAsker(config, env);
+  if (asker === null) {
     return { error: 'no TypeSafe API key: set TYPESAFE_API_KEY or write ~/.typesafe_key' };
   }
-  return { config, asker: createAsker(config, key ?? 'test-key', env) };
+  return { config, asker };
 }
 
 function stateOf(args: Args, config: { privacyMode: 'strict' | 'standard' | 'off' }): string | { error: string } {

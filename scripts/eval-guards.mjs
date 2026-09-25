@@ -15,8 +15,7 @@ import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../dist/config.js';
 import { decideQualityVerdict, qualityQuestions } from '../dist/codex/qualityGuard.js';
 import { decideSubagentVerdict, subagentQuestions } from '../dist/codex/subagent.js';
-import { createAsker } from '../dist/codex/transport.js';
-import { resolveApiKey } from '../dist/key.js';
+import { configuredAsker } from '../dist/codex/transport.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const load = (file) => JSON.parse(readFileSync(join(root, 'evals', 'guards', file), 'utf8'));
@@ -30,12 +29,11 @@ const suites = [
 
 let asker = null;
 if (live) {
-  const { key } = resolveApiKey(config, process.env);
-  if (key === null) {
+  asker = configuredAsker(config, process.env);
+  if (asker === null) {
     console.error('no TypeSafe API key: set TYPESAFE_API_KEY or write ~/.typesafe_key');
     process.exit(1);
   }
-  asker = createAsker(config, key, process.env);
 }
 
 let mismatches = 0;
@@ -70,4 +68,3 @@ console.log('');
 console.log('scored ' + scored + ' cases, ' + mismatches + ' mismatch(es)');
 if (!live) console.log('run with --live to ask the real model the same cases');
 process.exit(mismatches > 0 && !live ? 1 : 0);
-

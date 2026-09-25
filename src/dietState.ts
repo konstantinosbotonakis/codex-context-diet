@@ -30,15 +30,6 @@ export interface FittedDietState {
   stage: string;
 }
 
-function abridge(text: string, head: number, tail: number): string {
-  if (text.length <= head + tail + 40) return text;
-  return text.slice(0, head) + '\n[... ' + (text.length - head - tail) + ' chars omitted ...]\n' + text.slice(-tail);
-}
-
-function headNote(text: string, head: number): string {
-  return text.slice(0, head) + '\n[... ' + Math.max(0, text.length - head) + ' chars omitted ...]';
-}
-
 function line(entry: CacheEntry, index: number, withDigest: boolean): { i: number; text: string } {
   const base =
     't' + (index + 1) + ' ' + entry.tool_name + ' ' + entry.input + ' -> ' + entry.chars + 'ch ' + entry.decision;
@@ -71,19 +62,22 @@ export function buildDietState(
   const history = input.history;
   const half = Math.max(1, Math.floor(history.length / 2));
   const olderHistory = history.slice(-half).map((entry, i) => line(entry, history.length - half + i, false));
+  // Keep current evidence ahead of old digests. Every shrink stage uses the
+  // signal sampler so failures in the middle survive a smaller state budget.
+  const sampled = sampleResult(input.resultText, { budgetChars: opts.resultCapChars }).text;
 
   const candidates: (() => FittedDietState)[] = [
     () =>
       stateOf(
         history.map((entry, i) => line(entry, i, true)),
-        sampleResult(input.resultText, { budgetChars: opts.resultCapChars }).text,
+        sampled,
         'full',
       ),
-    () => stateOf(history.map((entry, i) => line(entry, i, true)), abridge(input.resultText, 2000, 500), 'current abridged'),
-    () => stateOf(history.map((entry, i) => line(entry, i, false)), abridge(input.resultText, 2000, 500), 'digests dropped'),
-    () => stateOf(olderHistory, abridge(input.resultText, 2000, 500), 'oldest history dropped'),
-    () => stateOf(olderHistory, headNote(input.resultText, 400), 'current head only'),
-    () => stateOf([], headNote(input.resultText, 400), 'history dropped'),
+    () => stateOf(history.map((entry, i) => line(entry, i, false)), sampled, 'digests dropped'),
+    () => stateOf(olderHistory, sampled, 'oldest history dropped'),
+    () => stateOf([], sampled, 'history dropped'),
+    () => stateOf([], sampleResult(input.resultText, { budgetChars: Math.min(opts.resultCapChars, 2500) }).text, 'current sampled'),
+    () => stateOf([], sampleResult(input.resultText, { budgetChars: Math.min(opts.resultCapChars, 400) }).text, 'current minimal sample'),
   ];
 
   let last = { tokens: 0, stage: 'full' };
