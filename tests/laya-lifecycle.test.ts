@@ -1,11 +1,11 @@
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { createServer, type Socket } from 'node:net';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../src/config.js';
-import { ensureLayaDaemon } from '../src/providers/laya.js';
+import { ensureLayaDaemon, layaHeadPath, layaPaths } from '../src/providers/laya.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const cleanups: (() => Promise<void>)[] = [];
@@ -58,6 +58,20 @@ it('does not replace a mismatched worker whose stop request times out', async ()
 it('does not spawn after an existing worker closes a request without a reply', async () => {
   const setup = await listener((client) => client.end());
   await expect(ensureLayaDaemon(setup.config, setup.env)).rejects.toThrow('closed the connection');
+  expect(existsSync(setup.marker)).toBe(false);
+});
+
+it('reuses a worker that fell back to raw answers after the requested head failed to load', async () => {
+  const head = layaHeadPath(DEFAULT_CONFIG, {});
+  const worker = layaPaths({}).worker;
+  const setup = await listener((client, request) => {
+    if (JSON.parse(request).op === 'ping') client.end(JSON.stringify({
+      ok: true, model: DEFAULT_CONFIG.layaModel, subfolder: DEFAULT_CONFIG.layaSubfolder,
+      head: null, requestedHead: head, headMtime: statSync(head).mtimeMs / 1000,
+      workerMtime: statSync(worker).mtimeMs / 1000,
+    }) + '\n');
+  });
+  await ensureLayaDaemon(setup.config, setup.env);
   expect(existsSync(setup.marker)).toBe(false);
 });
 

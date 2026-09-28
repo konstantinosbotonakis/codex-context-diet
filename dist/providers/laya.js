@@ -190,7 +190,7 @@ function matchesWorker(running, config, env) {
     const wantedHead = layaHeadPath(config, env);
     return running.ok === true && running.model === config.layaModel &&
         (running.subfolder ?? '') === config.layaSubfolder &&
-        (running.head ?? '') === wantedHead && fresh(running.headMtime, wantedHead) &&
+        (running.requestedHead ?? running.head ?? '') === wantedHead && fresh(running.headMtime, wantedHead) &&
         fresh(running.workerMtime, paths.worker);
 }
 /**

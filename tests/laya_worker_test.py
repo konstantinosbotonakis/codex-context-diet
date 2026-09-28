@@ -153,6 +153,16 @@ class WorkerLifecycle(unittest.TestCase):
         self.assertEqual(first.wait(timeout=3), 0)
         self.assertFalse(self.path.exists())
 
+    def test_failed_head_load_reports_requested_configuration(self):
+        head = self.root / 'broken-head.json'
+        head.write_text('{invalid json')
+        self.start('--head', str(head))
+        self.ready()
+        reply = self.request()
+        self.assertIsNone(reply['head'])
+        self.assertEqual(reply['requestedHead'], str(head))
+        self.assertAlmostEqual(reply['headMtime'], head.stat().st_mtime, places=2)
+
 
 if __name__ == '__main__':
     unittest.main()

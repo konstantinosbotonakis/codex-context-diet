@@ -42,6 +42,7 @@ class Engine:
       self.loaded_at = None
       self.head = None
       self.head_path = None
+      self.requested_head = None
       # The question ids the head was fitted for. Anything else must go to the
       # checkpoint's own heads: the probe answers the diet questions, and using
       # it for another question would return a verdict about the wrong thing.
@@ -55,6 +56,13 @@ class Engine:
       """A small linear head fitted on this machine to match the teacher model."""
       import json
 
+      # Report the attempted configuration even when raw-answer fallback is
+      # needed. A repaired file with a new mtime still triggers a restart.
+      self.requested_head = path
+      try:
+          self.head_mtime = os.path.getmtime(path)
+      except OSError:
+          pass
       with open(path, 'r', encoding='utf-8') as handle:
         document = json.load(handle)
       self.head = {
@@ -68,10 +76,6 @@ class Engine:
       covered = document.get('questions')
       self.head_questions = [str(name) for name in covered] if isinstance(covered, list) else []
       self.head_path = path
-      try:
-          self.head_mtime = os.path.getmtime(path)
-      except OSError:
-          pass
 
     def _features(self, state):
         """Mean-pooled, normalised encoder state: the head's only input."""
@@ -125,6 +129,7 @@ class Engine:
             'device': str(self.agent.device) if self.agent is not None else self.device,
             'loaded': self.agent is not None,
             'head': self.head_path,
+            'requestedHead': self.requested_head,
             'workerMtime': self.worker_mtime,
             'headMtime': self.head_mtime,
         }

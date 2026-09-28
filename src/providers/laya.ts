@@ -86,6 +86,7 @@ interface LayaReply {
   laya?: string;
   loaded?: boolean;
   subfolder?: string | null;
+  requestedHead?: string | null;
   head?: LayaHeadScores | null;
   workerMtime?: number | null;
   headMtime?: number | null;
@@ -234,7 +235,7 @@ function matchesWorker(running: LayaReply, config: DietConfig, env: NodeJS.Proce
   const wantedHead = layaHeadPath(config, env);
   return running.ok === true && running.model === config.layaModel &&
     (running.subfolder ?? '') === config.layaSubfolder &&
-    (running.head ?? '') === wantedHead && fresh(running.headMtime, wantedHead) &&
+    (running.requestedHead ?? running.head ?? '') === wantedHead && fresh(running.headMtime, wantedHead) &&
     fresh(running.workerMtime, paths.worker);
 }
 
