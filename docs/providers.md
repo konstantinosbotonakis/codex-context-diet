@@ -58,6 +58,16 @@ that holds the model and answers over a unix socket; the first call starts it to
 optional. Every failure keeps the tool result: an unavailable local model is a lost optimisation,
 never a lost session.
 
+One worker owns each data directory's socket. Concurrent calls reuse that worker; a busy
+worker's health-check timeout keeps the tool result instead of starting another process.
+Workers exit after 15 minutes without a request and restart on demand. The worker remains
+detached from individual hooks so it can serve later calls.
+
+Versions before 0.8.3 could leave duplicate workers running after replacing their socket.
+Updating prevents new duplicates but cannot reach those old abandoned processes. After
+updating, quit Codex and restart your computer once to clear them, then reopen Codex.
+The next Laya request starts a worker with the corrected lifecycle.
+
 Head mode is on by default. `node dist/cli.js provider` prints the head file in use, and
 `layaHead: false` switches back to the checkpoint's own answers.
 

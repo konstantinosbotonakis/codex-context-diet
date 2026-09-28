@@ -126,6 +126,10 @@ async function request(config, env, payload, timeoutMs) {
             clearTimeout(timer);
             reject(error);
         });
+        client.on('close', () => {
+            clearTimeout(timer);
+            reject(new Error('laya worker closed the connection before replying'));
+        });
         client.write(JSON.stringify(payload) + '\n');
     });
 }
@@ -176,37 +180,54 @@ function fresh(reported, file) {
         return false;
     }
 }
+/** A timeout is a busy worker, not evidence that its process has died. */
+function unavailable(error) {
+    return error instanceof Error && 'code' in error &&
+        (error.code === 'ENOENT' || error.code === 'ECONNREFUSED');
+}
+function matchesWorker(running, config, env) {
+    const paths = layaPaths(env);
+    const wantedHead = layaHeadPath(config, env);
+    return running.ok === true && running.model === config.layaModel &&
+        (running.subfolder ?? '') === config.layaSubfolder &&
+        (running.requestedHead ?? running.head ?? '') === wantedHead && fresh(running.headMtime, wantedHead) &&
+        fresh(running.workerMtime, paths.worker);
+}
 /**
  * The daemon, started on demand. A cold start loads a checkpoint, so the wait
  * is the warm timeout, not the per-answer timeout.
  */
 export async function ensureLayaDaemon(config, env) {
     const paths = layaPaths(env);
+    let running;
     try {
-        const running = await request(config, env, { op: 'ping' }, 1_000);
-        // One worker serves one checkpoint, so a different model or subfolder
-        // needs a fresh process.
-        const sameModel = running.model === config.layaModel;
-        const runningSub = running.subfolder ?? '';
-        const sameSub = runningSub === (config.layaSubfolder.length > 0 ? config.layaSubfolder : null) ||
-            (runningSub === '' && config.layaSubfolder.length === 0);
-        const wantedHead = layaHeadPath(config, env);
-        const sameHead = (running.head ?? '') === wantedHead && fresh(running.headMtime, wantedHead);
-        // The worker script and the head ship with the plugin, so an updated
-        // plugin retires the old daemon instead of keeping its decisions.
-        const sameWorker = fresh(running.workerMtime, paths.worker);
-        if (sameModel && sameSub && sameHead && sameWorker)
-            return;
-        try {
-            await request(config, env, { op: 'stop' }, 2_000);
-        }
-        catch {
-            // it may already be gone; the spawn below still works
-        }
-        await sleep(300);
+        running = await request(config, env, { op: 'ping' }, 1_000);
     }
-    catch {
-        // not running, or not started yet
+    catch (error) {
+        if (!unavailable(error))
+            throw error;
+    }
+    if (running !== undefined) {
+        if (matchesWorker(running, config, env))
+            return;
+        // Never replace a worker unless shutdown succeeds and its listener closes.
+        // A busy/failed stop must fail open rather than abandon a loaded model.
+        await request(config, env, { op: 'stop' }, 2_000);
+        const stopDeadline = Date.now() + 5_000;
+        while (true) {
+            try {
+                const client = await connectOnce(paths.socket, 500);
+                client.destroy();
+            }
+            catch (error) {
+                if (unavailable(error))
+                    break;
+                throw error;
+            }
+            if (Date.now() >= stopDeadline)
+                throw new Error('laya worker did not stop');
+            await sleep(50);
+        }
     }
     if (!existsSync(paths.worker))
         throw new Error('laya worker script is missing: ' + paths.worker);
@@ -216,8 +237,10 @@ export async function ensureLayaDaemon(config, env) {
     while (Date.now() < deadline) {
         await sleep(250);
         try {
-            await request(config, env, { op: 'ping' }, 2_000);
-            return;
+            const reply = await request(config, env, { op: 'ping' }, 2_000);
+            if (matchesWorker(reply, config, env))
+                return;
+            last = 'another worker is serving a different configuration';
         }
         catch (error) {
             last = error instanceof Error ? error.message : String(error);

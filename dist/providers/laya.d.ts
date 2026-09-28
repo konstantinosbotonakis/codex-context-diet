@@ -39,6 +39,7 @@ interface LayaReply {
     laya?: string;
     loaded?: boolean;
     subfolder?: string | null;
+    requestedHead?: string | null;
     head?: LayaHeadScores | null;
     workerMtime?: number | null;
     headMtime?: number | null;
