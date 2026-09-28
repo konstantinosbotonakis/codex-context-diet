@@ -35,6 +35,7 @@ describe('Laya without a hosted-provider key', () => {
         const request = JSON.parse(buffer);
         if (request.op === 'ping') {
           socket.end(JSON.stringify({
+            ok: true,
             model: DEFAULT_CONFIG.layaModel, subfolder: DEFAULT_CONFIG.layaSubfolder,
             head: '', workerMtime: statSync(paths.worker).mtimeMs / 1000,
           }) + '\n');

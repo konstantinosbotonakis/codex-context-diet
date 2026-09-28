@@ -17,8 +17,11 @@ Question and answer shapes are Laya's own, which match the plugin's: noul,
 choice and score, each with calibrated probabilities.
 """
 import argparse
+import errno
+import fcntl
 import json
 import os
+import signal
 import socket
 import sys
 import time
@@ -174,62 +177,88 @@ def handle(engine, request):
     return {'error': 'unknown op: ' + str(op)[:40]}
 
 
-def serve(engine, socket_path, preload):
-    if preload:
-        engine.load()
-    if os.path.exists(socket_path):
-        os.unlink(socket_path)
+def serve(engine, socket_path, preload, idle_timeout=900):
     os.makedirs(os.path.dirname(socket_path), exist_ok=True)
-    server = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    server.bind(socket_path)
-    server.listen(8)
-    log('laya: listening on ' + socket_path)
-    while True:
-        connection, _ = server.accept()
-        stop = False
-        with connection:
-            reader = connection.makefile('r', encoding='utf-8')
-            writer = connection.makefile('w', encoding='utf-8')
+    # Keep the lock file: unlinking it would let callers lock different inodes.
+    # The OS releases this lifetime lock even after SIGKILL or a crash.
+    with open(socket_path + '.lock', 'a') as lock:
+        deadline = time.monotonic() + 2
+        while True:
             try:
-                lines = reader
-                for line in lines:
-                    line = line.strip()
-                    if not line:
-                        continue
+                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                break
+            except BlockingIOError:
+                if time.monotonic() >= deadline:
+                    return
+                time.sleep(.05)
+
+        # Older workers have no lock. Never unlink an accepting listener, even
+        # if it is too busy loading/inferencing to answer a ping.
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as probe:
+            probe.settimeout(.5)
+            try:
+                probe.connect(socket_path)
+            except OSError as error:
+                if error.errno not in (errno.ENOENT, errno.ECONNREFUSED):
+                    return
+            else:
+                return
+        try:
+            os.unlink(socket_path)
+        except FileNotFoundError:
+            pass
+
+        with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as server:
+            server.bind(socket_path)
+            owned = os.stat(socket_path)
+            try:
+                server.listen(8)
+                if preload:
+                    engine.load()
+                log('laya: listening on ' + socket_path)
+                last_active = time.monotonic()
+                while True:
+                    remaining = idle_timeout - (time.monotonic() - last_active)
+                    if remaining <= 0:
+                        return
+                    server.settimeout(min(1, remaining))
                     try:
-                        request = json.loads(line)
-                    except ValueError:
-                        writer.write(json.dumps({'error': 'invalid json'}) + '\n')
-                        writer.flush()
+                        connection, _ = server.accept()
+                    except socket.timeout:
                         continue
-                    response = handle(engine, request)
-                    # A caller that gave up waiting closes its side first, and
-                    # the write then raises. That must not take the daemon
-                    # down: a killed daemon means a cold model load next time.
-                    try:
-                        writer.write(json.dumps(response) + '\n')
-                        writer.flush()
-                    except OSError:
-                        break
-                    if response.get('stopping'):
-                        stop = True
-                        break
-            except OSError:
-                # A dropped connection is normal; keep serving.
-                pass
+                    with connection:
+                        # A stalled client must not pin the daemon indefinitely.
+                        connection.settimeout(min(5, remaining))
+                        with connection.makefile('r', encoding='utf-8') as reader:
+                            try:
+                                # The client protocol uses one request per connection.
+                                line = reader.readline()
+                                if not line.strip():
+                                    continue
+                                try:
+                                    request = json.loads(line)
+                                except ValueError:
+                                    connection.sendall(b'{"error":"invalid json"}\n')
+                                    continue
+                                response = handle(engine, request)
+                                try:
+                                    connection.sendall((json.dumps(response) + '\n').encode())
+                                except OSError:
+                                    # A cancelled caller does not discard the loaded model.
+                                    pass
+                                if response.get('stopping'):
+                                    return
+                                last_active = time.monotonic()
+                            except OSError:
+                                pass
             finally:
-                # makefile duplicates the descriptor, so closing the socket is
-                # not enough: the peer would never see the connection close.
-                for stream in (reader, writer):
-                    try:
-                        stream.close()
-                    except OSError:
-                        pass
-        if stop:
-            break
-    server.close()
-    if os.path.exists(socket_path):
-        os.unlink(socket_path)
+                # A legacy worker or external process might have replaced the path.
+                try:
+                    current = os.stat(socket_path)
+                    if (current.st_dev, current.st_ino) == (owned.st_dev, owned.st_ino):
+                        os.unlink(socket_path)
+                except FileNotFoundError:
+                    pass
 
 
 def main():
@@ -241,6 +270,7 @@ def main():
     parser.add_argument('--device', default='')
     parser.add_argument('--preload', action='store_true')
     parser.add_argument('--head', default='')
+    parser.add_argument('--idle-timeout', type=float, default=900)
     args = parser.parse_args()
 
     engine = Engine(args.model, args.subfolder, args.device)
@@ -261,7 +291,15 @@ def main():
     if not args.socket:
         log('serve mode needs --socket')
         return 2
-    serve(engine, args.socket, args.preload)
+    if not 0 < args.idle_timeout < float('inf'):
+        parser.error('--idle-timeout must be a finite positive number')
+
+    def shutdown(signum, frame):
+        raise SystemExit(0)
+
+    signal.signal(signal.SIGTERM, shutdown)
+    signal.signal(signal.SIGINT, shutdown)
+    serve(engine, args.socket, args.preload, args.idle_timeout)
     return 0
 
 
