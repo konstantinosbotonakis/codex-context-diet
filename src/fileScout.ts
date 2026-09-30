@@ -86,7 +86,8 @@ export function resolveScoutPath(raw: string, cwd: string): string {
 }
 
 function relPath(abs: string, cwd: string): string {
-  return relative(cwd, abs).replace(/\/g, '/') || basename(abs);
+  const rel = relative(cwd, abs);
+  return rel.split('\').join('/') || basename(abs);
 }
 
 function deterministicSkip(rel: string, config: DietConfig): string | null {
