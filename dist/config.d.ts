@@ -90,6 +90,13 @@ export interface DietConfig {
     qualityGuard: boolean;
     qualityGuardThreshold: number;
     qualityGuardMaxInterventions: number;
+    /** Enable jev_file_* MCP tools for bounded file judgements before full reads. */
+    fileScout: boolean;
+    fileScoutReadThreshold: number;
+    fileScoutSkipThreshold: number;
+    fileScoutMaxSampleChars: number;
+    fileScoutMaxFiles: number;
+    fileScoutMinValueScore: number;
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;
