@@ -87,7 +87,7 @@ export function resolveScoutPath(raw: string, cwd: string): string {
 
 function relPath(abs: string, cwd: string): string {
   const rel = relative(cwd, abs);
-  return rel.split('\').join('/') || basename(abs);
+  return rel.split(String.fromCharCode(92)).join('/') || basename(abs);
 }
 
 function deterministicSkip(rel: string, config: DietConfig): string | null {
