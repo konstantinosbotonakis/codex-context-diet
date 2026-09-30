@@ -96,3 +96,13 @@ that share a state, keep the state bounded, and leave the deterministic path for
 that does not need a judgement about meaning. A local checkpoint answers the same questions
 with no key and no metered cost; see [docs/providers.md](../../docs/providers.md).
 
+
+## File scout (levels 8-10)
+
+Before full Read on candidate paths from rg/Graft/CBM:
+
+1. Prefer jev_files with a tight question and the current goal.
+2. Only Read paths where action is read and value is not low (see usefulResults).
+3. Treat deterministic_skip and blocked as hard skips (vendor, dist, neverSendPaths).
+4. In the uncertain band, fileScoutMinValueScore skips low-value reads; raise it to reduce tool calls, lower it to avoid false negatives.
+5. Use jev_file_choice to classify layer (entrypoint, policy, test) when planning edits.

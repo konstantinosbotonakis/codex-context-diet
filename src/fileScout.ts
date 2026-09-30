@@ -252,7 +252,13 @@ export function expandScoutPaths(rawPaths: string[], cwd: string, maxFiles: numb
     if (trimmed.length === 0) continue;
     if (trimmed.includes('*')) {
       const pattern = isAbsolute(trimmed) ? trimmed : join(cwd, trimmed);
-      const matches = globSync(pattern, { cwd, nodir: true, absolute: true });
+      const matches = globSync(pattern, { cwd, absolute: true }).filter((match) => {
+        try {
+          return statSync(match).isFile();
+        } catch {
+          return false;
+        }
+      });
       for (const match of matches) {
         out.push(match);
         if (out.length >= maxFiles) break;
