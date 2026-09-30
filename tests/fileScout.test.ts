@@ -16,7 +16,9 @@ describe('file scout', () => {
     writeFileSync(join(pkg, 'index.js'), 'export const x = 1;
 ');
     const result = await jevFileBoolean(testAsker({ relevant: 0.99 }), config, {
-      path: join(pkg, 'index.js'), question: 'Is this relevant?', cwd: dir,
+      path: join(pkg, 'index.js'),
+      question: 'Is this relevant?',
+      cwd: dir,
     });
     expect(result.action).toBe('deterministic_skip');
   });
@@ -29,7 +31,9 @@ describe('file scout', () => {
     writeFileSync(path, 'export function app() { return 1; }
 ');
     const result = await jevFileBoolean(testAsker({ relevant: 0.4 }), config, {
-      path, question: 'Is this needed?', cwd: dir,
+      path,
+      question: 'Is this needed?',
+      cwd: dir,
     });
     expect(result.action).toBe('read');
     expect(result.reason).toBe('uncertain_band_allow_read');
@@ -41,7 +45,9 @@ describe('file scout', () => {
     writeFileSync(path, '// unrelated
 ');
     const result = await jevFileBoolean(testAsker({ relevant: 0.05 }), config, {
-      path, question: 'Is this about MCP file scout?', cwd: dir,
+      path,
+      question: 'Is this about MCP file scout?',
+      cwd: dir,
     });
     expect(result.action).toBe('skip');
   });
@@ -52,9 +58,20 @@ describe('file scout', () => {
     writeFileSync(path, 'export const TOOLS = ["jev_boolean"];
 ');
     const result = await jevFileChoice(
-      testAsker({ layer: { choice: 'entrypoint', confidence: 0.9, probabilities: { entrypoint: 0.9, domain: 0.1 } } }),
+      testAsker({
+        layer: {
+          choice: 'entrypoint',
+          confidence: 0.9,
+          probabilities: { entrypoint: 0.9, domain: 0.1 },
+        },
+      }),
       config,
-      { path, question: 'What layer is this?', options: ['entrypoint', 'domain', 'none'], cwd: dir },
+      {
+        path,
+        question: 'What layer is this?',
+        options: ['entrypoint', 'domain', 'none'],
+        cwd: dir,
+      },
     );
     expect(result.choice).toBe('entrypoint');
   });
