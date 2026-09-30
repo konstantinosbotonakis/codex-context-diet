@@ -88,6 +88,8 @@ export interface DietConfig {
   fileScoutMaxSampleChars: number;
   fileScoutMaxFiles: number;
   fileScoutMinValueScore: number;
+  dietAgentDirectedShell: boolean;
+  dietShellTools: boolean;
 }
 
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
@@ -138,12 +140,15 @@ export const DEFAULT_CONFIG: DietConfig = {
   qualityGuard: false,
   qualityGuardThreshold: 0.8,
   qualityGuardMaxInterventions: 1,
-  fileScout: true,
+  fileScout: false,
   fileScoutReadThreshold: 0.72,
   fileScoutSkipThreshold: 0.28,
   fileScoutMaxSampleChars: 9000,
   fileScoutMaxFiles: 40,
   fileScoutMinValueScore: 0.55,
+  dietAgentDirectedShell: false,
+  dietShellTools: false,
+  fileScout: false,
 };
 
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
