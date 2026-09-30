@@ -261,7 +261,13 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "subagentGuardMaxInterventions": 1,
   "qualityGuard": false,
   "qualityGuardThreshold": 0.8,
-  "qualityGuardMaxInterventions": 1
+  "qualityGuardMaxInterventions": 1,
+  "fileScout": true,
+  "fileScoutReadThreshold": 0.72,
+  "fileScoutSkipThreshold": 0.28,
+  "fileScoutMaxSampleChars": 9000,
+  "fileScoutMaxFiles": 40,
+  "fileScoutMinValueScore": 0.55
 }
 ```
 
@@ -471,7 +477,10 @@ The same server exposes four typed primitives for the assistant itself:
 - `jev_boolean(state, question)` returns the probability that the answer is yes.
 - `jev_choice(state, question, options)` returns the chosen option with its full probability distribution.
 - `jev_score(state, question, levels)` returns the probability-weighted score across the ordered levels.
-- `jev_ask(state, questions)` asks up to eight independent questions over one state in a single request, which is how classification, filtering and routing should be asked: the questions run in parallel and cannot see one another.
+- `jev_ask(state, questions)` asks up to eight independent questions
+- `jev_file_boolean(path, question, goal?)` samples one local file and returns a yes/no probability without putting the file in the reasoning transcript
+- `jev_file_choice(path, question, options, goal?)` classifies one file against named options
+- `jev_files(paths, question, goal?, glob?, maxFiles?)` asks the same question over many files in parallel for discovery and filtering over one state in a single request, which is how classification, filtering and routing should be asked: the questions run in parallel and cannot see one another.
 
 They enforce a 120,000-character state limit, redact secrets before the request, validate every answer, use the configured provider and timeout, and fail with a readable error instead of throwing. With `provider: laya` they answer from the local checkpoint instead of Jev, and every response names the model that answered. Reach for them when one calibrated judgement over a bounded piece of text is cheaper than a reasoning model, for example classifying a fixture, choosing between named options, or scoring noise. The `$codex-context-diet:jev` skill documents the cases, and every replacement note names the model that judged it.
 
