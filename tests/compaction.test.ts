@@ -7,11 +7,12 @@ import { configPath, DEFAULT_CONFIG, type DietConfig } from '../src/config.js';
 import { buildSnapshot, handleCompaction, resurrectionPath, takeResurrection } from '../src/codex/compaction.js';
 import { logPath } from '../src/codex/log.js';
 import { main as sessionMain } from '../src/codex/session.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 const tempEnv = (raw: Record<string, unknown> = {}): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-compact-'));
   const env = { PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(raw));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(raw)));
   return env;
 };
 

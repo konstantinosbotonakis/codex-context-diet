@@ -7,12 +7,13 @@ import { configPath, DEFAULT_CONFIG } from '../src/config.js';
 import { main as adapterMain } from '../src/codex/adapter.js';
 import { logPath } from '../src/codex/log.js';
 import { main as sessionMain } from '../src/codex/session.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 const tempEnv = (raw: Record<string, unknown> = {}): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-install-'));
   const env = { ...process.env, PLUGIN_DATA: dir, HOME: dir, TYPESAFE_KEY_FILE: join(dir, 'no-key-here') } as NodeJS.ProcessEnv;
   delete env.TYPESAFE_API_KEY;
-  writeFileSync(configPath(env), JSON.stringify(raw));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(raw)));
   return env;
 };
 
@@ -51,7 +52,7 @@ describe('upgrades', () => {
   });
 
   it('keeps working with a 0.6.0 config written by the previous release', async () => {
-    const env = tempEnv({ ...DEFAULT_CONFIG, minTokens: 10, debug: true });
+    const env = tempEnv({ minTokens: 10, debug: true });
     env.CONTEXT_DIET_TEST_ANSWERS = dropAnswers;
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     const out = await adapterMain(payload('t1', 'y'.repeat(4000)), env);

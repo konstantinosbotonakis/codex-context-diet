@@ -148,7 +148,6 @@ export const DEFAULT_CONFIG: DietConfig = {
   fileScoutMinValueScore: 0.55,
   dietAgentDirectedShell: false,
   dietShellTools: false,
-  fileScout: false,
 };
 
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
@@ -280,6 +279,8 @@ export function resolveConfig(raw: unknown): DietConfig {
     fileScoutMaxSampleChars: Math.floor(num(o.fileScoutMaxSampleChars, DEFAULT_CONFIG.fileScoutMaxSampleChars, 1000)),
     fileScoutMaxFiles: Math.floor(num(o.fileScoutMaxFiles, DEFAULT_CONFIG.fileScoutMaxFiles, 1)),
     fileScoutMinValueScore: num(o.fileScoutMinValueScore, DEFAULT_CONFIG.fileScoutMinValueScore),
+    dietAgentDirectedShell: bool(o.dietAgentDirectedShell, DEFAULT_CONFIG.dietAgentDirectedShell),
+    dietShellTools: bool(o.dietShellTools, DEFAULT_CONFIG.dietShellTools),
   };
   if (typeof o.apiKey === 'string' && o.apiKey.length > 0) config.apiKey = o.apiKey;
   return config;

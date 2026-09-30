@@ -8,6 +8,7 @@ import { main as adapterMain } from '../src/codex/adapter.js';
 import { logPath } from '../src/codex/log.js';
 import { PRESSURE_THRESHOLDS, pressureStage, retainedTokens } from '../src/pressure.js';
 import { commandCategory, outputClassOf, resolveEffectivePolicy, toolFamily } from '../src/policy.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 const config = (over: Partial<DietConfig> = {}): DietConfig => ({ ...DEFAULT_CONFIG, ...over });
 
@@ -18,7 +19,7 @@ const context = (over: Partial<Parameters<typeof resolveEffectivePolicy>[1]> = {
 const tempEnv = (raw: Record<string, unknown>): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-policy-'));
   const env = { PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(raw));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(raw)));
   return env;
 };
 

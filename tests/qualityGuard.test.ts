@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { configPath } from '../src/config.js';
+import { hookTestConfig } from './hookDefaults.js';
 import { logPath } from '../src/codex/log.js';
 import {
   handleStop,
@@ -15,7 +16,7 @@ import {
 const tempEnv = (raw: Record<string, unknown> = {}): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-quality-'));
   const env = { PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(raw));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(raw)));
   return env;
 };
 

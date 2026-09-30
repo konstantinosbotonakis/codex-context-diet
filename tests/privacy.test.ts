@@ -13,6 +13,7 @@ import { handleStop } from '../src/codex/qualityGuard.js';
 import { main as sessionMain } from '../src/codex/session.js';
 import { handleSubagent } from '../src/codex/subagent.js';
 import { isNeverSendInput, redactText } from '../src/privacy.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 const SENTINEL = {
   openai: 'sk-live-abcdefghijklmnopqrstuvwx',
@@ -36,7 +37,7 @@ const SAMPLE = [
 const tempEnv = (config: Record<string, unknown> = {}): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-privacy-'));
   const env = { PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(config));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(config)));
   return env;
 };
 

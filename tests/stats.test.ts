@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest';
 import { JEV_REASONS, JEV_REASON_VALUES } from '../src/codex/diet.js';
 import { DUPLICATE_REASON } from '../src/dedupe.js';
 import { main as adapterMain } from '../src/codex/adapter.js';
+import { hookTestConfig } from './hookDefaults.js';
 import { localMidnight, readUsageInput, renderUsage, summarizeUsage, WINDOWS } from '../src/stats.js';
 
 const NOW = new Date('2026-09-18T12:00:00Z');
@@ -232,7 +233,7 @@ describe('reading stores', () => {
       needs_contents: 0, replaceable: 1, keep_call: 1, agent_directed: 0, behaviour_change: 0,
     }) };
     try {
-      writeFileSync(join(root, 'config.json'), JSON.stringify({ debug: true, minTokens: 10, cacheMaxBytes: 4096 }));
+      writeFileSync(join(root, 'config.json'), JSON.stringify(hookTestConfig({ debug: true, minTokens: 10, cacheMaxBytes: 4096 })));
       for (let i = 0; i < 12; i++) await adapterMain(JSON.stringify({
         hook_event_name: 'PostToolUse', session_id: 's1', tool_use_id: 't' + i, tool_name: 'Bash',
         tool_input: { command: 'npm test ' + i }, tool_response: { output: ('passed test ' + i + '\n').repeat(150) },

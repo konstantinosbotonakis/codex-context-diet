@@ -11,6 +11,7 @@ import { handleStop } from '../src/codex/qualityGuard.js';
 import { logPath } from '../src/codex/log.js';
 import { runEvaluation } from '../src/eval.js';
 import { layaPaths } from '../src/providers/laya.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 describe('Laya without a hosted-provider key', () => {
   let dir: string;
@@ -21,10 +22,10 @@ describe('Laya without a hosted-provider key', () => {
     // A local protocol fixture exercises the real Laya transport without loading weights.
     dir = mkdtempSync('/tmp/cd-keyless-');
     env = { PATH: process.env.PATH, HOME: dir, PLUGIN_DATA: dir };
-    writeFileSync(configPath(env), JSON.stringify({
+    writeFileSync(configPath(env), JSON.stringify(hookTestConfig({
       provider: 'laya', layaHead: false, stateSource: 'off', minTokens: 10,
       promptGuard: true, qualityGuard: true, debug: true,
-    }));
+    })));
     const paths = layaPaths(env);
     mkdirSync(paths.dir, { recursive: true });
     server = createServer((socket) => {

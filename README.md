@@ -262,12 +262,14 @@ Config lives at `$PLUGIN_DATA/config.json`, survives reinstalls, and is never co
   "qualityGuard": false,
   "qualityGuardThreshold": 0.8,
   "qualityGuardMaxInterventions": 1,
-  "fileScout": true,
+  "fileScout": false,
   "fileScoutReadThreshold": 0.72,
   "fileScoutSkipThreshold": 0.28,
   "fileScoutMaxSampleChars": 9000,
   "fileScoutMaxFiles": 40,
-  "fileScoutMinValueScore": 0.55
+  "fileScoutMinValueScore": 0.55,
+  "dietAgentDirectedShell": false,
+  "dietShellTools": false
 }
 ```
 

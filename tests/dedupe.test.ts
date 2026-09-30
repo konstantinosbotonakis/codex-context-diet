@@ -7,11 +7,12 @@ import { configPath, DEFAULT_CONFIG, type DietConfig } from '../src/config.js';
 import { main as adapterMain } from '../src/codex/adapter.js';
 import { runDiet } from '../src/codex/diet.js';
 import { DUPLICATE_REASON, fingerprint, findDuplicate, touchedPaths } from '../src/dedupe.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 const tempEnv = (config: Record<string, unknown> = {}): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-dedupe-'));
   const env = { PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(config));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(config)));
   return env;
 };
 

@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { configPath } from '../src/config.js';
+import { hookTestConfig } from './hookDefaults.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const serverPath = join(repoRoot, 'dist', 'mcp-server.js');
@@ -23,7 +24,7 @@ interface Server {
 async function start(overrides: Record<string, string> = {}): Promise<Server> {
   const data = mkdtempSync(join(tmpdir(), 'cd-mcp-'));
   const env = { ...process.env, PLUGIN_DATA: data, ...overrides };
-  writeFileSync(configPath({ PLUGIN_DATA: data } as NodeJS.ProcessEnv), JSON.stringify({ debug: true, minTokens: 10 }));
+  writeFileSync(configPath({ PLUGIN_DATA: data } as NodeJS.ProcessEnv), JSON.stringify(hookTestConfig({ debug: true, minTokens: 10 })));
   const child = spawn('node', [serverPath], { env, stdio: ['pipe', 'pipe', 'pipe'] });
   children.push(child);
   const pending = new Map<number, (message: Record<string, unknown>) => void>();

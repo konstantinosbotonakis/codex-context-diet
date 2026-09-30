@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, it } from 'vitest';
 import { appendRecovery } from '../src/cache.js';
 import { configPath } from '../src/config.js';
+import { hookTestConfig } from './hookDefaults.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 const serverPath = join(repoRoot, 'dist', 'mcp-server.js');
@@ -19,7 +20,7 @@ const tempEnv = (config: Record<string, unknown> = {}): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-parity-'));
   // PATH has to survive: the tests spawn node for the command transport.
   const env = { ...process.env, PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(config));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(config)));
   return env;
 };
 

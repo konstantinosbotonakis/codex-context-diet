@@ -1,12 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import type { CacheEntry } from '../src/cache.js';
 import { DEFAULT_CONFIG } from '../src/config.js';
+import { SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 import { buildNote, decideDiet, runDiet, type DietAnswers, type DietInput } from '../src/codex/diet.js';
 import { DUPLICATE_REASON } from '../src/dedupe.js';
 import { looksLikeFailure } from '../src/sample.js';
 import { fakeAsker, throwingAsker } from '../src/verify.js';
 
-const config = { ...DEFAULT_CONFIG, minTokens: 10 };
+const config = { ...DEFAULT_CONFIG, ...SHELL_DIET_ENABLED_FOR_TESTS, minTokens: 10 };
 const input: DietInput = {
   toolName: 'Bash', toolUseId: 'tool-1', inputLine: 'npm test',
   resultText: 'test output\n'.repeat(500), isError: false, goalIndex: 0,

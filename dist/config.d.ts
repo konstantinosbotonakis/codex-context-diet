@@ -97,6 +97,8 @@ export interface DietConfig {
     fileScoutMaxSampleChars: number;
     fileScoutMaxFiles: number;
     fileScoutMinValueScore: number;
+    dietAgentDirectedShell: boolean;
+    dietShellTools: boolean;
 }
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
 export declare const JEV_INPUT_PRICE_PER_MTOK = 0.042;

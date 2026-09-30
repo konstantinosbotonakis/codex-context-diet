@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import { configPath, DEFAULT_CONFIG } from '../src/config.js';
 import { decideQualityVerdict, handleStop } from '../src/codex/qualityGuard.js';
 import { decideSubagentVerdict, handleSubagent } from '../src/codex/subagent.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -23,7 +24,7 @@ const load = (file: string): { cases: GuardCase[] } =>
 const tempEnv = (config: Record<string, unknown>): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-guards-'));
   const env = { ...process.env, PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(config));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(config)));
   return env;
 };
 

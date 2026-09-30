@@ -1,5 +1,5 @@
-const repoRoot = process.cwd();
 #!/usr/bin/env node
+const repoRoot = process.cwd();
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { loadConfig } from '../dist/config.js';

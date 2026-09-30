@@ -6,9 +6,13 @@ import { main as dietMain } from '../src/codex/adapter.js';
 import { readGoal, main as sessionMain } from '../src/codex/session.js';
 import { appendCache, readCache, type CacheEntry } from '../src/cache.js';
 import { DEFAULT_CONFIG, configPath } from '../src/config.js';
+import { hookTestConfig } from './hookDefaults.js';
 
-const tempEnv = (): NodeJS.ProcessEnv =>
-  ({ PLUGIN_DATA: mkdtempSync(join(tmpdir(), 'cd-adapter-')) } as NodeJS.ProcessEnv);
+const tempEnv = (): NodeJS.ProcessEnv => {
+  const dir = mkdtempSync(join(tmpdir(), 'cd-adapter-'));
+  writeFileSync(configPath({ PLUGIN_DATA: dir } as NodeJS.ProcessEnv), JSON.stringify(hookTestConfig()));
+  return { PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
+};
 
 const bigText = (): string => 'npm test output line 12345\n'.repeat(600);
 
@@ -49,7 +53,7 @@ describe('PostToolUse adapter', () => {
 
   it('is silent when the plugin is disabled', async () => {
     const env = tempEnv();
-    writeFileSync(configPath(env), JSON.stringify({ enabled: false }));
+    writeFileSync(configPath(env), JSON.stringify(hookTestConfig({ enabled: false })));
     expect(await dietMain(payload(), env)).toBe('');
   });
 
@@ -76,7 +80,7 @@ describe('PostToolUse adapter', () => {
 
   it('stays silent in dryRun while still recording the decision', async () => {
     const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"needs_contents":0.05,"replaceable":0.9,"keep_call":0.05,"agent_directed":0.02,"behaviour_change":0.02}' };
-    writeFileSync(configPath(env), JSON.stringify({ dryRun: true }));
+    writeFileSync(configPath(env), JSON.stringify(hookTestConfig({ dryRun: true })));
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     expect(await dietMain(payload(), env)).toBe('');
     const cache = readCache(env, 's1');
@@ -96,14 +100,14 @@ describe('PostToolUse adapter', () => {
 
   it('honours neverDietTools', async () => {
     const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"needs_contents":0.01}' };
-    writeFileSync(configPath(env), JSON.stringify({ neverDietTools: ['Bash'] }));
+    writeFileSync(configPath(env), JSON.stringify(hookTestConfig({ neverDietTools: ['Bash'] })));
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     expect(await dietMain(payload(), env)).toBe('');
   });
 
   it('keeps single-turn state and writes nothing when stateSource is off', async () => {
     const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"needs_contents":0.05,"replaceable":0.9,"keep_call":0.9,"agent_directed":0.02,"behaviour_change":0.02}' };
-    writeFileSync(configPath(env), JSON.stringify({ stateSource: 'off' }));
+    writeFileSync(configPath(env), JSON.stringify(hookTestConfig({ stateSource: 'off' })));
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     const parsed = JSON.parse(await dietMain(payload(), env)) as Record<string, unknown>;
     expect(parsed.decision).toBe('block');

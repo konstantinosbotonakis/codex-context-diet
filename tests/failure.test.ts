@@ -6,11 +6,12 @@ import { cachePath } from '../src/cache.js';
 import { configPath, DEFAULT_CONFIG } from '../src/config.js';
 import { main as adapterMain } from '../src/codex/adapter.js';
 import { createAsker } from '../src/codex/transport.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 const tempEnv = (raw: Record<string, unknown>): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-failure-'));
   const env = { PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(raw));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(raw)));
   return env;
 };
 
