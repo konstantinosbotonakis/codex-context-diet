@@ -3,7 +3,7 @@
  * Deterministic skips run first; the uncertain band allows read (fail-open).
  */
 import { readFileSync, statSync, globSync } from 'node:fs';
-import { basename, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
 import type { DietConfig } from './config.js';
 import { isNeverSendInput, redactText } from './privacy.js';
 import { noulAnswer } from './request.js';
@@ -251,14 +251,19 @@ export function expandScoutPaths(rawPaths: string[], cwd: string, maxFiles: numb
     const trimmed = raw.trim();
     if (trimmed.length === 0) continue;
     if (trimmed.includes('*')) {
-      const pattern = isAbsolute(trimmed) ? trimmed : join(cwd, trimmed);
-      const matches = globSync(pattern, { cwd, absolute: true }).filter((match) => {
-        try {
-          return statSync(match).isFile();
-        } catch {
-          return false;
-        }
-      });
+      const globPattern = isAbsolute(trimmed) ? trimmed : join(cwd, trimmed);
+      const globCwd = isAbsolute(trimmed) ? dirname(globPattern) : cwd;
+      const globExpr = isAbsolute(trimmed) ? basename(globPattern) : trimmed;
+      const rawMatches = globSync(globExpr, { cwd: globCwd });
+      const matches = rawMatches
+        .map((match) => (isAbsolute(match) ? match : resolve(globCwd, match)))
+        .filter((match) => {
+          try {
+            return statSync(match).isFile();
+          } catch {
+            return false;
+          }
+        });
       for (const match of matches) {
         out.push(match);
         if (out.length >= maxFiles) break;

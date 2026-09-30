@@ -47,12 +47,14 @@ export interface FileScoutBatchResult {
     question: string;
     goal?: string;
     results: FileScoutBatchItem[];
+    usefulResults: FileScoutBatchItem[];
     skipped: string[];
     jevCalls: number;
     input_tokens: number | null;
     model: string | null;
 }
 export declare function resolveScoutPath(raw: string, cwd: string): string;
+export declare function isUsefulScoutResult(item: FileScoutBatchItem): boolean;
 export declare function jevFileBoolean(asker: JevAsker, config: DietConfig, input: FileScoutRequest): Promise<FileScoutBooleanResult>;
 export declare function jevFileChoice(asker: JevAsker, config: DietConfig, input: FileScoutRequest & {
     options: string[];
