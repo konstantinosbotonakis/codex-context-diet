@@ -47,6 +47,14 @@ export const DEFAULT_CONFIG = {
     qualityGuard: false,
     qualityGuardThreshold: 0.8,
     qualityGuardMaxInterventions: 1,
+    fileScout: false,
+    fileScoutReadThreshold: 0.72,
+    fileScoutSkipThreshold: 0.28,
+    fileScoutMaxSampleChars: 9000,
+    fileScoutMaxFiles: 40,
+    fileScoutMinValueScore: 0.55,
+    dietAgentDirectedShell: false,
+    dietShellTools: false,
 };
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
 export function pluginDataDir(env) {
@@ -162,6 +170,14 @@ export function resolveConfig(raw) {
         qualityGuard: bool(o.qualityGuard, DEFAULT_CONFIG.qualityGuard),
         qualityGuardThreshold: num(o.qualityGuardThreshold, DEFAULT_CONFIG.qualityGuardThreshold),
         qualityGuardMaxInterventions: Math.floor(num(o.qualityGuardMaxInterventions, DEFAULT_CONFIG.qualityGuardMaxInterventions)),
+        fileScout: bool(o.fileScout, DEFAULT_CONFIG.fileScout),
+        fileScoutReadThreshold: num(o.fileScoutReadThreshold, DEFAULT_CONFIG.fileScoutReadThreshold),
+        fileScoutSkipThreshold: num(o.fileScoutSkipThreshold, DEFAULT_CONFIG.fileScoutSkipThreshold),
+        fileScoutMaxSampleChars: Math.floor(num(o.fileScoutMaxSampleChars, DEFAULT_CONFIG.fileScoutMaxSampleChars, 1000)),
+        fileScoutMaxFiles: Math.floor(num(o.fileScoutMaxFiles, DEFAULT_CONFIG.fileScoutMaxFiles, 1)),
+        fileScoutMinValueScore: num(o.fileScoutMinValueScore, DEFAULT_CONFIG.fileScoutMinValueScore),
+        dietAgentDirectedShell: bool(o.dietAgentDirectedShell, DEFAULT_CONFIG.dietAgentDirectedShell),
+        dietShellTools: bool(o.dietShellTools, DEFAULT_CONFIG.dietShellTools),
     };
     if (typeof o.apiKey === 'string' && o.apiKey.length > 0)
         config.apiKey = o.apiKey;

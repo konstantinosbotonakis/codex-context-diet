@@ -8,11 +8,12 @@ import { main as adapterMain } from '../src/codex/adapter.js';
 import { cacheEntryOf, decideDiet, type DietAnswers, type DietInput } from '../src/codex/diet.js';
 import { logPath } from '../src/codex/log.js';
 import { classifyRecovery, detectRecovery, inputKey } from '../src/recovery.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 const tempEnv = (config: Record<string, unknown> = {}): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-recovery-'));
   const env = { PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(config));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(config)));
   return env;
 };
 

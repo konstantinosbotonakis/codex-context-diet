@@ -11,11 +11,12 @@ import {
   Q_REDUNDANT_OUTPUT,
   Q_REQUEST_SATISFIED,
 } from '../src/codex/subagent.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 const tempEnv = (raw: Record<string, unknown> = {}): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-subagent-'));
   const env = { PLUGIN_DATA: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(raw));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(raw)));
   return env;
 };
 

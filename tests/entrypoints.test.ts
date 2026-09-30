@@ -5,6 +5,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { configPath } from '../src/config.js';
+import { hookTestConfig } from './hookDefaults.js';
 
 /**
  * These run the built hooks the way Codex runs them, one process per payload.
@@ -24,7 +25,7 @@ const run = (name: string, payload: unknown, env: Record<string, string>): strin
 
 const tempData = (config: unknown = {}): string => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-entry-'));
-  writeFileSync(configPath({ PLUGIN_DATA: dir } as NodeJS.ProcessEnv), JSON.stringify(config));
+  writeFileSync(configPath({ PLUGIN_DATA: dir } as NodeJS.ProcessEnv), JSON.stringify(hookTestConfig(config)));
   return dir;
 };
 

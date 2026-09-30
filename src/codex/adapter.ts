@@ -14,6 +14,28 @@ import { DUPLICATE_REASON, findDuplicate, touchedPaths } from '../dedupe.js';
 import { classifyRecovery, detectRecovery, inputKey } from '../recovery.js';
 import { pressureStage, retainedTokens } from '../pressure.js';
 import { outputClassOf, resolveEffectivePolicy } from '../policy.js';
+import { shouldSkipShellDiet } from '../shellDiet.js';
+
+/** Codex PostToolUse hook payloads are loosely typed; narrow before reading fields. */
+type PostToolUsePayload = Record<string, unknown> & {
+  hook_event_name: 'PostToolUse';
+  tool_name?: unknown;
+  session_id?: unknown;
+  tool_use_id?: unknown;
+  tool_input?: unknown;
+  tool_response?: unknown;
+};
+
+type HookStdout = string;
+const EMPTY_HOOK_OUTPUT = '' satisfies HookStdout;
+
+function emptyHookOutput(): HookStdout {
+  return EMPTY_HOOK_OUTPUT;
+}
+
+function asPostToolUsePayload(value: Record<string, unknown>): PostToolUsePayload | null {
+  return value.hook_event_name === 'PostToolUse' ? (value as PostToolUsePayload) : null;
+}
 
 function text(value: unknown): string {
   return typeof value === 'string' ? value : '';
@@ -65,18 +87,19 @@ function logEvent(
 export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<string> {
   try {
     capturePayload(env, stdin);
-    let payload: Record<string, unknown>;
+    let payload: PostToolUsePayload;
     try {
       const parsed: unknown = JSON.parse(stdin);
-      if (!parsed || typeof parsed !== 'object') return '';
-      payload = parsed as Record<string, unknown>;
+      if (!parsed || typeof parsed !== 'object') return emptyHookOutput();
+      const narrowed = asPostToolUsePayload(parsed as Record<string, unknown>);
+      if (narrowed === null) return emptyHookOutput();
+      payload = narrowed;
     } catch {
-      return '';
+      return emptyHookOutput();
     }
-    if (payload.hook_event_name !== 'PostToolUse') return '';
 
     const config = loadConfig(env);
-    if (!config.enabled) return '';
+    if (!config.enabled) return emptyHookOutput();
 
     const toolName = text(payload.tool_name);
     const sessionId = text(payload.session_id);
@@ -88,13 +111,13 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
     }
     if (isSkippedTool(toolName, config)) {
       appendEvent(env, config, { kind: 'skip', reason: 'excluded tool', tool: toolName });
-      return '';
+      return emptyHookOutput();
     }
 
     const resultText = toolResultText(toolName, payload.tool_response);
     if (resultText === null) {
       appendEvent(env, config, { kind: 'skip', reason: 'unsupported payload', tool: toolName });
-      return '';
+      return emptyHookOutput();
     }
     const rawInput = inputLine(toolName, payload.tool_input);
 
@@ -103,7 +126,7 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
     if (isNeverSendInput(toolName, rawInput, config)) {
       appendEvent(env, config, { kind: 'privacy', action: 'never_send', tool: toolName });
       appendEvent(env, config, { kind: 'skip', reason: 'never-send path', tool: toolName });
-      return '';
+      return emptyHookOutput();
     }
     const resultRedaction = redactText(resultText, config.privacyMode);
     const inputRedaction = redactText(rawInput, config.privacyMode);
@@ -113,6 +136,11 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
     }
     const safeResultText = resultRedaction.text;
     const safeInput = inputRedaction.text;
+
+    if (shouldSkipShellDiet(config, toolName)) {
+      appendEvent(env, config, { kind: 'skip', reason: 'shell tool diet disabled', tool: toolName });
+      return emptyHookOutput();
+    }
 
     // stateSource 'off' is single-turn: no history is read and nothing is written.
     const singleTurn = config.stateSource === 'off';
@@ -135,7 +163,7 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
         pressure: policy.pressure,
         policy: policy.source,
       });
-      return '';
+      return emptyHookOutput();
     }
     const effectiveConfig = {
       ...config,
@@ -231,6 +259,6 @@ export async function main(stdin: string, env: NodeJS.ProcessEnv): Promise<strin
 
     return outcome.stdout === null ? '' : JSON.stringify(outcome.stdout);
   } catch {
-    return '';
+    return emptyHookOutput();
   }
 }

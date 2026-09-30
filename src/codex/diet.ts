@@ -16,6 +16,7 @@ import { DUPLICATE_REASON, fingerprint, resourceOf } from '../dedupe.js';
 import { selectChunks } from '../chunks.js';
 import { looksLikeFailure } from '../sample.js';
 import type { JevAnswer, JevAsker } from '../types.js';
+import { shouldSuppressShellAgentDirectedWarning } from '../shellDiet.js';
 
 export type DietAction = 'keep' | 'drop_result';
 
@@ -326,8 +327,11 @@ export async function runDiet(deps: DietDeps): Promise<DietOutcome> {
     chunkIds = selection.ids;
   }
   const note = buildNote(input, decision, config, extras, model);
+  const suppressAgentDirected = shouldSuppressShellAgentDirectedWarning(config, input.toolName);
   const warning =
-    decision.injection !== null && decision.injection >= config.keepThreshold
+    !suppressAgentDirected &&
+    decision.injection !== null &&
+    decision.injection >= config.keepThreshold
       ? '[codex-context-diet] This tool output contains text addressed to an agent rather than to a reader: ' +
         input.toolName + ' output scored ' + decision.injection.toFixed(2) +
         ' for agent-directed text' + (model === null ? '' : ', judged by ' + model) +

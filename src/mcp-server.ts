@@ -26,6 +26,7 @@ import { handleSubagent } from './codex/subagent.js';
 import { handleStop } from './codex/qualityGuard.js';
 import { handleStopGuard } from './codex/stopGuard.js';
 import { configuredAsker } from './codex/transport.js';
+import { jevFileBoolean, jevFileChoice, jevFiles } from './fileScout.js';
 import { loadConfig, pluginDataDir } from './config.js';
 import type { DietConfig } from './config.js';
 import { redactText } from './privacy.js';
@@ -159,6 +160,24 @@ const TOOLS = [
       },
     },
     ['state', 'questions'],
+  ),
+  tool(
+    'jev_file_boolean',
+    'Judge whether a local file should be read from a bounded sample before loading it into agent context.',
+    { path: { type: 'string' }, question: { type: 'string' }, goal: { type: 'string' }, cwd: { type: 'string' }, max_sample_chars: { type: 'number' } },
+    ['path', 'question'],
+  ),
+  tool(
+    'jev_file_choice',
+    'Classify a local file from a bounded sample using named options.',
+    { path: { type: 'string' }, question: { type: 'string' }, options: { type: 'array', items: { type: 'string' } }, goal: { type: 'string' }, cwd: { type: 'string' } },
+    ['path', 'question', 'options'],
+  ),
+  tool(
+    'jev_files',
+    'Ask the same question about many files; deterministic skips run first.',
+    { paths: { type: 'array', items: { type: 'string' } }, question: { type: 'string' }, goal: { type: 'string' }, cwd: { type: 'string' }, max_files: { type: 'number' } },
+    ['paths', 'question'],
   ),
 ];
 
@@ -306,6 +325,34 @@ async function callTool(name: string, args: Args, env: NodeJS.ProcessEnv): Promi
         : null;
     if (score === null) return fail('Jev returned a score outside 0..1');
     return ok(JSON.stringify({ score, probabilities, confidence, model: response.model ?? null, input_tokens: inputTokens(response) }));
+  }
+  if (name === 'jev_file_boolean' || name === 'jev_file_choice' || name === 'jev_files') {
+    const setup = jevSetup(env);
+    if ('error' in setup) return fail(setup.error);
+    const { config, asker } = setup;
+    if (!config.fileScout) return fail('fileScout is disabled in config');
+    const cwd = text(args.cwd).trim().length > 0 ? text(args.cwd) : process.cwd();
+    if (name === 'jev_files') {
+      const paths = list(args.paths);
+      if (paths.length === 0) return fail('paths must be a non-empty array');
+      const question = text(args.question);
+      if (question.trim().length === 0) return fail('question must not be empty');
+      const goal = text(args.goal);
+      const maxFiles = typeof args.max_files === 'number' && Number.isFinite(args.max_files) ? Math.floor(args.max_files) : undefined;
+      return ok(JSON.stringify(await jevFiles(asker, config, { paths, question, goal: goal.trim().length > 0 ? goal : undefined, cwd, maxFiles })));
+    }
+    const pathArg = text(args.path);
+    const question = text(args.question);
+    if (pathArg.trim().length === 0) return fail('path must not be empty');
+    if (question.trim().length === 0) return fail('question must not be empty');
+    const goal = text(args.goal);
+    const maxSample = typeof args.max_sample_chars === 'number' && Number.isFinite(args.max_sample_chars) ? Math.floor(args.max_sample_chars) : undefined;
+    if (name === 'jev_file_boolean') {
+      return ok(JSON.stringify(await jevFileBoolean(asker, config, { path: pathArg, question, goal: goal.trim().length > 0 ? goal : undefined, cwd, maxSampleChars: maxSample })));
+    }
+    const options = list(args.options);
+    if (options.length < 2) return fail('options needs at least two entries');
+    return ok(JSON.stringify(await jevFileChoice(asker, config, { path: pathArg, question, options, goal: goal.trim().length > 0 ? goal : undefined, cwd, maxSampleChars: maxSample })));
   }
   if (name === 'jev_ask') {
     const setup = jevSetup(env);

@@ -6,6 +6,7 @@ import { renderCapsule } from '../compressors/index.js';
 import { DUPLICATE_REASON, fingerprint, resourceOf } from '../dedupe.js';
 import { selectChunks } from '../chunks.js';
 import { looksLikeFailure } from '../sample.js';
+import { shouldSuppressShellAgentDirectedWarning } from '../shellDiet.js';
 /**
  * The only reasons decideDiet produces, which means a Jev answer arrived. The
  * stats command counts these as Jev calls: every other reason is a path that
@@ -197,7 +198,10 @@ export async function runDiet(deps) {
         chunkIds = selection.ids;
     }
     const note = buildNote(input, decision, config, extras, model);
-    const warning = decision.injection !== null && decision.injection >= config.keepThreshold
+    const suppressAgentDirected = shouldSuppressShellAgentDirectedWarning(config, input.toolName);
+    const warning = !suppressAgentDirected &&
+        decision.injection !== null &&
+        decision.injection >= config.keepThreshold
         ? '[codex-context-diet] This tool output contains text addressed to an agent rather than to a reader: ' +
             input.toolName + ' output scored ' + decision.injection.toFixed(2) +
             ' for agent-directed text' + (model === null ? '' : ', judged by ' + model) +

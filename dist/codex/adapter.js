@@ -14,6 +14,14 @@ import { DUPLICATE_REASON, findDuplicate, touchedPaths } from '../dedupe.js';
 import { classifyRecovery, detectRecovery, inputKey } from '../recovery.js';
 import { pressureStage, retainedTokens } from '../pressure.js';
 import { outputClassOf, resolveEffectivePolicy } from '../policy.js';
+import { shouldSkipShellDiet } from '../shellDiet.js';
+const EMPTY_HOOK_OUTPUT = '';
+function emptyHookOutput() {
+    return EMPTY_HOOK_OUTPUT;
+}
+function asPostToolUsePayload(value) {
+    return value.hook_event_name === 'PostToolUse' ? value : null;
+}
 function text(value) {
     return typeof value === 'string' ? value : '';
 }
@@ -59,17 +67,18 @@ export async function main(stdin, env) {
         try {
             const parsed = JSON.parse(stdin);
             if (!parsed || typeof parsed !== 'object')
-                return '';
-            payload = parsed;
+                return emptyHookOutput();
+            const narrowed = asPostToolUsePayload(parsed);
+            if (narrowed === null)
+                return emptyHookOutput();
+            payload = narrowed;
         }
         catch {
-            return '';
+            return emptyHookOutput();
         }
-        if (payload.hook_event_name !== 'PostToolUse')
-            return '';
         const config = loadConfig(env);
         if (!config.enabled)
-            return '';
+            return emptyHookOutput();
         const toolName = text(payload.tool_name);
         const sessionId = text(payload.session_id);
         // Writers are recorded even when their own result is never dieted, so a
@@ -80,12 +89,12 @@ export async function main(stdin, env) {
         }
         if (isSkippedTool(toolName, config)) {
             appendEvent(env, config, { kind: 'skip', reason: 'excluded tool', tool: toolName });
-            return '';
+            return emptyHookOutput();
         }
         const resultText = toolResultText(toolName, payload.tool_response);
         if (resultText === null) {
             appendEvent(env, config, { kind: 'skip', reason: 'unsupported payload', tool: toolName });
-            return '';
+            return emptyHookOutput();
         }
         const rawInput = inputLine(toolName, payload.tool_input);
         // Paths and tools the user excluded stay on the machine: no Jev call, no
@@ -93,7 +102,7 @@ export async function main(stdin, env) {
         if (isNeverSendInput(toolName, rawInput, config)) {
             appendEvent(env, config, { kind: 'privacy', action: 'never_send', tool: toolName });
             appendEvent(env, config, { kind: 'skip', reason: 'never-send path', tool: toolName });
-            return '';
+            return emptyHookOutput();
         }
         const resultRedaction = redactText(resultText, config.privacyMode);
         const inputRedaction = redactText(rawInput, config.privacyMode);
@@ -103,6 +112,10 @@ export async function main(stdin, env) {
         }
         const safeResultText = resultRedaction.text;
         const safeInput = inputRedaction.text;
+        if (shouldSkipShellDiet(config, toolName)) {
+            appendEvent(env, config, { kind: 'skip', reason: 'shell tool diet disabled', tool: toolName });
+            return emptyHookOutput();
+        }
         // stateSource 'off' is single-turn: no history is read and nothing is written.
         const singleTurn = config.stateSource === 'off';
         const cache = singleTurn ? [] : readCache(env, sessionId, config);
@@ -123,7 +136,7 @@ export async function main(stdin, env) {
                 pressure: policy.pressure,
                 policy: policy.source,
             });
-            return '';
+            return emptyHookOutput();
         }
         const effectiveConfig = {
             ...config,
@@ -209,7 +222,7 @@ export async function main(stdin, env) {
         return outcome.stdout === null ? '' : JSON.stringify(outcome.stdout);
     }
     catch {
-        return '';
+        return emptyHookOutput();
     }
 }
 //# sourceMappingURL=adapter.js.map

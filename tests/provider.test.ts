@@ -8,13 +8,14 @@ import { configPath, DEFAULT_CONFIG, loadConfig, resolveConfig, saveConfig } fro
 import { main as adapterMain } from '../src/codex/adapter.js';
 import { logPath } from '../src/codex/log.js';
 import { headAnswers, layaHeadPath, layaPaths, mapLayaAnswers, resolveLayaPython } from '../src/providers/laya.js';
+import { hookTestConfig, SHELL_DIET_ENABLED_FOR_TESTS } from './hookDefaults.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 const tempEnv = (raw: Record<string, unknown> = {}): NodeJS.ProcessEnv => {
   const dir = mkdtempSync(join(tmpdir(), 'cd-provider-'));
   const env = { ...process.env, PLUGIN_DATA: dir, HOME: dir } as NodeJS.ProcessEnv;
-  writeFileSync(configPath(env), JSON.stringify(raw));
+  writeFileSync(configPath(env), JSON.stringify(hookTestConfig(raw)));
   return env;
 };
 
