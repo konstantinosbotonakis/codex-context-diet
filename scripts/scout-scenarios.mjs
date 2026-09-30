@@ -27,4 +27,17 @@ for (const [name, run] of scenarios) {
   console.log('==', name, '==');
   console.log(JSON.stringify(out, null, 2));
 }
+
+console.log('== L9 glob src/codex/*.ts ==');
+{
+  const batch = await jevFiles(asker, config, {
+    paths: ['src/codex/*.ts'],
+    question: 'Is this file needed to implement jev_file_* MCP tools?',
+    goal: 'Design jev_file_boolean, jev_files for codex-context-diet levels 8-10',
+    cwd: repoRoot,
+    maxFiles: 8,
+  });
+  console.log(JSON.stringify({ expanded: batch.results.length, useful: batch.usefulResults?.length, jevCalls: batch.jevCalls }, null, 2));
+  console.log('USEFUL_GLOB', JSON.stringify(batch.usefulResults?.map((r) => r.path), null, 2));
+}
 console.log('TOTAL', { calls, tokens, cost_usd: Number(((tokens / 1_000_000) * config.pricePerMillionInputTokens).toFixed(6)) });

@@ -43,6 +43,20 @@ by what it changes.
 | `layaTimeoutMs` | `20000` | how long one local answer may take once the model is loaded |
 | `layaWarmTimeoutMs` | `120000` | how long the first call may take while the model loads |
 
+
+### File scout (Jev levels 8–10)
+
+| Key | Default | Description |
+|-----|---------|-------------|
+| `fileScout` | `true` | Enable MCP tools `jev_file_boolean`, `jev_file_choice`, `jev_files`. |
+| `fileScoutReadThreshold` | `0.72` | Jev probability at or above → `action: read`. |
+| `fileScoutSkipThreshold` | `0.28` | Jev probability at or below → `action: skip`. |
+| `fileScoutMinValueScore` | `0.55` | In the uncertain band, probabilities below this skip as low value (fewer full reads). Lower to reduce false negatives. |
+| `fileScoutMaxSampleChars` | `9000` | Max characters sampled from each file before Jev (redacted per privacy). |
+| `fileScoutMaxFiles` | `40` | Max paths expanded/scouted per `jev_files` call. |
+
+Batch responses include `usefulResults`: entries with `action === 'read'` and `value !== 'low'`. Prefer `Read` only those paths after discovery (rg/Graft/CBM).
+
 ## Privacy
 
 | field | default | effect |
