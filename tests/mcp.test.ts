@@ -93,6 +93,7 @@ describe('the Context Diet MCP server', () => {
       'pre_compact', 'post_compact',
       'jev_boolean', 'jev_choice', 'jev_score',
       'jev_ask',
+      'jev_file_boolean', 'jev_file_choice', 'jev_files',
     ]);
   });
 

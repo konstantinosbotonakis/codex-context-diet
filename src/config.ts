@@ -81,6 +81,13 @@ export interface DietConfig {
   qualityGuard: boolean;
   qualityGuardThreshold: number;
   qualityGuardMaxInterventions: number;
+  /** Enable jev_file_* MCP tools for bounded file judgements before full reads. */
+  fileScout: boolean;
+  fileScoutReadThreshold: number;
+  fileScoutSkipThreshold: number;
+  fileScoutMaxSampleChars: number;
+  fileScoutMaxFiles: number;
+  fileScoutMinValueScore: number;
 }
 
 /** Published Jev 1.13 input price. Output tokens are free, so this is the whole cost. */
@@ -131,6 +138,12 @@ export const DEFAULT_CONFIG: DietConfig = {
   qualityGuard: false,
   qualityGuardThreshold: 0.8,
   qualityGuardMaxInterventions: 1,
+  fileScout: true,
+  fileScoutReadThreshold: 0.72,
+  fileScoutSkipThreshold: 0.28,
+  fileScoutMaxSampleChars: 9000,
+  fileScoutMaxFiles: 40,
+  fileScoutMinValueScore: 0.55,
 };
 
 /** PLUGIN_DATA when the host provides it, otherwise a stable per-user directory. */
@@ -256,6 +269,12 @@ export function resolveConfig(raw: unknown): DietConfig {
     qualityGuardMaxInterventions: Math.floor(
       num(o.qualityGuardMaxInterventions, DEFAULT_CONFIG.qualityGuardMaxInterventions),
     ),
+    fileScout: bool(o.fileScout, DEFAULT_CONFIG.fileScout),
+    fileScoutReadThreshold: num(o.fileScoutReadThreshold, DEFAULT_CONFIG.fileScoutReadThreshold),
+    fileScoutSkipThreshold: num(o.fileScoutSkipThreshold, DEFAULT_CONFIG.fileScoutSkipThreshold),
+    fileScoutMaxSampleChars: Math.floor(num(o.fileScoutMaxSampleChars, DEFAULT_CONFIG.fileScoutMaxSampleChars, 1000)),
+    fileScoutMaxFiles: Math.floor(num(o.fileScoutMaxFiles, DEFAULT_CONFIG.fileScoutMaxFiles, 1)),
+    fileScoutMinValueScore: num(o.fileScoutMinValueScore, DEFAULT_CONFIG.fileScoutMinValueScore),
   };
   if (typeof o.apiKey === 'string' && o.apiKey.length > 0) config.apiKey = o.apiKey;
   return config;
