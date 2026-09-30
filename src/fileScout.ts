@@ -2,7 +2,7 @@
  * File scout: bounded local file samples judged by Jev (levels 8-10).
  * Deterministic skips run first; the uncertain band allows read (fail-open).
  */
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync, statSync, globSync } from 'node:fs';
 import { basename, isAbsolute, join, relative, resolve } from 'node:path';
 import type { DietConfig } from './config.js';
 import { isNeverSendInput, redactText } from './privacy.js';
@@ -65,6 +65,7 @@ export interface FileScoutBatchResult {
   question: string;
   goal?: string;
   results: FileScoutBatchItem[];
+  usefulResults: FileScoutBatchItem[];
   skipped: string[];
   jevCalls: number;
   input_tokens: number | null;
@@ -121,7 +122,14 @@ function decideBoolean(probability: number, config: DietConfig): Pick<FileScoutB
   if (probability <= config.fileScoutSkipThreshold) {
     return { answer: false, action: 'skip', reason: 'jev_below_skip_threshold', value };
   }
+  if (probability < config.fileScoutMinValueScore) {
+    return { answer: false, action: 'skip', reason: 'below_min_value_in_uncertain_band', value: 'low' };
+  }
   return { answer: true, action: 'read', reason: 'uncertain_band_allow_read', value };
+}
+
+export function isUsefulScoutResult(item: FileScoutBatchItem): boolean {
+  return item.action === 'read' && item.value !== 'low';
 }
 
 function scoutState(input: FileScoutRequest, rel: string, sample: string, goal: string) {
@@ -242,7 +250,16 @@ export function expandScoutPaths(rawPaths: string[], cwd: string, maxFiles: numb
   for (const raw of rawPaths) {
     const trimmed = raw.trim();
     if (trimmed.length === 0) continue;
-    if (trimmed.includes('*')) continue;
+    if (trimmed.includes('*')) {
+      const pattern = isAbsolute(trimmed) ? trimmed : join(cwd, trimmed);
+      const matches = globSync(pattern, { cwd, nodir: true, absolute: true });
+      for (const match of matches) {
+        out.push(match);
+        if (out.length >= maxFiles) break;
+      }
+      if (out.length >= maxFiles) break;
+      continue;
+    }
     out.push(resolveScoutPath(trimmed, cwd));
     if (out.length >= maxFiles) break;
   }
@@ -255,7 +272,7 @@ export async function jevFiles(
   input: { paths: string[]; question: string; goal?: string; cwd?: string; maxFiles?: number },
 ): Promise<FileScoutBatchResult> {
   if (!config.fileScout) {
-    return { question: input.question, goal: input.goal, results: [], skipped: ['fileScout disabled'], jevCalls: 0, input_tokens: 0, model: null };
+    return { question: input.question, goal: input.goal, results: [], usefulResults: [], skipped: ['fileScout disabled'], jevCalls: 0, input_tokens: 0, model: null };
   }
   const cwd = input.cwd ?? process.cwd();
   const maxFiles = Math.min(input.maxFiles ?? config.fileScoutMaxFiles, config.fileScoutMaxFiles);
@@ -285,10 +302,12 @@ export async function jevFiles(
       value: one.value,
     });
   }
+  const usefulResults = results.filter(isUsefulScoutResult);
   return {
     question: input.question,
     goal: input.goal,
     results,
+    usefulResults,
     skipped,
     jevCalls: calls,
     input_tokens: calls === 0 ? 0 : tokens,

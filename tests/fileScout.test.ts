@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_CONFIG } from '../src/config.js';
-import { jevFileBoolean, jevFileChoice, jevFiles } from '../src/fileScout.js';
+import { expandScoutPaths, jevFileBoolean, jevFileChoice, jevFiles } from '../src/fileScout.js';
 import { testAsker } from '../src/codex/transport.js';
 
 const config = { ...DEFAULT_CONFIG, fileScout: true };
@@ -26,7 +26,8 @@ describe('file scout', () => {
     mkdirSync(srcDir, { recursive: true });
     const path = join(srcDir, 'app.ts');
     writeFileSync(path, 'export function app() { return 1; }\n');
-    const result = await jevFileBoolean(testAsker({ relevant: 0.4 }), config, {
+    const tuned = { ...config, fileScoutMinValueScore: 0.35 };
+    const result = await jevFileBoolean(testAsker({ relevant: 0.4 }), tuned, {
       path, question: 'Is this needed?', cwd: dir,
     });
     expect(result.action).toBe('read');
@@ -65,5 +66,39 @@ describe('file scout', () => {
     });
     expect(batch.jevCalls).toBe(2);
     expect(batch.results).toHaveLength(2);
+  });
+
+  it('skips uncertain band when below min value score', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cd-scout-min-'));
+    const path = join(dir, 'maybe.ts');
+    writeFileSync(path, 'export const x = 1;\n');
+    const tuned = { ...config, fileScoutMinValueScore: 0.55 };
+    const result = await jevFileBoolean(testAsker({ relevant: 0.4 }), tuned, {
+      path, question: 'Is this needed?', cwd: dir,
+    });
+    expect(result.action).toBe('skip');
+    expect(result.reason).toBe('below_min_value_in_uncertain_band');
+  });
+
+  it('expands glob paths', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cd-scout-glob-'));
+    const src = join(dir, 'src');
+    mkdirSync(src, { recursive: true });
+    writeFileSync(join(src, 'a.ts'), 'a');
+    writeFileSync(join(src, 'b.ts'), 'b');
+    const expanded = expandScoutPaths(['src/*.ts'], dir, 10);
+    expect(expanded.length).toBe(2);
+  });
+
+  it('returns usefulResults for high-value reads', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cd-scout-useful-'));
+    writeFileSync(join(dir, 'good.ts'), 'scout mcp\n');
+    writeFileSync(join(dir, 'bad.ts'), 'noise\n');
+    const batch = await jevFiles(testAsker({ relevant: 0.9 }), config, {
+      paths: [join(dir, 'good.ts'), join(dir, 'bad.ts')],
+      question: 'Is this about file scout MCP?', cwd: dir,
+    });
+    expect(batch.usefulResults.length).toBeGreaterThan(0);
+    expect(batch.usefulResults.every((item) => item.action === 'read' && item.value !== 'low')).toBe(true);
   });
 });
