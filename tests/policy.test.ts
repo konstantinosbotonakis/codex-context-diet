@@ -112,7 +112,8 @@ describe('policies through the hook', () => {
     env.CONTEXT_DIET_TEST_ANSWERS = dropAnswers;
     await adapterMain(payload('t1', 'x'.repeat(400)), env);
     const second = JSON.parse(await adapterMain(payload('t2', 'y'.repeat(400)), env)) as Record<string, unknown>;
-    expect(second.decision).toBe('block');
+    expect(second.continue).toBe(false);
+    expect(second.decision).toBeUndefined();
     const log = readFileSync(logPath(env), 'utf8');
     expect(log).toContain('"policy":"Bash:test"');
     expect(log).toContain('"minTokens":10');

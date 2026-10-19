@@ -134,8 +134,9 @@ describe('runDiet', () => {
     expect(dropped.decision.action).toBe('drop_result');
     expect(dropped.blocked).toBe(true);
     const stdout = dropped.stdout as Record<string, unknown>;
-    expect(stdout.decision).toBe('block');
-    expect(String(stdout.reason)).toContain('Re-run the tool if you need the full output.');
+    expect(stdout.continue).toBe(false);
+    expect(stdout.decision).toBeUndefined();
+    expect(String(stdout.stopReason)).toContain('Re-run the tool if you need the full output.');
   });
 
   it('annotates but never edits when the hazard guard fires', async () => {
