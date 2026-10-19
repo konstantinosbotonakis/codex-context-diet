@@ -38,8 +38,8 @@ Every feature is one of four things, and the text below labels which:
 The tool-result adapter writes exactly three shapes, and nothing else:
 
 ```json
-{"decision": "block",
- "reason": "<head>\n[codex-context-diet] Replaced 18422 chars of Bash output with this 300-char head. Ran: Bash npm test. Re-run the tool if you need the full output.",
+{"continue": false,
+ "stopReason": "<head>\n[codex-context-diet] Replaced 18422 chars of Bash output with this 300-char head. Ran: Bash npm test. Re-run the tool if you need the full output.",
  "hookSpecificOutput": {"hookEventName": "PostToolUse", "additionalContext": "<the same note>"}}
 ```
 
@@ -51,7 +51,7 @@ The tool-result adapter writes exactly three shapes, and nothing else:
 {}
 ```
 
-The first shape replaces the model-visible result. The second carries no `decision` field, so Codex adds the text as developer context and leaves the tool result intact. The third covers keep, every error, and every exempt case.
+The first shape replaces the model-visible result while preserving the original result and status for programmatic callers in code mode. It does not reject a successful nested tool promise. The second adds developer context and leaves the tool result intact. The third covers keep, every error, and every exempt case.
 
 ### How the decision is made
 

@@ -79,7 +79,8 @@ describe('duplicate detection', () => {
     } as never);
     expect(outcome.decision.reason).toBe(DUPLICATE_REASON);
     expect(outcome.blocked).toBe(true);
-    expect(outcome.stdout?.decision).toBe('block');
+    expect(outcome.stdout?.continue).toBe(false);
+    expect(outcome.stdout?.decision).toBeUndefined();
     expect(String(outcome.note)).toContain('identical to an earlier call');
   });
 });
@@ -89,10 +90,12 @@ describe('duplicate elimination through the hook', () => {
     const env = tempEnv({ debug: true, minTokens: 10 });
     expect(await adapterMain(payload('t1'), env)).toBe('');
     const second = JSON.parse(await adapterMain(payload('t2'), env)) as Record<string, unknown>;
-    expect(second.decision).toBe('block');
-    expect(String(second.reason)).toContain('identical to an earlier call');
+    expect(second.continue).toBe(false);
+    expect(second.decision).toBeUndefined();
+    expect(String(second.stopReason)).toContain('identical to an earlier call');
     const third = JSON.parse(await adapterMain(payload('t3'), env)) as Record<string, unknown>;
-    expect(third.decision).toBe('block');
+    expect(third.continue).toBe(false);
+    expect(third.decision).toBeUndefined();
   });
 
   it('refuses to call a re-read a duplicate after a patch touched the file', async () => {
@@ -123,6 +126,7 @@ describe('duplicate elimination through the hook', () => {
       });
     await adapterMain(read('r1'), env);
     const second = JSON.parse(await adapterMain(read('r2'), env)) as Record<string, unknown>;
-    expect(second.decision).toBe('block');
+    expect(second.continue).toBe(false);
+    expect(second.decision).toBeUndefined();
   });
 });

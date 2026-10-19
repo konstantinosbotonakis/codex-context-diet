@@ -103,7 +103,7 @@ describe('the Context Diet MCP server', () => {
     const first = await call('tools/call', { name: 'post_tool_use', arguments: bigPayload('t1') });
     expect(toolText(first)).toBe('');
     const second = await call('tools/call', { name: 'post_tool_use', arguments: bigPayload('t2') });
-    expect(toolText(second)).toContain('"decision":"block"');
+    expect(toolText(second)).toContain('"continue":false');
   });
 
   it('answers a boolean question through jev_boolean', async () => {

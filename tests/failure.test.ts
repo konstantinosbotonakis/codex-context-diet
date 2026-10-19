@@ -90,7 +90,8 @@ describe('huge inputs stay bounded', () => {
     const output = await adapterMain(payload('t2', 'y'.repeat(2_000_000)), env);
     const elapsed = Date.now() - started;
     const decision = JSON.parse(output) as Record<string, unknown>;
-    expect(decision.decision).toBe('block');
+    expect(decision.continue).toBe(false);
+    expect(decision.decision).toBeUndefined();
     expect(output.length).toBeLessThan(8000);
     expect(elapsed).toBeLessThan(3000);
   });

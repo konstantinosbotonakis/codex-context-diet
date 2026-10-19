@@ -108,8 +108,9 @@ describe('built entry points', () => {
     const env = { PLUGIN_DATA: data, CONTEXT_DIET_TEST_ANSWERS: dietAnswers };
     expect(run('adapter-main.js', dietPayload, env)).toBe('');
     const parsed = JSON.parse(run('adapter-main.js', dietPayload, env)) as Record<string, unknown>;
-    expect(parsed.decision).toBe('block');
-    expect(String(parsed.reason)).toContain('Re-run the tool if you need the full output.');
+    expect(parsed.continue).toBe(false);
+    expect(parsed.decision).toBeUndefined();
+    expect(String(parsed.stopReason)).toContain('Re-run the tool if you need the full output.');
   });
 
   it('adapter writes nothing for a tool it never diets', () => {

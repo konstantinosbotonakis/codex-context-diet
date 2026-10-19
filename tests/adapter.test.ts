@@ -69,10 +69,11 @@ describe('PostToolUse adapter', () => {
     const env = { ...tempEnv(), CONTEXT_DIET_TEST_ANSWERS: '{"needs_contents":0.05,"replaceable":0.9,"keep_call":0.9,"agent_directed":0.02,"behaviour_change":0.02}' };
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     const parsed = JSON.parse(await dietMain(payload(), env)) as Record<string, unknown>;
-    expect(Object.keys(parsed).sort()).toEqual(['decision', 'hookSpecificOutput', 'reason']);
-    expect(parsed.decision).toBe('block');
-    expect(String(parsed.reason)).toContain(bigText().slice(0, 50));
-    expect(String(parsed.reason)).toContain('Re-run the tool if you need the full output.');
+    expect(Object.keys(parsed).sort()).toEqual(['continue', 'hookSpecificOutput', 'stopReason']);
+    expect(parsed.continue).toBe(false);
+    expect(parsed.decision).toBeUndefined();
+    expect(String(parsed.stopReason)).toContain(bigText().slice(0, 50));
+    expect(String(parsed.stopReason)).toContain('Re-run the tool if you need the full output.');
     const hook = parsed.hookSpecificOutput as Record<string, unknown>;
     expect(hook.hookEventName).toBe('PostToolUse');
     expect(readCache(env, 's1')).toHaveLength(2);
@@ -110,7 +111,8 @@ describe('PostToolUse adapter', () => {
     writeFileSync(configPath(env), JSON.stringify(hookTestConfig({ stateSource: 'off' })));
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     const parsed = JSON.parse(await dietMain(payload(), env)) as Record<string, unknown>;
-    expect(parsed.decision).toBe('block');
+    expect(parsed.continue).toBe(false);
+    expect(parsed.decision).toBeUndefined();
     expect(readCache(env, 's1')).toHaveLength(1);
   });
 });

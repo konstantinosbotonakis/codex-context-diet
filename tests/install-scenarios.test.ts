@@ -45,7 +45,8 @@ describe('upgrades', () => {
     const old = { tool_use_id: 'old', tool_name: 'Bash', at: '2026-09-18T00:00:00.000Z', input: 'npm test', head: 'h', tail: 't', chars: 400, decision: 'keep', goal_index: 0 };
     writeFileSync(cachePath(env, 's1'), JSON.stringify(old) + '\n');
     const out = await adapterMain(payload('t1', 'x'.repeat(4000)), env);
-    expect(JSON.parse(out).decision).toBe('block');
+    expect(JSON.parse(out).continue).toBe(false);
+    expect(JSON.parse(out).decision).toBeUndefined();
     const entries = readCache(env, 's1', { ...DEFAULT_CONFIG, minTokens: 10 });
     expect(entries[0]?.tool_use_id).toBe('old');
     expect(entries.length).toBe(2);
@@ -56,7 +57,8 @@ describe('upgrades', () => {
     env.CONTEXT_DIET_TEST_ANSWERS = dropAnswers;
     appendCache(env, 's1', seed, DEFAULT_CONFIG);
     const out = await adapterMain(payload('t1', 'y'.repeat(4000)), env);
-    expect(JSON.parse(out).decision).toBe('block');
+    expect(JSON.parse(out).continue).toBe(false);
+    expect(JSON.parse(out).decision).toBeUndefined();
   });
 });
 
@@ -115,7 +117,8 @@ describe('quiet configurations', () => {
     await sessionMain(JSON.stringify({ hook_event_name: 'UserPromptSubmit', session_id: 's1', prompt: 'ship it' }), env);
     const out = await adapterMain(payload('t1', 's'.repeat(4000)), env);
     // Single-turn still judges, but nothing is read from or written to disk.
-    expect(JSON.parse(out).decision).toBe('block');
+    expect(JSON.parse(out).continue).toBe(false);
+    expect(JSON.parse(out).decision).toBeUndefined();
     expect(() => readFileSync(cachePath(env, 's1'), 'utf8')).toThrow();
   });
 });
