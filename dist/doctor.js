@@ -48,21 +48,57 @@ function dirSize(path) {
     }
     return { files, bytes };
 }
-/** One MCP stdio round trip: initialize, then list the tools it advertises. */
-function mcpHandshake(env, serverPath) {
+function isRecord(value) {
+    return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+/** Probe the shipped Codex launcher from its declared plugin-relative directory. */
+export function checkMcp(root, env) {
+    const fail = (detail) => ({ name: 'mcp', status: 'fail', detail });
+    const manifest = readJson(join(root, '.mcp.json'));
+    if (manifest.error)
+        return fail('.mcp.json: ' + manifest.error);
+    const servers = manifest.value?.mcpServers;
+    const server = isRecord(servers) ? servers['context-diet'] : null;
+    if (!isRecord(server) || server.command !== 'node' ||
+        (server.cwd !== './' && server.cwd !== '.') || !Array.isArray(server.args) ||
+        server.args.length !== 1 || server.args[0] !== './dist/mcp-server.js') {
+        return fail('.mcp.json must launch node ./dist/mcp-server.js from the plugin root');
+    }
     const request = (id, method, params) => JSON.stringify({ jsonrpc: '2.0', id, method, params }) + '\n';
-    const response = spawnSync(process.execPath, [serverPath], {
+    const response = spawnSync(server.command, server.args, {
+        cwd: join(root, server.cwd),
         input: request(1, 'initialize', {
             protocolVersion: '2024-11-05',
             capabilities: {},
             clientInfo: { name: 'doctor', version: '1' },
-        }) + request(2, 'tools/list', {}),
+        }) + '{"jsonrpc":"2.0","method":"notifications/initialized"}\n' + request(2, 'tools/list', {}),
         encoding: 'utf8',
         timeout: 5000,
         env,
     });
-    const stdout = typeof response.stdout === 'string' ? response.stdout : '';
-    return stdout.includes('"serverInfo"') ? stdout : null;
+    if (response.error)
+        return fail('MCP launch failed: ' + response.error.message);
+    if (response.status !== 0)
+        return fail('MCP process exited with ' + (response.signal ?? response.status));
+    const results = new Map();
+    try {
+        for (const line of response.stdout.trim().split('\n')) {
+            const reply = JSON.parse(line);
+            if (isRecord(reply) && reply.jsonrpc === '2.0' && typeof reply.id === 'number' && isRecord(reply.result)) {
+                results.set(reply.id, reply.result);
+            }
+        }
+    }
+    catch {
+        return fail('MCP server returned invalid JSON');
+    }
+    if (!isRecord(results.get(1)?.serverInfo))
+        return fail('MCP initialize did not return serverInfo');
+    const tools = results.get(2)?.tools;
+    if (!Array.isArray(tools) || !tools.some((tool) => isRecord(tool) && tool.name === 'jev_ask')) {
+        return fail('MCP tools/list did not advertise jev_ask');
+    }
+    return { name: 'mcp', status: 'ok', detail: 'stdio handshake answered, ' + tools.length + ' tool(s) advertised' };
 }
 export function runDoctor(env) {
     const checks = [];
@@ -220,21 +256,7 @@ export function runDoctor(env) {
             ? referenced.size + ' entry point(s) present, dist matches the hook wiring'
             : 'missing from dist: ' + missing.join(', ') + '; run npm run build',
     });
-    const mcpServer = join(pluginRoot, 'dist', 'mcp-server.js');
-    const mcpManifest = readJson(join(pluginRoot, '.mcp.json'));
-    if (mcpManifest.error !== null) {
-        checks.push({ name: 'mcp', status: 'fail', detail: '.mcp.json: ' + mcpManifest.error });
-    }
-    else if (!existsSync(mcpServer)) {
-        checks.push({ name: 'mcp', status: 'fail', detail: 'dist/mcp-server.js is missing; run npm run build' });
-    }
-    else {
-        const stdout = mcpHandshake(env, mcpServer);
-        const tools = stdout === null ? 0 : (stdout.match(/"inputSchema"/g) ?? []).length;
-        checks.push(stdout === null
-            ? { name: 'mcp', status: 'fail', detail: 'no stdio handshake within 5s' }
-            : { name: 'mcp', status: 'ok', detail: 'stdio handshake answered, ' + tools + ' tool(s) advertised' });
-    }
+    checks.push(checkMcp(pluginRoot, env));
     return checks;
 }
 export function renderDoctor(checks) {

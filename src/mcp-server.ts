@@ -15,7 +15,7 @@
  * The protocol is newline-delimited JSON-RPC 2.0 over stdin/stdout, per the
  * MCP stdio transport. No dependencies.
  */
-import { existsSync, mkdirSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createInterface } from 'node:readline';
 import { appendEvent } from './codex/log.js';
@@ -35,6 +35,7 @@ import type { JevAsker, JevQuestions } from './types.js';
 
 const PROTOCOL_VERSION = '2024-11-05';
 const SERVER_NAME = 'context-diet';
+const SERVER_VERSION: string = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 const MAX_STATE_CHARS = 120_000;
 type Args = Record<string, unknown>;
 
@@ -457,7 +458,7 @@ async function handle(message: Record<string, unknown>, env: NodeJS.ProcessEnv):
   const method = text(message.method);
   const params = (message.params && typeof message.params === 'object' ? message.params : {}) as Args;
   if (method === 'initialize') {
-    return { jsonrpc: '2.0', id, result: { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: { name: SERVER_NAME, version: '1.0.0' } } };
+    return { jsonrpc: '2.0', id, result: { protocolVersion: PROTOCOL_VERSION, capabilities: { tools: {} }, serverInfo: { name: SERVER_NAME, version: SERVER_VERSION } } };
   }
   if (method === 'notifications/initialized' || method === 'notifications/cancelled') return null;
   if (method === 'ping') return { jsonrpc: '2.0', id, result: {} };

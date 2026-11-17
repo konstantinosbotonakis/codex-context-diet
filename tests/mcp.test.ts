@@ -58,7 +58,8 @@ async function start(overrides: Record<string, string> = {}): Promise<Server> {
     capabilities: {},
     clientInfo: { name: 'test', version: '1' },
   });
-  expect(started.result).toBeTruthy();
+  const { version } = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8'));
+  expect(started.result).toMatchObject({ serverInfo: { name: 'context-diet', version } });
   return { data, call, child };
 }
 

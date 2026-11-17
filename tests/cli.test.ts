@@ -1,12 +1,12 @@
 import { spawnSync } from 'node:child_process';
-import { mkdtempSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { renderBenchmark } from '../src/bench.js';
 import { configPath } from '../src/config.js';
-import { doctorExitCode, renderDoctor, runDoctor } from '../src/doctor.js';
+import { checkMcp, doctorExitCode, renderDoctor, runDoctor } from '../src/doctor.js';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -29,6 +29,33 @@ describe('doctor', () => {
     expect(checks.find((check) => check.name === 'config')?.status).toBe('fail');
     expect(doctorExitCode(checks)).toBe(1);
     expect(renderDoctor(checks)).toContain('1 fail');
+  });
+
+  it('reports the broken 0.8.5 launcher in the installed manifest', () => {
+    const root = mkdtempSync(join(tmpdir(), 'cd-doctor-launch-'));
+    try {
+      const manifest = { mcpServers: { 'context-diet': { command: 'sh', args: ['-c', 'exec node "$PLUGIN_ROOT/dist/mcp-server.js"'] } } };
+      writeFileSync(join(root, '.mcp.json'), JSON.stringify(manifest));
+      expect(checkMcp(root, process.env).detail).toContain('.mcp.json must launch node');
+    } finally {
+      rmSync(root, { recursive: true });
+    }
+  });
+
+  it('fails when initialize succeeds but tools/list returns an error', () => {
+    const root = mkdtempSync(join(tmpdir(), 'cd doctor tools '));
+    try {
+      const manifest = { mcpServers: { 'context-diet': { command: 'node', args: ['./dist/mcp-server.js'], cwd: './' } } };
+      writeFileSync(join(root, '.mcp.json'), JSON.stringify(manifest));
+      mkdirSync(join(root, 'dist'));
+      writeFileSync(join(root, 'dist/mcp-server.js'), [
+        'console.log(JSON.stringify({jsonrpc: "2.0", id: 1, result: {serverInfo: {name: "fixture"}}}));',
+        'console.log(JSON.stringify({jsonrpc: "2.0", id: 2, error: {code: -32603, message: "failed"}}));',
+      ].join('\n'));
+      expect(checkMcp(root, process.env)).toMatchObject({ status: 'fail', detail: expect.stringContaining('tools/list') });
+    } finally {
+      rmSync(root, { recursive: true });
+    }
   });
 
   it('passes on this checkout without a key, with the key as a warning', () => {

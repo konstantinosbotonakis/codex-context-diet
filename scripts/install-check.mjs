@@ -50,10 +50,12 @@ cpSync(root, marketplace, {
 
 const env = { ...process.env, CODEX_HOME: home };
 const run = (args) => execFileSync(codex, args, { env, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-const listHooks = () => new Promise((resolve, reject) => {
-  const server = spawn(codex, ['app-server', '--stdio'], { env, cwd: marketplace, stdio: ['pipe', 'pipe', 'pipe'] });
+delete env.PLUGIN_ROOT;
+const inspectInstall = () => new Promise((resolve, reject) => {
+  const server = spawn(codex, ['app-server', '--stdio'], { env, cwd: work, stdio: ['pipe', 'pipe', 'pipe'] });
   let stdout = '';
   let stderr = '';
+  let hooks;
   let finished = false;
   const finish = (error, result) => {
     if (finished) return;
@@ -63,7 +65,7 @@ const listHooks = () => new Promise((resolve, reject) => {
     if (error) reject(error);
     else resolve(result);
   };
-  const timer = setTimeout(() => finish(new Error('hooks/list timed out: ' + stderr.slice(-500))), 15000);
+  const timer = setTimeout(() => finish(new Error('Codex install probe timed out: ' + stderr.slice(-500))), 15000);
   const send = (message) => server.stdin.write(JSON.stringify(message) + '\n');
   server.on('error', (error) => finish(error));
   server.on('close', (code) => finish(new Error('app-server exited ' + code + ': ' + stderr.slice(-500))));
@@ -83,7 +85,12 @@ const listHooks = () => new Promise((resolve, reject) => {
         send({ jsonrpc: '2.0', id: 2, method: 'hooks/list', params: { cwds: [marketplace] } });
       } else if (message.id === 2) {
         if (message.error) return finish(new Error(JSON.stringify(message.error)));
-        finish(null, message.result?.data?.[0]);
+        hooks = message.result?.data?.[0];
+        send({ jsonrpc: '2.0', id: 3, method: 'mcpServerStatus/list', params: { serverName: 'context-diet' } });
+      } else if (message.id === 3) {
+        if (message.error) return finish(new Error(JSON.stringify(message.error)));
+        const server = message.result?.data?.find((item) => item.name === 'context-diet');
+        finish(null, { hooks, tools: Object.keys(server?.tools ?? {}) });
       }
     }
   });
@@ -143,7 +150,8 @@ const selectedHandlers = selectedHooks && typeof selectedHooks.hooks === 'object
 check('plugin-discovered lifecycle handlers use commands', selectedHandlers.length > 0 && selectedHandlers.every((handler) => handler.type === 'command'));
 
 try {
-  const registry = await listHooks();
+  const { hooks: registry, tools } = await inspectInstall();
+  check('installed MCP server advertises its tools', tools.includes('jev_ask'), tools.length + ' tools');
   const registered = registry?.hooks?.filter((hook) => hook.pluginId === selector) ?? [];
   check('Codex registers the plugin lifecycle hooks',
     selectedHandlers.length > 0 && registered.length === selectedHandlers.length &&
@@ -151,7 +159,7 @@ try {
     registry.errors.length === 0 && registry.warnings.length === 0,
     registered.length + '/' + selectedHandlers.length + ' handlers');
 } catch (error) {
-  check('Codex registers the plugin lifecycle hooks', false, String(error));
+  check('Codex app-server inspects the installed plugin', false, String(error));
 }
 
 console.log('');
