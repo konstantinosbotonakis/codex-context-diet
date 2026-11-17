@@ -29,6 +29,9 @@ import { configuredAsker } from './codex/transport.js';
 import { jevFileBoolean, jevFileChoice, jevFiles } from './fileScout.js';
 import { loadConfig, pluginDataDir } from './config.js';
 import type { DietConfig } from './config.js';
+import { capsuleBudgets, renderCapsule } from './compressors/index.js';
+import { isSkippedTool } from './codex/payload.js';
+import { shouldSkipShellDiet } from './shellDiet.js';
 import { redactText } from './privacy.js';
 import { noulAnswer } from './request.js';
 import type { JevAsker, JevQuestions } from './types.js';
@@ -180,6 +183,16 @@ const TOOLS = [
     { paths: { type: 'array', items: { type: 'string' } }, question: { type: 'string' }, goal: { type: 'string' }, cwd: { type: 'string' }, max_files: { type: 'number' } },
     ['paths', 'question'],
   ),
+  tool(
+    'display_text',
+    'Render text-only MCP content locally for functions.exec. Pass the original result.content, then emit only this response. Raw data stays available to your JavaScript.',
+    {
+      tool_name: { type: 'string' },
+      content: { type: 'array', items: { type: 'object', properties: { type: { const: 'text' }, text: { type: 'string' } }, required: ['type', 'text'] } },
+      is_error: { type: 'boolean', description: 'Pass result.isError to preserve errors in full.' },
+    },
+    ['tool_name', 'content'],
+  ),
 ];
 
 type JevSetup = { error: string } | { config: DietConfig; asker: JevAsker };
@@ -201,6 +214,25 @@ function stateOf(args: Args, config: { privacyMode: 'strict' | 'standard' | 'off
 }
 
 async function callTool(name: string, args: Args, env: NodeJS.ProcessEnv): Promise<unknown> {
+  if (name === 'display_text') {
+    if (!Array.isArray(args.content)) return fail('display_text expects an array of text blocks');
+    if (args.is_error !== undefined && typeof args.is_error !== 'boolean') return fail('is_error must be boolean');
+    const parts: string[] = [];
+    for (const block of args.content) {
+      if (block?.type !== 'text' || typeof block.text !== 'string') {
+        return fail('display_text accepts text only; forward media with the matching code-mode output helper');
+      }
+      parts.push(block.text);
+    }
+    const config = loadConfig(env);
+    const body = redactText(parts.join('\n'), config.privacyMode).text;
+    const toolName = text(args.tool_name);
+    if (args.is_error) return fail(body);
+    if (body.length <= config.capsuleMaxChars || !config.enabled || config.dryRun || config.mode !== 'diet' ||
+        isSkippedTool(toolName, config) || shouldSkipShellDiet(config, toolName)) return ok(body);
+    const input = { toolName: redactText(toolName, config.privacyMode).text, inputLine: '', resultText: body, isError: false };
+    return ok(renderCapsule(input, capsuleBudgets(config)).text);
+  }
   if (name === 'post_tool_use') {
     const payload = {
       hook_event_name: 'PostToolUse',

@@ -76,5 +76,8 @@ export function inputLine(toolName: string, toolInput: unknown): string {
 export function isSkippedTool(toolName: string, config: DietConfig): boolean {
   if (toolName.length === 0) return true;
   if (PATCH_ALIASES.has(toolName)) return true;
+  // The caller already chose a display representation. Keep this helper out of
+  // the decision pipeline, including its original text arguments.
+  if (/^mcp__context[-_]diet__display_text$/.test(toolName)) return true;
   return config.neverDietTools.includes(toolName);
 }

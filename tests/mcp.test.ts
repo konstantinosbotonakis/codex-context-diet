@@ -95,8 +95,32 @@ describe('the Context Diet MCP server', () => {
       'pre_compact', 'post_compact',
       'jev_boolean', 'jev_choice', 'jev_score',
       'jev_ask',
-      'jev_file_boolean', 'jev_file_choice', 'jev_files',
+      'jev_file_boolean', 'jev_file_choice', 'jev_files', 'display_text',
     ]);
+  });
+
+  it('renders long text locally while preserving short text and error status', async () => {
+    const { call, data } = await start();
+    const display = (body: string, is_error = false) => call('tools/call', {
+      name: 'display_text', arguments: { tool_name: 'mcp__inventory__list', content: [{ type: 'text', text: body }], is_error },
+    });
+    const rows = Array.from({ length: 320 }, (_, i) => 'inventory widget ' + i + ' inspected successfully').join('\n');
+    const shown = await display(rows);
+    expect(isError(shown)).toBe(false);
+    expect(toolText(shown)).toContain('[codex-context-diet evidence]');
+    expect(toolText(shown).length).toBeLessThanOrEqual(1200);
+    expect(toolText(shown)).not.toContain('widget 160 inspected');
+    expect(toolText(await display('short result'))).toBe('short result');
+    const failed = await display(rows, true);
+    expect(isError(failed)).toBe(true);
+    expect(toolText(failed)).toBe(rows);
+    const media = await call('tools/call', { name: 'display_text', arguments: {
+      tool_name: 'camera', content: [{ type: 'image', data: 'example' }],
+    } });
+    expect(isError(media)).toBe(true);
+    expect(toolText(await display('token=synthetic-example-only'))).toContain('<REDACTED_SECRET>');
+    writeFileSync(configPath({ PLUGIN_DATA: data }), JSON.stringify(hookTestConfig({ mode: 'observe' })));
+    expect(toolText(await display(rows))).toBe(rows);
   });
 
   it('runs the diet decision through post_tool_use', async () => {

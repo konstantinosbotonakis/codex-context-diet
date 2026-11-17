@@ -17,6 +17,15 @@ const EXTRACTORS = [
     fileRead,
     mcpOutput,
 ];
+export function capsuleBudgets(config) {
+    return {
+        maxChars: config.capsuleMaxChars,
+        maxErrorLines: config.capsuleMaxErrorLines,
+        maxStackFrames: config.capsuleMaxStackFrames,
+        maxSummaryLines: config.capsuleMaxSummaryLines,
+        headChars: config.truncateHeadChars,
+    };
+}
 export function extractEvidence(input, budgets) {
     for (const extractor of EXTRACTORS) {
         const found = extractor(input, budgets);

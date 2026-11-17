@@ -1,3 +1,4 @@
+import type { DietConfig } from '../config.js';
 import { buildLog } from './buildLog.js';
 import { fileRead } from './fileRead.js';
 import { generic } from './generic.js';
@@ -23,6 +24,16 @@ export interface Capsule {
   kind: string;
   text: string;
   omittedChars: number;
+}
+
+export function capsuleBudgets(config: DietConfig): CapsuleBudgets {
+  return {
+    maxChars: config.capsuleMaxChars,
+    maxErrorLines: config.capsuleMaxErrorLines,
+    maxStackFrames: config.capsuleMaxStackFrames,
+    maxSummaryLines: config.capsuleMaxSummaryLines,
+    headChars: config.truncateHeadChars,
+  };
 }
 
 export function extractEvidence(input: CapsuleInput, budgets: CapsuleBudgets): ExtractedCapsule {

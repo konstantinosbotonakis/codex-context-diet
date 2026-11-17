@@ -11,7 +11,7 @@ import {
 } from '../questions.js';
 import { inputTokensOf, noulAnswer } from '../request.js';
 import { redactValue } from '../privacy.js';
-import { renderCapsule } from '../compressors/index.js';
+import { capsuleBudgets, renderCapsule } from '../compressors/index.js';
 import { DUPLICATE_REASON, fingerprint, resourceOf } from '../dedupe.js';
 import { selectChunks } from '../chunks.js';
 import { looksLikeFailure } from '../sample.js';
@@ -159,13 +159,7 @@ export function buildNote(
   }
   const capsule = renderCapsule(
     { toolName: input.toolName, inputLine: input.inputLine, resultText: input.resultText, isError: input.isError },
-    {
-      maxChars: config.capsuleMaxChars,
-      maxErrorLines: config.capsuleMaxErrorLines,
-      maxStackFrames: config.capsuleMaxStackFrames,
-      maxSummaryLines: config.capsuleMaxSummaryLines,
-      headChars: config.truncateHeadChars,
-    },
+    capsuleBudgets(config),
     extras,
   );
   return (

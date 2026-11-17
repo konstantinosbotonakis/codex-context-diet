@@ -151,7 +151,7 @@ check('plugin-discovered lifecycle handlers use commands', selectedHandlers.leng
 
 try {
   const { hooks: registry, tools } = await inspectInstall();
-  check('installed MCP server advertises its tools', tools.includes('jev_ask'), tools.length + ' tools');
+  check('installed MCP server advertises its tools', tools.includes('jev_ask') && tools.includes('display_text'), tools.length + ' tools');
   const registered = registry?.hooks?.filter((hook) => hook.pluginId === selector) ?? [];
   check('Codex registers the plugin lifecycle hooks',
     selectedHandlers.length > 0 && registered.length === selectedHandlers.length &&

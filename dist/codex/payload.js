@@ -91,6 +91,10 @@ export function isSkippedTool(toolName, config) {
         return true;
     if (PATCH_ALIASES.has(toolName))
         return true;
+    // The caller already chose a display representation. Keep this helper out of
+    // the decision pipeline, including its original text arguments.
+    if (/^mcp__context[-_]diet__display_text$/.test(toolName))
+        return true;
     return config.neverDietTools.includes(toolName);
 }
 //# sourceMappingURL=payload.js.map

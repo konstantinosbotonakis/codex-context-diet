@@ -15,6 +15,10 @@ the session no longer needs. Replaced results keep a bounded head and a note
 saying what was dropped and which model judged it, so the model can re-run the
 tool and a reader can tell what was a System One judgement and what was code.
 
+## Displaying results in code mode
+
+For a large text-only MCP result in `functions.exec`, keep the original result for calculations. When a summary is sufficient, call Context Diet's `display_text` with the original tool name, `content: result.content`, and `is_error: result.isError === true`. Send only the helper's returned text blocks to `text()`. Printing the original blocks as well sends the full body to the model. A PostToolUse omission notice alone does not verify that the outer cell used the capsule.
+
 ## Delegate the narrow judgements
 
 Complex reasoning stays with Codex. Classification, filtering, routing, ranking and simple

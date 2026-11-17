@@ -51,7 +51,25 @@ The tool-result adapter writes exactly three shapes, and nothing else:
 {}
 ```
 
-The first shape replaces the model-visible result while preserving the original result and status for programmatic callers in code mode. It does not reject a successful nested tool promise. The second adds developer context and leaves the tool result intact. The third covers keep, every error, and every exempt case.
+For a direct tool call, Codex can substitute the stop text for the model-visible result. In code mode, the running JavaScript still receives the full result. A cell that calls `text(raw)` sends that full text to the model even when a separate hook notice says “chars omitted.” The hook statistics measure the proposed replacement; they cannot measure what an enclosing cell printed.
+
+### Display a large result in code mode
+
+Use `display_text` when your JavaScript needs the full result and the model only needs an evidence capsule. Keep the original result in the cell for computation. Pass its text blocks to the helper and print the returned text once:
+
+```js
+const result = await tools.mcp__codebase_memory_mcp__list_projects({});
+const display = await tools.mcp__context_diet__display_text({
+  tool_name: 'mcp__codebase_memory_mcp__list_projects',
+  content: result.content,
+  is_error: result.isError === true,
+});
+for (const block of display.content) {
+  if (block.type === 'text') text(block.text);
+}
+```
+
+Use the helper name exposed in your host's tool catalogue. This explicit call renders a capsule locally using `capsuleMaxChars` and the plugin's evidence extractors. It requires no earlier call or Jev decision. Short text and tool errors retain their full text, subject to configured redaction. Disabled, observe, dry-run, excluded-tool and shell-output settings still apply. Handle image and audio blocks with their native output helpers.
 
 ### How the decision is made
 
