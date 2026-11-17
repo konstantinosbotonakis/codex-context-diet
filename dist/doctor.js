@@ -6,9 +6,10 @@
  * answer: which layer is working, which is degraded, and what to do about it.
  */
 import { spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { checkThreadExecution } from './doctor-host.js';
 import { cachePath, countSessions, sessionsDir } from './cache.js';
 import { configPath, loadConfig, pluginDataDir } from './config.js';
 import { keyFilePath, resolveApiKey } from './key.js';
@@ -100,7 +101,12 @@ export function checkMcp(root, env) {
     }
     return { name: 'mcp', status: 'ok', detail: 'stdio handshake answered, ' + tools.length + ' tool(s) advertised' };
 }
-export function runDoctor(env) {
+export function runDoctor(input) {
+    const installedData = join(input.CODEX_HOME || join(input.HOME ?? '.', '.codex'), 'plugins', 'data', 'codex-context-diet-context-diet');
+    const useInstalled = input.PLUGIN_DATA === undefined && input.CLAUDE_PLUGIN_DATA === undefined && existsSync(installedData);
+    const env = useInstalled ? { ...input, PLUGIN_DATA: installedData } : input;
+    const dataSource = useInstalled ? 'Codex plugin data' : input.PLUGIN_DATA !== undefined ? 'PLUGIN_DATA' :
+        input.CLAUDE_PLUGIN_DATA !== undefined ? 'CLAUDE_PLUGIN_DATA' : 'standalone fallback';
     const checks = [];
     const config = loadConfig(env);
     const major = Number(process.versions.node.split('.')[0]);
@@ -162,10 +168,8 @@ export function runDoctor(env) {
     const dataDir = pluginDataDir(env);
     try {
         mkdirSync(dataDir, { recursive: true });
-        const probe = join(dataDir, '.doctor-probe');
-        writeFileSync(probe, String(process.pid));
-        unlinkSync(probe);
-        checks.push({ name: 'data directory', status: 'ok', detail: dataDir + ' is writable' });
+        rmdirSync(mkdtempSync(join(dataDir, '.doctor-probe-')));
+        checks.push({ name: 'data directory', status: 'ok', detail: dataDir + ' (' + dataSource + ', writable)' });
     }
     catch (error) {
         checks.push({
@@ -257,6 +261,9 @@ export function runDoctor(env) {
             : 'missing from dist: ' + missing.join(', ') + '; run npm run build',
     });
     checks.push(checkMcp(pluginRoot, env));
+    const thread = checkThreadExecution(env);
+    if (thread)
+        checks.push(thread);
     return checks;
 }
 export function renderDoctor(checks) {

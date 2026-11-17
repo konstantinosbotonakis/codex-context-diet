@@ -10,6 +10,7 @@ import { readUsageInput, renderUsage, summarizeUsage, WINDOWS } from './stats.js
 import { PRESSURE_THRESHOLDS } from './pressure.js';
 import { resolveEffectivePolicy } from './policy.js';
 import { renderEvalReport, runEvaluation } from './eval.js';
+import { checkHookTrust } from './doctor-host.js';
 import { doctorExitCode, renderDoctor, runDoctor } from './doctor.js';
 import { renderBenchmark, runBenchmark } from './bench.js';
 import { fakeAsker, throwingAsker, verifyCompaction } from './verify.js';
@@ -293,6 +294,7 @@ async function setupCommand() {
 }
 async function doctor() {
     const checks = runDoctor(process.env);
+    checks.push(await checkHookTrust(process.env));
     process.stdout.write(renderDoctor(checks) + '\n');
     return doctorExitCode(checks);
 }

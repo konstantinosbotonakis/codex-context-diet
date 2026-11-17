@@ -414,7 +414,7 @@ node dist/cli.js status       # config path, key source, data directory
 node dist/cli.js policy       # the size gate and thresholds each tool would get
 node dist/cli.js eval         # the 112-case decision corpus, offline; one false drop fails the run
 node dist/cli.js benchmark    # local pipeline, command-hook and MCP latency
-node dist/cli.js doctor       # install, key, storage, hooks and MCP health
+node dist/cli.js doctor       # data directory, hook trust, current T3 thread and MCP health
 node dist/cli.js verify       # eight checks over the decision path
 node dist/cli.js test         # one real request to Jev, needs a key
 ```

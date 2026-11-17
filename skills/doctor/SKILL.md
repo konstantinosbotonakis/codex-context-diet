@@ -13,7 +13,7 @@ node dist/cli.js doctor
 
 It probes the Node version, the config file, the Jev key, the data directory, the session
 caches, the log, the three version carriers, the hook wiring, the built entry points and a
-live MCP stdio handshake. Nothing leaves the machine. Exit code 1 means a hard failure.
+live MCP stdio handshake. It also checks hook trust in a fresh Codex app server. In T3, it reports the latest Context Diet hook result for the current thread and the last success visible in the recent log. Nothing leaves the machine. Exit code 1 means a hard failure.
 
 ## Following the result
 
@@ -24,6 +24,8 @@ live MCP stdio handshake. Nothing leaves the machine. Exit code 1 means a hard f
 | `data directory` fails | nothing can be written, so decisions still happen but nothing is recorded and stats stay empty |
 | `build` fails | `dist/` is missing an entry point the hooks reference. Run `npm run build` and reinstall or re-copy the plugin |
 | `mcp` fails | direct MCP tools and the optional MCP hooks are unavailable; the default command hooks can still run |
+| `Codex hook trust` fails | review the listed Context Diet hooks in `/hooks` |
+| `T3 thread hooks` reports an approval failure while trust passes | test a fresh T3 thread to see whether it picks up the saved approval |
 | `hooks` fails | the hook file is unreadable, which usually means a broken install |
 
 ## When everything is `ok` but nothing happens
